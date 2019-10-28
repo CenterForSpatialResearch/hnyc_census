@@ -1,0 +1,542 @@
+---
+title: "Census Cleaning MN"
+author: "Jolene Lim"
+date: "20 October 2019"
+output:
+  prettydoc::html_pretty:
+    theme: leonids
+    toc: TRUE
+---
+```{r base, include = FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+```{r setup}
+library(zoo)
+library(tidyverse)
+library(readxl)
+library(fuzzyjoin)
+library(reshape2)
+
+df2<-read_csv("us1910m_usa_sample100k.csv")
+oldstreets1<-read_xlsx("OldStreets_StreetNames_CleanNotChecked.xlsx")
+ed_descriptionMN<-read_xlsx("ED_descriptionsMN1910.xlsx")
+manhattan_dan<-read_csv("mn_segments_export.csv")
+sm_manhattan<-read_xlsx("SteveMorse_ManhattanStreets.xlsx")
+```
+
+# 1. Street Address
+## 1.1 Creating a street-enumeration district (ED) dictionary for matching addresses
+In order to identify and geocode streets from entries in the census data, street names had to be corrected. In many cases, the entries for street names were either misspelled, misrepresented or left missing. Addressing this issue required us to form a street dictionary that matches original census street entries to correct street names. This dictionary was formed using data from two sources. First, a pull from 1910 geodata and second, ED information from Steve Morse’s webpage.
+
+### Source 1: Data from street geography
+
+Data from street geography was first reshaped to give a dictionary in the long-format (`EDict`), with each row holding one address.
+```{r Creating EDict}
+EDict<-manhattan_dan%>%
+  select("streets"=MN_STREET1910_FULL_STREE,"ED1"=MN_STREET1910_MINUS_ED_ED,"ED2"=MN_STREET1910_PLUS_ED_ED)
+
+EDict1<-manhattan_dan%>%
+  select("streets"=MN_STREET1910_Y1910NAMESTREET,"ED1"=MN_STREET1910_MINUS_ED_ED,"ED2"=MN_STREET1910_PLUS_ED_ED)
+
+EDict2<-manhattan_dan%>%
+  select("streets"=MN_STREET1910_Y1910NAMEALT,"ED1"=MN_STREET1910_MINUS_ED_ED,"ED2"=MN_STREET1910_PLUS_ED_ED)
+
+EDict_MN<-rbind(EDict,EDict1,EDict2)
+
+EDict_MN$ED1<-as.numeric(as.character(EDict_MN$ED1))
+EDict_MN$ED2<-as.numeric(as.character(EDict_MN$ED2))
+```
+
+The 1910 geodata contained street names along with their respective EDs. This was then concatenated into one long list containing various addresses with EDs. Here, it is useful to note that one address (i.e. Cherry Street) may map onto multiple EDs and hence, will have multiple entries. This same process was also carried out for the Brooklyn street directory. 
+
+This pull was cleaned with several changes made in the new `cleaned` column. The following words were standardised to ensure better matches:
+
+```{r Cleaning Street Addresses}
+# Creating a copy of the original streetnames
+EDict_MN$cleaned<-EDict_MN$streets
+
+# Replacing with cleaned streetnames
+## Directions to be spelled out
+EDict_MN$cleaned<-gsub("\\<N\\>","NORTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<S\\>","SOUTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<E\\>","EAST",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<W\\>","WEST",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<\\\\>","",EDict_MN$cleaned)
+
+## Address types to be spelled in standardized manner
+EDict_MN$cleaned<-gsub("\\<SRT\\>|\\<SR\\>\\<SRT\\>|\\<STR\\>|\\<SST\\>|\\<SEET\\>|\\<TREET\\>|\\<SREET\\>|\\<SRT\\>|\\<REET\\>|\\<ST\\>","STREET",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<DR\\>|\\<DV\\>|\\<DE\\>|\\<DRV\\>|\\<DRI\\>|\\<DRIV\\>|\\<DRIE\\>","DRIVE",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<CIR\\>|\\<CRL\\>|\\<CIRC\\>|\\<CR\\>|\\<CL\\>|\\<CIRCL\\>|\\<CICLE\\>","CIRCLE",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<AVE\\>|\\<AV\\>|\\<AVN\\>|\\<AVEN\\>|\\<AVENU\\>","AVENUE",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<CT\\>|\\<CRT\\>|\\<CTR\\>|\\<COUR\\>|\\<COT\\>|\\<CORT\\>","COURT",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<BLVD\\>|\\<BVLD\\>|\\<BV\\>|\\<BLD\\>|\\<BD\\>|\\<BL\\>|\\<BLV\\>","BOULEVARD",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<ALY\\>|\\<AL\\>|\\<ALLY\\>|\\<ALEY\\>|\\<ALLE\\>|\\<AY\\>","ALLEY",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<PL\\>|\\<PLC\\>|\\<PLE\\>|\\<PC\\>|\\<PLAC\\>|\\<PLCE\\>|\\<PCE\\>","PLACE",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<PKWY\\>|\\<PARKW\\>|\\<PWY\\>|\\<PKW\\>|\\<PRKWY\\>|\\<PKWY\\>|\\<PKW\\>","PARKWAY",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<APPR\\>|\\<APR\\>|\\<APPROA\\>|\\<APRCH\\>|\\<APPRCH\\>","APPROACH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<TER\\>|\\<TERR\\>|\\<TRC\\>|\\<TRCE\\>|\\<TR\\>","TERRACE",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<PLZ\\>|\\<PLAZ\\>|\\<PZ\\>|\\<PLZA\\>","PLAZA",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<LN\\>|\\<LNE\\>|\\<LAN\\>","LANE",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<BRG\\>|\\<BRGD\\>|\\<BGE\\>","BRIDGE",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<HL\\>|\\<HLL\\>|\\<HIL\\>","HILL",EDict_MN$cleaned)
+
+## Numbers to be spelt out
+EDict_MN$cleaned<-gsub("\\<1ST\\>","FIRST",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b1\\b","FIRST",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<2ND\\>","SECOND",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b2\\b","SECOND",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<3RD\\>","THIRD",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b3\\b","THIRD",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<4TH\\>","FOURTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b4\\b","FOURTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<5TH\\>","FIFTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b5\\b","FIFTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<6TH\\>","SIXTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b6\\b","SIXTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<7TH\\>","SEVENTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b7\\b","SEVENTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<8TH\\>","EIGHTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b8\\b","EIGHTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<9TH\\>","NINTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b9\\b","NINTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<10TH\\>","TENTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b10\\b","TENTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<11TH\\>","ELEVENTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b11\\b","ELEVENTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<12TH\\>","TWELFTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b12\\b","TWELFTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\<13TH\\>","THIRTEENTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("\\b13\\b","THIRTEENTH",EDict_MN$cleaned)
+EDict_MN$cleaned<-gsub("^\\bST\\b","SAINT", EDict_MN$cleaned)
+##EDict_MN$cleaned<-str_remove(EDict_MN$cleaned,"STREET")
+```
+
+### Source 2: Steve Morse ED and Street Data from 1880 and 1910
+This was pulled by Dan Miller from Steve Morse's site and there are 4 associated base CSVs, which contain an ED-street dictionary for both Brooklyn and Manhattan in 1880 and 1910. 
+
+There were concerns that entries in Source 1 was not in itself exhaustive as was the case with a similar dictionary created from the previous pull. This was indeed confirmed with multiple EDs missing and streets missing from EDs that existed in the dictionary. Combinining this was also done in R.
+
+To do so, all 6 associated files were brought into R and their strings handled similarly. They were upper-cased and thereafter, a left join (using the tidyverse package) was performed. Conversion from wide to long format was done using the gather function.
+
+```{r Importing SM Dictionary}
+# Import Steve Morse Dictionary
+morse_mn1910<-read_csv("MN_MORSE_EDstreet_dict_1910.csv")
+morse_mn_list<-gather(data = morse_mn1910, 
+             key = item, 
+             value = value, 
+             V1:V35)%>%
+   select(-item)
+
+morse_mn_list<-na.omit(morse_mn_list)
+for (i in 1:nrow(morse_mn_list)){
+morse_mn_list$cleaned[i]<-toupper(rem_dup_word(morse_mn_list$value[i]))
+}
+
+# create numbered list
+morse_mn_list$cleaned<-str_clean(morse_mn_list)
+colnames(morse_mn_list)[2]="streets"
+```
+
+Strings were then cleaned in the same manner to the section about cleaning data from street geography with an additional removal of the backslash that appeared to affect the pull from Steve Morse's site. 
+
+```{r Combining SM Dict with 1910 Dict}
+## Combining SM Dict with 1910 Dict
+EDICT_ALL_MN<-rbind(morse_mn_list,EDict_MN_all)
+EDICT_ALL_MN$streets<-toupper(EDICT_ALL_MN$streets)
+EDICT_ALL_MN<-EDICT_ALL_MN%>%
+  dplyr::filter(cleaned!="NULL")%>%
+  dplyr::mutate(type=cleaned)
+```
+
+```{r Cleaning Strings}
+for (i in 1:nrow(EDICT_ALL_MN)){
+  if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bSTREET\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"STREET"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bAVENUE\\b|\\bAvenue\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"AVENUE" 
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bDRIVE\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"DRIVE" 
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bCIRCLE\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"CIRCLE" 
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bCOURT\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"COURT" 
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bBOULEVARD\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"BOULEVARD" 
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bALLEY\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"ALLEY"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bPLACE\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"PLACE" 
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bPARKWAY\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"PARKWAY"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bPARK\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"PARK"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bAPPROACH\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"APPROACH"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bTERRACE\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"TERRACE" 
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bPLAZA\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"PLAZA" 
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bLANE\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"LANE"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bBRIDGE\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"BRIDGE" 
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bHILL\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"HILL"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bHEIGHTS\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"HEIGHTS" 
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bHOSPITAL\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"HOSPITAL"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bASYLUM\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"ASYLUM"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bISLAND\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"ISLAND"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bJAIL\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"JAIL"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bRIVER\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"RIVER"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bSQUARE\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"SQUARE"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bROAD\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"ROAD"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bSLIP\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"SLIP"
+  }else if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bPIER\\b|\\bPIERS\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"PIER"
+  }else if(str_detect(EDICT_ALL_MN$streets[i],"\\bST\\b|\\bSTR\\b")==TRUE){
+    EDICT_ALL_MN$type[i]<-"STREET"
+  } else {
+    EDICT_ALL_MN$type[i]<-""
+  }
+}
+
+EDICT_ALL_MN$cleaned<-gsub("\\<STREET\\>","",EDICT_ALL_MN$cleaned) #remove word 'street'
+EDICT_ALL_MN$cleaned<-trimws(EDICT_ALL_MN$cleaned,"right")
+EDICT_ALL_MN<-EDICT_ALL_MN%>%
+  distinct(ED,cleaned,type,.keep_all = TRUE)
+EDICT_ALL_MN[EDICT_ALL_MN==""] <- NA
+```
+
+## 1.2 Combining both sources to form a dictionary
+Source 1 and 2 were combined to form a dictionary that was utilised to correct street address entries in the census data. Some addresses in the Morse entry did not have suffixes attached (i.e. CHERRY instead of CHERRY STREET). To address this issue, a new column type was created to indicate the type of name matched. This includes: street, avenue, drive, circle, court, boulevard, alley, place, parkway, park, approach, terrace, plaza, lane, bridge, hill, heights, hospital, asylum, island, river, jail, river, square, slip, pier and roads. This was done by grouping the cleaned strings from both Source 1 and 2 and filling the empty type entries with non-empty types from Source 1.
+
+The dictionary also standardised all streets into a format where the number is followed by the direction as in "100 EAST" rather than having "E 100", "100 E" and other variants of those forms.
+
+There exists another two separate dictionary for usage in the script. They are `full_BK_dictionary.csv` and `full_MN_dictionary.csv`. These are formatted in a manner to maximise the efficiency of string matching.
+
+```{r Name Type}
+## fill-in matching strings in 'type' column 
+EDICT_ALL_MN<-EDICT_ALL_MN %>% 
+  dplyr::group_by(cleaned) %>% 
+  tidyr::fill(type)%>%
+  tidyr::fill(type, .direction = "up")%>%
+  distinct(ED,cleaned,type,.keep_all = TRUE)
+
+### Bring anything with direction at end of string to the front (n/s/e/w) + then label them as streets
+
+EDICT_ALL_MN$cleaned<-sub("(.*?)\\s+(NORTH|EAST|WEST|SOUTH)$", "\\2 \\1", EDICT_ALL_MN$cleaned) #make sure that the distinct misspellings are also processed in the same manner 
+
+for (i in 1:nrow(EDICT_ALL_MN)){
+if (str_detect(EDICT_ALL_MN$cleaned[i], "^NORTH|^SOUTH|^EAST|^WEST")==TRUE){
+  EDICT_ALL_MN$type[i]="STREET"
+}
+}
+
+for (i in 1:nrow(EDICT_ALL_MN)){
+if (str_detect(EDICT_ALL_MN$cleaned[i], "^(\\d)(ST|ND|RD|TH)$")==TRUE){
+  EDICT_ALL_MN$type[i]="STREET"
+}
+}
+```
+
+```{r Export}
+write.csv(EDICT_ALL_MN,"full_MN_dictionary.csv")
+```
+
+## 1.3 Preparing Census for matching: Preprocessing the street addresses entries in the census data
+
+In addition to the steps above, the census microdata was cleaned with additional steps. This procedure roughly mirrors the script of Logan and Zhang with some key tweaks. To remove issues regarding case-sensitivity, all addresses were raised to upper case. This should not pose a problem as it can be respecified easily. Additionally, the procedure did not consider the threats posed by an "Avenue E" which may be corrected to "Avenue East" given that directional shorthands did not appear to overlap with character names for Manhattan and Brooklyn.
+
+Nonetheless, the same thing which they specified - standardisation of all dictionaries for matching was carried out.
+
+First, the census was loaded and reshaped to prepare for cleaning.
+```{r}
+# Import 100k sample
+df2<-read_csv("us1910m_usa_sample100k.csv")
+
+# Fill down
+for (i in 1:ncol(df2)){
+if (is.na(df2[1,i]) == FALSE ){
+  df2[,i]=na.locf(df2[,i])}
+  else {
+  df2[,i]=df2[,i]
+    }
+}
+
+## Household profiles
+not_all_na <- function(x) any(!is.na(x))
+hhprofiles<-df2%>%
+  dplyr::filter(is.na(df2$`Dwelling sequence number`)==TRUE)%>% 
+  select_if(not_all_na)
+
+## Removing the household and then joining it with persons
+personprofile<-df2%>%
+  dplyr::filter(is.na(df2$`Consistent historical data person identifier`)==FALSE)
+
+### Address problems
+df2$`Street address 2`<-na.locf(df2$`Street address 2`)
+
+### Inconsistent streetnames
+distinct_streets2<-personprofile%>%
+  dplyr::select(`Enumeration district 2`,`House number`,`Street address 2`,`Dwelling serial number`,`Dwelling serial number 2`,`Line Number`,`Line number 2`,`Microfilm page number 3`)%>%
+  distinct(`Street address 2`,.keep_all=TRUE)
+
+distinct_streets2$`Enumeration district 2`<-as.numeric(as.character(distinct_streets2$`Enumeration district 2`))
+
+colnames(distinct_streets2)[3]<-"streets"
+```
+
+The cleaned strings exist as a separate column. The changes are the following:  
+* Removing unit numbers that exist in addresses  
+* Removing remaining ST, ND, RD and TH to allow for better numeric matches  
+
+Functions created for the process:  
+1. `rem_dup_word`: This is used to remove duplicate words in the census street entry. Many of these included street names such as "Cherry Street Cherry Street"" when we wanted to match "Cherry Street".  
+2. `str_clean`: This function repeated what was mentioned in steps 1 to 18 for the census street data.  
+
+```{r}
+# Creating Functions
+
+rem_dup_word <- function(x){
+x <- tolower(x)
+paste(unique(trimws(unlist(strsplit(x,split=" ",fixed=F,perl=T)))),collapse = 
+" ")
+}
+
+str_clean<-function(x){
+  x$cleaned<-gsub("\\<SRT\\>$|\\<SR\\>$\\<SRT\\>$|\\<STR\\>$|\\<SST\\>$|\\<SEET\\>$|\\<TREET\\>$|\\<SHEER\\>$|\\<SHEE\\>$|\\<STREE\\>$|\\<SREET\\>$|\\<REET\\>$|\\<STEE\\>$|\\<ST\\>$","STREET",x$cleaned)
+  x$cleaned<-gsub("\\<N\\>","NORTH",x$cleaned)
+  x$cleaned<-gsub("\\<S\\>","SOUTH",x$cleaned)
+  x$cleaned<-gsub("\\<E\\>","EAST",x$cleaned)
+  x$cleaned<-gsub("\\<W\\>","WEST",x$cleaned)
+  x$cleaned<-gsub("\\<DR\\>|\\<DV\\>|\\<DE\\>$|\\<DRV\\>|\\<DRI\\>|\\<DRIV\\>|\\<DRIE\\>","DRIVE",x$cleaned) 
+  x$cleaned<-gsub("\\<CIR\\>|\\<CRL\\>|\\<CIRC\\>|\\<CR\\>|\\<CL\\>|\\<CIRCL\\>|\\<CICLE\\>","CIRCLE",x$cleaned)
+  x$cleaned<-gsub("\\<AVE\\>|\\<AV\\>|\\<AVN\\>|\\<AVEN\\>|\\<AVENU\\>","AVENUE",x$cleaned)
+  x$cleaned<-gsub("\\<CT\\>|\\<CRT\\>|\\<CTR\\>|\\<COUR\\>|\\<COT\\>|\\<CORT\\>","COURT",x$cleaned)
+  x$cleaned<-gsub("\\<BLVD\\>|\\<BVLD\\>|\\<BV\\>|\\<BLD\\>|\\<BD\\>|\\<BL\\>|\\<BLV\\>","BOULEVARD",x$cleaned)
+  x$cleaned<-gsub("\\<RD\\>|\\<RAD\\>|\\<ROD\\>","ROAD",x$cleaned)
+  x$cleaned<-gsub("\\<ALY\\>|\\<AL\\>|\\<ALLY\\>|\\<ALEY\\>|\\<ALLE\\>|\\<AY\\>","ALLEY",x$cleaned)
+  x$cleaned<-gsub("\\<PL\\>|\\<PLC\\>|\\<PLE\\>|\\<PC\\>|\\<PLAC\\>|\\<PLCE\\>|\\<PCE\\>","PLACE",x$cleaned)
+  x$cleaned<-gsub("\\<PK\\>|\\<PRK\\>|\\<PRAK\\>|\\<PAK\\>","PARK",x$cleaned)
+  x$cleaned<-gsub("\\<PKWY\\>|\\<PARKW\\>|\\<PWY\\>|\\<PKW\\>|\\<PRKWY\\>|\\<PKWY\\>|\\<PKW\\>","PARKWAY",x$cleaned)
+  x$cleaned<-gsub("\\<APPR\\>|\\<APR\\>|\\<APPROA\\>|\\<APRCH\\>|\\<APPRCH\\>","APPROACH",x$cleaned)
+  x$cleaned<-gsub("\\<TER\\>|\\<TERR\\>|\\<TRC\\>|\\<TRCE\\>|\\<TR\\>","TERRACE",x$cleaned)
+  x$cleaned<-gsub("\\<PLZ\\>|\\<PLAZ\\>|\\<PZ\\>|\\<PLZA\\>","PLAZA",x$cleaned)
+  x$cleaned<-gsub("\\<LN\\>|\\<LNE\\>|\\<LAN\\>","LANE",x$cleaned)
+  x$cleaned<-gsub("\\<BRG\\>|\\<BRGD\\>|\\<BGE\\>","BRIDGE",x$cleaned)
+  x$cleaned<-gsub("\\<HL\\>|\\<HLL\\>|\\<HIL\\>","HILL",x$cleaned)
+  x$cleaned<-gsub("\\<HTS\\>|\\<HT\\>|\\<HEIGHT\\>|\\<HEGHTS\\>|\\<HHT\\>|\\<HEIGT\\>","HEIGHTS",x$cleaned) 
+  x$cleaned<-gsub(".*\\((.*)\\).*", "\\1", x$cleaned)
+  x$cleaned<-str_remove(x$cleaned,"STREET")
+  x$cleaned<-gsub("\\d+\\ - *\\d*|\\d+\\ TO *\\d*|\\d+\\-\\d*","",x$cleaned) #remove addresses
+
+  ## dealing with numbered streets
+x$cleaned<-gsub("(\\d)(ST|ND|RD|TH)\\b", "\\1", x$cleaned)
+x$cleaned<-str_remove(x$cleaned, "(?<=[0-9])(ST|ND|RD|TH)")
+x$cleaned<-gsub("\\<ONE HUNDRED\\>|\\<ONEHUNDRED\\>|\\<HUNDRED\\>|\\<HUDRED\\>|\\<HUNDED\\>","1",x$cleaned) 
+x$cleaned<-gsub("\\<TWO HUNDRED\\>|\\<TWOHUNDRED\\>","2",x$cleaned)
+x$cleaned<-gsub("-"," ",x$cleaned)
+x$cleaned<-gsub("\\<AND\\>"," ",x$cleaned)
+x$cleaned<-gsub("&"," ",x$cleaned)
+x$cleaned<-gsub("\\<1ST\\>|\\b1\\b","FIRST",x$cleaned)
+x$cleaned<-gsub("\\<2ND\\>|\\b2\\b","SECOND",x$cleaned)
+x$cleaned<-gsub("\\<3RD\\>|\\b3\\b","THIRD",x$cleaned)
+x$cleaned<-gsub("\\<4TH\\>|\\b4\\b","FOURTH",x$cleaned)
+x$cleaned<-gsub("\\<5TH\\>|\\b5\\b","FIFTH",x$cleaned)
+x$cleaned<-gsub("\\<6TH\\>|\\b6\\b","SIXTH",x$cleaned)
+x$cleaned<-gsub("\\<7TH\\>|\\b7\\b","SEVENTH",x$cleaned)
+x$cleaned<-gsub("\\<8TH\\>|\\b8\\b","EIGHTH",x$cleaned)
+x$cleaned<-gsub("\\<9TH\\>|\\b9\\b","NINTH",x$cleaned)
+x$cleaned<-gsub("\\<10TH\\>|\\b10\\b","TENTH",x$cleaned)
+x$cleaned<-gsub("\\<11TH\\>|\\b11\\b","ELEVENTH",x$cleaned)
+x$cleaned<-gsub("\\<12TH\\>|\\b12\\b","TWELFTH",x$cleaned)
+x$cleaned<-gsub("\\<13TH\\>|\\b13\\b","THIRTEENTH",x$cleaned)
+x$cleaned<-gsub("\\<14TH\\>|\\b14\\b","FORTEENTH",x$cleaned)
+x$cleaned<-gsub("\\<15TH\\>|\\b15\\b","FIFTEENTH",x$cleaned)
+x$cleaned<-gsub("\\<16TH\\>|\\b16\\b","SIXTEENTH",x$cleaned)
+x$cleaned<-gsub("\\<17TH\\>|\\b17\\b","SEVENTEENTH",x$cleaned)
+x$cleaned<-gsub("\\<18TH\\>|\\b18\\b","EIGHTEENTH",x$cleaned)
+x$cleaned<-gsub("\\<19TH\\>|\\b19\\b","NINETEENTH",x$cleaned)
+x$cleaned<-gsub("\\<TWENTY\\>|\\<TWENTI\\>|\\<TENTI\\>","2",x$cleaned)
+x$cleaned<-gsub("\\<THIRTY\\>|\\<THIRTHY\\>|\\<THIRTEY\\>|\\<TIRTY\\>|\\<TRITHY\\>","3",x$cleaned)
+x$cleaned<-gsub("\\<FORTY\\>|\\<FOURTY\\>|\\<FOURTHY\\>|\\<FRTY\\>","4",x$cleaned)
+x$cleaned<-gsub("\\<FIFTY\\>|\\<FIFTEY\\>|\\<FIFT\\>|\\<FITY\\>|\\<FIFTHY\\>","5",x$cleaned)
+x$cleaned<-gsub("\\<SIXTY\\>|\\<SXTY\\>|\\<SIXY\\>|\\<SXTY\\>|\\<SIXTHY\\>|\\<SIXTEY\\>","6",x$cleaned)
+x$cleaned<-gsub("\\<SEVENT\\>|\\<SEVENTY\\>|\\<SEVENTEY\\>|\\<SVENTY\\>|\\<SEVENTI\\>","7",x$cleaned)
+x$cleaned<-gsub("\\<EIGHTY\\>|\\<EIGHTEY\\>|\\<EIGHTE\\>","8",x$cleaned)
+x$cleaned<-gsub("\\<UNITY\\>|\\<NINTH\\>|\\<NINETY\\>|\\<NINETEY\\>|\\<NINETIETH\\>|\\<NINTY\\>","9",x$cleaned)
+x$cleaned<-gsub("\\<FRIST\\>|\\<FIST\\>|\\<FRST\\>|\\<FIRST\\>|\\<ONE\\>","1",x$cleaned)
+x$cleaned<-gsub("\\<SECOND\\>|\\<SECORD\\>|\\<SCOND\\>|\\<SECOND\\>|\\<TWO\\>","2",x$cleaned)
+x$cleaned<-gsub("\\<THRID\\>|\\<THIRD\\>|\\<TIRD\\>|\\<TRIHD\\>|\\<THREE\\>","3",x$cleaned)
+x$cleaned<-gsub("\\<FORTH\\>|\\<FOURTH\\>|\\<FROTH\\>|\\<FROUTH\\>|\\<FOUR\\>","4",x$cleaned)
+x$cleaned<-gsub("\\<FIFETH\\>|\\<FIFTH\\>|\\<FIFFTH\\>|\\<FIFTHE\\>|\\<FIVE\\>","5",x$cleaned)
+x$cleaned<-gsub("\\<SIXTH\\>|\\<SXTH\\>|\\<SITH\\>|\\<SIHXT\\>|\\<SIX\\>","6",x$cleaned)
+x$cleaned<-gsub("\\<SEVENTH\\>|\\<SVEN\\>|\\<SVENTH\\>|\\<SEVENH\\>|\\<SEVENT\\>|\\<SEVEN\\>","7",x$cleaned)
+x$cleaned<-gsub("\\<EIGHTH\\>|\\<EIGHTEH\\>|\\<EITH\\>|\\<EIGHT\\>","8",x$cleaned)
+x$cleaned<-gsub("\\<NINETH\\>|\\<NINTH\\>|\\<NINT\\>|\\<NINETH\\>|\\<NINE\\>|\\<NIN\\>","9",x$cleaned)
+x$cleaned<-gsub("\\<TWENTIETH\\>|\\<TWENTIEFTH\\>","20",x$cleaned) #NEW
+x$cleaned<-gsub("\\<THIRTIETH\\>|\\<THIRTIEFTH\\>","30",x$cleaned)
+x$cleaned<-gsub("\\<FORTIETH\\>|\\<FOURTIETH\\>","40",x$cleaned)
+x$cleaned<-gsub("\\<FIFTIETH\\>","50",x$cleaned)
+x$cleaned<-gsub("\\<SIXTIETH\\>","60",x$cleaned)
+x$cleaned<-gsub("\\<SEVENTIETH\\>","70",x$cleaned)
+x$cleaned<-gsub("\\<EIGHTIETH\\>","80",x$cleaned)
+x$cleaned<-gsub("\\<NINETIETH\\>|\\<NINTIETH\\>","90",x$cleaned)
+x$cleaned<-gsub("(?<=\\d) (?=\\d)","",x$cleaned,perl = T) #new close gaps between all numbers
+## place names
+  ##x$cleaned<-gsub("\\bSTR\\b","", x$cleaned)
+  x$cleaned<-gsub("^\\bST\\b","SAINT", x$cleaned) 
+  x$cleaned<-gsub("\\bHOUSE\\b","", x$cleaned)
+  x$cleaned<-gsub("\\bHOSTEL\\b","", x$cleaned)
+  x$cleaned<-gsub("\\bHOTEL\\b","", x$cleaned)
+  x$cleaned<-gsub("\\bLODGE\\b","", x$cleaned)
+  x$cleaned<-gsub("\\bLODGING\\b","", x$cleaned)
+  x$cleaned<-trimws(x$cleaned, "both")
+  x$cleaned<-gsub("\\<N\\>","NORTH",x$cleaned)
+  ##x$cleaned<-gsub("\\<ST\\>","",x$cleaned)
+  ##x$cleaned<-gsub("\\<STREET\\>","",x$cleaned)
+} 
+```
+
+```{r}
+# Applying Functions
+for (i in 1:nrow(distinct_streets2)){
+distinct_streets2$cleaned[i]<-toupper(rem_dup_word(distinct_streets2$streets[i]))
+}
+
+# create numbered list
+distinct_streets2$cleaned<-str_clean(distinct_streets2)
+colnames(distinct_streets2)[1]<-"ED"
+```
+
+## 1.4 Output of cleaning process
+After processing the census data, the output (`distinct_streets2`) was matched against the street dictionary (`EDICT_ALL_MN`) to test the accuracy of the census cleaning process. 
+
+```{r, warning=FALSE}
+### first find ED of concern for that observation then search if not existent then search ALL and note this occurence
+### search range to extract dictionary
+
+datalist = list()
+
+for (i in 1:nrow(distinct_streets2)){
+  
+ED_SAMPLE<-EDICT_ALL_MN%>%
+  dplyr::filter(ED==distinct_streets2$ED[i])%>%
+  dplyr::filter(streets!="NULL")
+  
+  if (nrow(ED_SAMPLE)!=0){
+check<-stringdist_join(distinct_streets2[i,], ED_SAMPLE, 
+                           by = "cleaned", #must be named streets
+                           mode = "left",
+                           ignore_case = FALSE, 
+                           method = "jw",  #jaro-winkler distance works best for this set, can be tuned.
+                           max_dist = 1, 
+                           distance_col = "dscore")%>%
+  dplyr::group_by(cleaned.x)%>%
+  dplyr::filter(dscore==min(dscore)) %>%
+  head(1)
+
+check$ED_correct<-"YES"
+
+datalist[[i]]<-check
+  }else{
+check<-stringdist_join(distinct_streets2[i,], EDICT_ALL_MN, 
+                           by = "cleaned", #must be named streets
+                           mode = "left",
+                           ignore_case = FALSE, 
+                           method = "jw",  #jaro-winkler distance works best for this set, can be tuned.
+                           max_dist = 1, 
+                           distance_col = "dscore")%>%
+  dplyr::group_by(cleaned.x)%>%
+  dplyr::filter(dscore==min(dscore)) %>%
+  head(1)
+
+check$ED_correct="NO"
+
+datalist[[i]]<-check
+
+  }
+} 
+
+address_check<-do.call("rbind", datalist)
+
+##write.csv(address_check,"address_check.csv")
+
+address_check_flags<-address_check%>%
+  dplyr::filter(dscore>0.27)
+
+##write.csv(address_check_flags,"address_check_flags.csv")
+
+address_match<-data.frame(address_check)%>%
+  dplyr::select(streets.x, ED_streetname=streets.y,corrected_str=cleaned.y,dscore,type)
+
+### if string detect street then duplicate over into clean, positional matchng where it adds word only if some variation of street appears at the back 
+address_match$type[is.na(address_match$type)] <- "NA"
+for (i in 1:nrow(address_match)){
+if(str_detect(address_match$type[i],"STREET")==TRUE){
+  address_match$corrected_str[i]<-paste(address_match$corrected_str[i]," STREET",sep="")
+}else if(str_detect(address_match$type[i],"\\bNA\\b")==TRUE){
+  address_match$corrected_str[i]<-paste(address_match$corrected_str[i]," STREET",sep="")
+}else{
+  address_match$corrected_str[i]<-address_match$corrected_str[i]
+}
+}
+
+
+## match based on original street address names column
+colnames(df2)[22]="streets" ## both need to have the same column names
+colnames(address_match)[1]="streets"
+
+## original address columns are listed as "streets"
+## address names in the dictionary are listed as "streets.x"
+## matched address is listed as "cleaned.y"
+
+df2_address<-left_join(df2,address_match,by="streets")
+
+write_csv(df2_address,"100ksample_MN_matched.csv")
+```
+
+In the cleaned addresses dataframe, there are 8 columns in the dataframe:  
+* ED: This is the initial ED that was given in the pull by Wright.  
+* Streets: The original street names from the pull  
+* Cleaned.x: The cleaned version of the pulled names  
+
+This pull was cleaned with the `str_clean` function.
+
+Dealing with numbers: 
+* Replaced hundred and two hundred (various spelling) with 1 and 2  
+* Replaced twenty through to ninety & twentieth to ninetieth (various spelling) with corresponding numbers  
+* Often this results in spaces in numbers and as such, we strip the space between newly created numbers and join them together again - Removed "AND", "&", and "-" (exact matches).
+
+This was also processed to remove duplicate words in address strings such as "SPRING SPRING STREET". This cleaned streets in the census then was matched to addresses in the pull that Dan made based on a matching processes that first checked whether the EDs of the census entry which then calls on a list of known streets in those EDs. If this returns a NULL entry then the loop will search through the entire street dictionary for a match which will inevitably result in a poorer match. If this is not null, it will then look for the closest match for streets in those EDs. This is where a proper dictionary containing a possible street name for a given ED is crucial. Poor matching in this case will result from address that are in the ED but for some reason is not included in the dictionary for that particular ED.
+
+This process then produces a dataframe with the following columns after looping through all distinct street name entries for the particular processed batch.
+
+The current metric used to flag if this is a good match is currently 0.27. This is somewhat arbitrary but poor matches generally go above this threshold. This was judged based on running our script on a random 10,000 and 100,000 entry sample. The percentage of matches will depend on the addresses but is usually around 20-25% of the total unique number of spellings of the addresses.
+
+This is then joined back into the main dataframe and populated according to the specific misspellings noted for those EDs. Prior to this joining, the word "STREET" is re-added to those strings which had the word removed as part of the matching process. This is done by detecting "STREET" in the type column.
+
+### Output Documentation (`100ksample_MN_matched.csv`)
+* ED: EDs listed in the census data pull
+* House number: House number in the original census data pull (if it exists)
+* Streets.X: Original street names strings from the census data pull
+* Dwelling serial number| Dwelling serial number 2
+* Line number| Line number 2: Line number of the particular entry
+* Microfilm page number 3: The microfilm page numbers of the particular entry
+* Cleaned.x: The original cleaned street strings from the census addresses.
+* ED1: Enumeration district from Dan’s pull, each address maps onto multiple EDs
+* ED2: Enumeration district from Dan’s pull, each address maps onto multiple EDs
+* ED_streetnames: Original street name from the created ED dictionary.
+* corrected_str: The cleaned and matched string based on Jaro-winkler distance
+* Dscore: Distance score
+* Type: The type of matched string (e.g. road, street, bridge etc.)
