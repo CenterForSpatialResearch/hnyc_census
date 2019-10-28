@@ -1,18 +1,18 @@
 {
     "collab_server" : "",
     "contents" : "",
-    "created" : 1572199093264.000,
+    "created" : 1572223091436.000,
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
     "hash" : "1508688282",
-    "id" : "3BCB6994",
+    "id" : "5A092A33",
     "lastKnownWriteTime" : 1572190722,
     "last_content_update" : 1572190722,
-    "path" : "~/RA/HNYC/hnyc_census/Scripts/HNYC Cleaning (House address).Rmd",
+    "path" : "~/RA/HNYC/hnyc_census/Scripts/House/HNYC Cleaning (House address).Rmd",
     "project_path" : "HNYC Cleaning (House address).Rmd",
     "properties" : {
-        "cursorPosition" : "6,0",
+        "cursorPosition" : "12,16",
         "scrollLine" : "0"
     },
     "relative_order" : 1,

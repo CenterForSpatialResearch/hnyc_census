@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1572223323607.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "306|6|408|0|\n410|6|419|0|\n",
+    "hash" : "1895567454",
+    "id" : "9BCA38A",
+    "lastKnownWriteTime" : 1572227825,
+    "last_content_update" : 1572227825913,
+    "path" : "~/RA/HNYC/hnyc_census/Scripts/Street/Street_Dict_MN.Rmd",
+    "project_path" : "Street_Dict_MN.Rmd",
+    "properties" : {
+        "cursorPosition" : "1,23",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}
