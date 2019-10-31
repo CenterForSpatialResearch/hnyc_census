@@ -1,1 +1,5 @@
 /Data/*
+
+/.Rproj.user/*
+
+.Rhistory
