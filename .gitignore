@@ -1,1 +1,5 @@
-/Data/*
+Data/
+
+.Rproj.user/
+
+.Rhistory

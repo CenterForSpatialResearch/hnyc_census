@@ -1,0 +1,303 @@
+---
+title: "String Distance Comparisons"
+author: "Jolene Lim"
+output: html_document
+---
+
+## 1. Setup
+Load required libraries
+```{r}
+library(kableExtra)
+library(tidyverse)
+library(fuzzyjoin)
+```
+
+Load datasets
+```{r}
+# load datasets
+sample <- read_csv(here::here("Data/us1910m_usa_sample100k.csv"))
+edict <- read_csv(here::here("Data/combined_edict_mn.csv"))
+
+# clean column names
+names(sample) <- c("hnyc_id", "record", "township", "county", "ED", "person_id",
+                   "dwelling_seq", "dwelling_ser", "dwelling_ser2", "hh_seq", "hh_seq_8",
+                   "hh_ser2", "hh_ser_bef_split", "indiv_seq", "split", 
+                   "line_no", "line_no2", "microfilm",
+                   "n_fam", "n_person_bef_split", "house_num", "street_add")
+
+# add ED no
+edict <- edict %>%
+  mutate(ED = str_pad(ED, 4, "left", pad = "0")) # ensure numbers are all 4 digit
+```
+
+Extract only unique combinations of EDs and addresses
+```{r}
+unique_addresses <- sample %>%
+  select(ED, street_add) %>%
+  filter(!is.na(street_add)) %>%
+  distinct(ED, street_add)
+```
+
+## 2. Cleaning Addresses
+Importing functions created by Kyi, `rem_dup_word()` and `str_clean()`. Note: `str_clean()` is modified such that the output is a cleaned `x` rather than `x$cleaned`. This allows `x` to be a vector rather than strictly a dataframe.
+
+```{r}
+# import functions
+rem_dup_word <- function(x){
+x <- tolower(x)
+paste(unique(trimws(unlist(strsplit(x,split=" ",fixed=F,perl=T)))),collapse = 
+" ")
+}
+
+str_clean<-function(x){
+  x <- gsub("\\<SRT\\>$|\\<SR\\>$\\<SRT\\>$|\\<STR\\>$|\\<SST\\>$|\\<SEET\\>$|\\<TREET\\>$|\\<SHEER\\>$|\\<SHEE\\>$|\\<STREE\\>$|\\<SREET\\>$|\\<REET\\>$|\\<STEE\\>$|\\<ST\\>$","STREET",x)
+  x <-gsub("\\<N\\>","NORTH",x)
+  x<-gsub("\\<S\\>","SOUTH",x)
+  x<-gsub("\\<E\\>","EAST",x)
+  x<-gsub("\\<W\\>","WEST",x)
+  x<-gsub("\\<DR\\>|\\<DV\\>|\\<DE\\>$|\\<DRV\\>|\\<DRI\\>|\\<DRIV\\>|\\<DRIE\\>","DRIVE",x) 
+  x<-gsub("\\<CIR\\>|\\<CRL\\>|\\<CIRC\\>|\\<CR\\>|\\<CL\\>|\\<CIRCL\\>|\\<CICLE\\>","CIRCLE",x)
+  x<-gsub("\\<AVE\\>|\\<AV\\>|\\<AVN\\>|\\<AVEN\\>|\\<AVENU\\>","AVENUE",x)
+  x<-gsub("\\<CT\\>|\\<CRT\\>|\\<CTR\\>|\\<COUR\\>|\\<COT\\>|\\<CORT\\>","COURT",x)
+  x<-gsub("\\<BLVD\\>|\\<BVLD\\>|\\<BV\\>|\\<BLD\\>|\\<BD\\>|\\<BL\\>|\\<BLV\\>","BOULEVARD",x)
+  x<-gsub("\\<RD\\>|\\<RAD\\>|\\<ROD\\>","ROAD",x)
+  x<-gsub("\\<ALY\\>|\\<AL\\>|\\<ALLY\\>|\\<ALEY\\>|\\<ALLE\\>|\\<AY\\>","ALLEY",x)
+  x<-gsub("\\<PL\\>|\\<PLC\\>|\\<PLE\\>|\\<PC\\>|\\<PLAC\\>|\\<PLCE\\>|\\<PCE\\>","PLACE",x)
+  x<-gsub("\\<PK\\>|\\<PRK\\>|\\<PRAK\\>|\\<PAK\\>","PARK",x)
+  x<-gsub("\\<PKWY\\>|\\<PARKW\\>|\\<PWY\\>|\\<PKW\\>|\\<PRKWY\\>|\\<PKWY\\>|\\<PKW\\>","PARKWAY",x)
+  x<-gsub("\\<APPR\\>|\\<APR\\>|\\<APPROA\\>|\\<APRCH\\>|\\<APPRCH\\>","APPROACH",x)
+  x<-gsub("\\<TER\\>|\\<TERR\\>|\\<TRC\\>|\\<TRCE\\>|\\<TR\\>","TERRACE",x)
+  x<-gsub("\\<PLZ\\>|\\<PLAZ\\>|\\<PZ\\>|\\<PLZA\\>","PLAZA",x)
+  x<-gsub("\\<LN\\>|\\<LNE\\>|\\<LAN\\>","LANE",x)
+  x<-gsub("\\<BRG\\>|\\<BRGD\\>|\\<BGE\\>","BRIDGE",x)
+  x<-gsub("\\<HL\\>|\\<HLL\\>|\\<HIL\\>","HILL",x)
+  x<-gsub("\\<HTS\\>|\\<HT\\>|\\<HEIGHT\\>|\\<HEGHTS\\>|\\<HHT\\>|\\<HEIGT\\>","HEIGHTS",x) 
+  x<-gsub(".*\\((.*)\\).*", "\\1", x)
+  x<-str_remove(x,"STREET")
+  x<-gsub("\\d+\\ - *\\d*|\\d+\\ TO *\\d*|\\d+\\-\\d*","",x) #remove addresses
+
+  ## dealing with numbered streets
+x<-gsub("(\\d)(ST|ND|RD|TH)\\b", "\\1", x)
+x<-str_remove(x, "(?<=[0-9])(ST|ND|RD|TH)")
+x<-gsub("\\<ONE HUNDRED\\>|\\<ONEHUNDRED\\>|\\<HUNDRED\\>|\\<HUDRED\\>|\\<HUNDED\\>","1",x) 
+x<-gsub("\\<TWO HUNDRED\\>|\\<TWOHUNDRED\\>","2",x)
+x<-gsub("-"," ",x)
+x<-gsub("\\<AND\\>"," ",x)
+x<-gsub("&"," ",x)
+x<-gsub("\\<1ST\\>|\\b1\\b","FIRST",x)
+x<-gsub("\\<2ND\\>|\\b2\\b","SECOND",x)
+x<-gsub("\\<3RD\\>|\\b3\\b","THIRD",x)
+x<-gsub("\\<4TH\\>|\\b4\\b","FOURTH",x)
+x<-gsub("\\<5TH\\>|\\b5\\b","FIFTH",x)
+x<-gsub("\\<6TH\\>|\\b6\\b","SIXTH",x)
+x<-gsub("\\<7TH\\>|\\b7\\b","SEVENTH",x)
+x<-gsub("\\<8TH\\>|\\b8\\b","EIGHTH",x)
+x<-gsub("\\<9TH\\>|\\b9\\b","NINTH",x)
+x<-gsub("\\<10TH\\>|\\b10\\b","TENTH",x)
+x<-gsub("\\<11TH\\>|\\b11\\b","ELEVENTH",x)
+x<-gsub("\\<12TH\\>|\\b12\\b","TWELFTH",x)
+x<-gsub("\\<13TH\\>|\\b13\\b","THIRTEENTH",x)
+x<-gsub("\\<14TH\\>|\\b14\\b","FORTEENTH",x)
+x<-gsub("\\<15TH\\>|\\b15\\b","FIFTEENTH",x)
+x<-gsub("\\<16TH\\>|\\b16\\b","SIXTEENTH",x)
+x<-gsub("\\<17TH\\>|\\b17\\b","SEVENTEENTH",x)
+x<-gsub("\\<18TH\\>|\\b18\\b","EIGHTEENTH",x)
+x<-gsub("\\<19TH\\>|\\b19\\b","NINETEENTH",x)
+x<-gsub("\\<TWENTY\\>|\\<TWENTI\\>|\\<TENTI\\>","2",x)
+x<-gsub("\\<THIRTY\\>|\\<THIRTHY\\>|\\<THIRTEY\\>|\\<TIRTY\\>|\\<TRITHY\\>","3",x)
+x<-gsub("\\<FORTY\\>|\\<FOURTY\\>|\\<FOURTHY\\>|\\<FRTY\\>","4",x)
+x<-gsub("\\<FIFTY\\>|\\<FIFTEY\\>|\\<FIFT\\>|\\<FITY\\>|\\<FIFTHY\\>","5",x)
+x<-gsub("\\<SIXTY\\>|\\<SXTY\\>|\\<SIXY\\>|\\<SXTY\\>|\\<SIXTHY\\>|\\<SIXTEY\\>","6",x)
+x<-gsub("\\<SEVENT\\>|\\<SEVENTY\\>|\\<SEVENTEY\\>|\\<SVENTY\\>|\\<SEVENTI\\>","7",x)
+x<-gsub("\\<EIGHTY\\>|\\<EIGHTEY\\>|\\<EIGHTE\\>","8",x)
+x<-gsub("\\<UNITY\\>|\\<NINTH\\>|\\<NINETY\\>|\\<NINETEY\\>|\\<NINETIETH\\>|\\<NINTY\\>","9",x)
+x<-gsub("\\<FRIST\\>|\\<FIST\\>|\\<FRST\\>|\\<FIRST\\>|\\<ONE\\>","1",x)
+x<-gsub("\\<SECOND\\>|\\<SECORD\\>|\\<SCOND\\>|\\<SECOND\\>|\\<TWO\\>","2",x)
+x<-gsub("\\<THRID\\>|\\<THIRD\\>|\\<TIRD\\>|\\<TRIHD\\>|\\<THREE\\>","3",x)
+x<-gsub("\\<FORTH\\>|\\<FOURTH\\>|\\<FROTH\\>|\\<FROUTH\\>|\\<FOUR\\>","4",x)
+x<-gsub("\\<FIFETH\\>|\\<FIFTH\\>|\\<FIFFTH\\>|\\<FIFTHE\\>|\\<FIVE\\>","5",x)
+x<-gsub("\\<SIXTH\\>|\\<SXTH\\>|\\<SITH\\>|\\<SIHXT\\>|\\<SIX\\>","6",x)
+x<-gsub("\\<SEVENTH\\>|\\<SVEN\\>|\\<SVENTH\\>|\\<SEVENH\\>|\\<SEVENT\\>|\\<SEVEN\\>","7",x)
+x<-gsub("\\<EIGHTH\\>|\\<EIGHTEH\\>|\\<EITH\\>|\\<EIGHT\\>","8",x)
+x<-gsub("\\<NINETH\\>|\\<NINTH\\>|\\<NINT\\>|\\<NINETH\\>|\\<NINE\\>|\\<NIN\\>","9",x)
+x<-gsub("\\<TWENTIETH\\>|\\<TWENTIEFTH\\>","20",x) #NEW
+x<-gsub("\\<THIRTIETH\\>|\\<THIRTIEFTH\\>","30",x)
+x<-gsub("\\<FORTIETH\\>|\\<FOURTIETH\\>","40",x)
+x<-gsub("\\<FIFTIETH\\>","50",x)
+x<-gsub("\\<SIXTIETH\\>","60",x)
+x<-gsub("\\<SEVENTIETH\\>","70",x)
+x<-gsub("\\<EIGHTIETH\\>","80",x)
+x<-gsub("\\<NINETIETH\\>|\\<NINTIETH\\>","90",x)
+x<-gsub("(?<=\\d) (?=\\d)","",x,perl = T) #new close gaps between all numbers
+## place names
+  ##x<-gsub("\\bSTR\\b","", x)
+  x<-gsub("^\\bST\\b","SAINT", x) 
+  x<-gsub("\\bHOUSE\\b","", x)
+  x<-gsub("\\bHOSTEL\\b","", x)
+  x<-gsub("\\bHOTEL\\b","", x)
+  x<-gsub("\\bLODGE\\b","", x)
+  x<-gsub("\\bLODGING\\b","", x)
+  x<-trimws(x, "both")
+  x<-gsub("\\<N\\>","NORTH",x)
+  ##x<-gsub("\\<ST\\>","",x)
+  ##x<-gsub("\\<STREET\\>","",x)
+} 
+```
+
+Applying the functions onto `unique_addresses`
+```{r}
+# preallocate memory for cleaned column
+cleaned <- rep("", nrow(unique_addresses))
+
+# apply rem_dup_word()
+for (i in 1:nrow(unique_addresses)) {
+cleaned[i] <- toupper(rem_dup_word(unique_addresses[i, 2]))
+cleaned[i] <- str_clean(cleaned[i])
+}
+```
+
+## 3. Matching Addresses with EDict
+The goal here is to create a "dictionary of matches", `match_dict`, which contains the variables:  
+* ED  
+* raw: raw address from sample  
+* match_{method}: cleaned address that exists in the street dictionary (`edict`)  
+* dscore_{method}: dscore between match and cleaned address  
+where {method} is one of the string match methods explained below.
+
+The purpose of `match_dict` is so that when matching between a raw address and cleaned Edict address needs to be done for the entire sample, one can just look up the `raw` address in `match_dict` and take the `matched` address as the cleaned, matching address.
+
+### Note: String Match Algorithms
+To do so, it is first necessary to match records from the `edict` to raw and decide which match (based on different string distance algorithms) is the most accurate. A intermediate dataframe, `add_matches`, will be created for this purpose.
+
+All string algorithms provided by `stringdist_join()` function will be tested, with the exception of:
+* Hamming: It requires both strings to be of equal distance, which is unlikely the case for accurate matches in our context.  
+* LCS (Longest Common Substring): It calculates the minimum number of symbols that have to be removed in both strings until resulting substrings are identical. In our case transposition is the likelier error compared to additional characters introduced by typos, hence this is not very useful.  
+* Soundex: This is a binary match system which may be too strict for our purposes.
+* Levenshtein distance (lv) and Optimal String Alignment (OSA): these are similar to the Damerau-Levenshtein distance (dl) but stricter, hence only dl is chosen.
+
+```{r}
+# create add_matches, which combines `unique_addresses` with the `cleaned` column
+add_matches <- tibble(ED = unique_addresses$ED,
+                      raw = unique_addresses$street_add,
+                      clean = cleaned)
+
+
+# create str_algo, which has all the methods we will use
+str_algo <- c("dl", "qgram", "cosine", "jaccard", "jw")
+
+# create empty lists which will store outputs
+algo_list <- list()
+ed_list <- list()
+```
+
+```{r}
+for (i in unique(add_matches$ED)) {
+  # create subset of edict and add_matches for a particular ED
+  ED_dict <- filter(edict, ED == i) %>% 
+    select(- "ED") %>%
+    unlist() 
+  ED_dict <- data.frame(clean = ED_dict, stringsAsFactors = FALSE) %>%
+    filter(!is.na(clean))
+  ED_add <- filter(add_matches, ED == i)
+  
+  for (j in str_algo) {
+    # stringdist_join, extract best match for each method
+    result <- stringdist_left_join(ED_add, ED_dict, by = "clean", 
+                                   max_dist = 5, method = j, distance_col = "dscore") %>%
+    select(ED, raw, clean.x, clean.y, dscore) %>%
+    group_by(raw) %>%
+    arrange(desc(dscore)) %>%
+    slice(1)
+    
+    # at this point, result = dataframe of addresses in ED (i), merged with method (j)
+    # append result to algo_list, each element in algo_list is a dataframe
+    algo_list[[j]] <- result
+    
+    # "column bind" all elements in algo_list to form a df called ed_df
+    # ed_df now contains all addresses in ED(i) with matches using all methods
+    ed_df <- algo_list %>% 
+      reduce(left_join, by = c("ED", "raw", "clean.x"))
+  }
+  # append each ed_df to ed_list 
+  ed_list[[i]] <- ed_df
+}
+
+# bind all dfs by row
+match_dict <- bind_rows(ed_list) %>%
+    select(ED = "ED", raw = "raw", clean = "clean.x",
+           match_dl = "clean.y.x", dscore_dl = "dscore.x",
+           match_qgram = "clean.y.y", dscore_qgram = "dscore.y",
+           match_cos = "clean.y.x.x", dscore_cos = "dscore.x.x",
+           match_jac = "clean.y.y.y", dscore_jac = "dscore.y.y",
+           match_jw = "clean.y", dscore_jw = "dscore")
+
+head(match_dict) %>%
+  kable() %>% kable_styling()
+```
+
+## 4. EDA of Results
+### How consistent are the matches?
+
+Ideally, all 5 algorithm matches will perfectly match the clean string. This table explores the number of records by the number of perfect matches with (which ranges from 0-5), e.g. 0 would mean that none of the algorithms produced a perfect match with the cleaned string.
+```{r}
+n_match <- match_dict %>%
+  mutate(yes_dl = clean == match_dl,
+         yes_qgram = clean == match_qgram,
+         yes_cos = clean == match_cos,
+         yes_jac = clean == match_jac,
+         yes_jw = clean == match_jw) %>%
+  replace(is.na(.), 0) %>%
+  mutate(sum_match = yes_dl + yes_qgram + yes_cos + yes_jac + yes_jw)
+
+table(n_match$sum_match) %>%
+  kable(col.names = c("No. of Perfect Matches", "No. of Records")) %>% 
+  kable_styling(full_width = FALSE)
+```
+
+This could be problem with the cleaning rather than the matching process. Hence, we should investigate the similarity of the matches given by the algorithms for each row.
+```{r}
+n_match_within_algo <- match_dict %>%
+  distinct(raw, .keep_all = TRUE) %>%
+  gather(key = "method", value = "match", 
+         c("match_dl", "match_qgram", "match_cos", "match_jac", "match_jw")) %>%
+  group_by(raw) %>%
+  summarise(n_diff_match = n_distinct(match))
+
+table(n_match_within_algo$n_diff_match) %>%
+  kable(col.names = c("No. of Unique Matches Given by Algorithms", "No. of Records")) %>%
+  kable_styling(full_width = FALSE)
+```
+
+### Which string match algorithm is on average more accurate?
+To answer this question, we will look at the distribution of `dscores` for each match algorithm, focusing on the mean and median `dscores`.
+```{r}
+dscore_accuracy <- match_dict %>%
+  gather(key = "method", value = "dscore", 
+         c("dscore_dl", "dscore_qgram", "dscore_cos", "dscore_jac", "dscore_jw"))
+
+dscore_accuracy$dscore[is.na(dscore_accuracy$dscore)] <- 5 # replace NA score with 5, because NA match mean dist > 5
+
+dscore_accuracy %>%
+  group_by(method) %>%
+  summarise(mean = mean(dscore), median = median(dscore)) %>%
+  arrange(median) %>%
+  kable() %>%
+  kable_styling()
+```
+
+From the table, cosine, jaccard and jw seem like the best (in terms of dscores). Qgram and dl do not perform very well.
+
+```{r}
+ggplot(dscore_accuracy, aes(x = dscore, color = method)) +
+  geom_density(size = 1) +
+  scale_color_discrete(name = "Method", labels = c("Cos", "DL", "Jaccard", "Jw", "Qgram")) +
+  labs(title = "Distribution of D-scores of Each Method", x = "D-score", y = "Density") +
+  theme_bw()
+```
+
+## 5. Further Thoughts
+Via some brief manual inspection, it seems that the lack of perfect matches is more commonly due to differences such as spelling errors or incomplete addresses in the cleaning process. Hence, there are many cases when visually one can tell that the matched string is correct, but it does not get recognized as it is not a perfect match.
+
+Moreover, for different types of errors, different string algorithms seem to be more successful. 
+
+Hence, it might be worthy to keep the existing method of using all string joining methods and selecting the modal match, which is likelier to be accurate. 
