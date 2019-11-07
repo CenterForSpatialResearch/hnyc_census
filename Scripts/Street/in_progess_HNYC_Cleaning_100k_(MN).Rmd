@@ -1,9 +1,16 @@
 ---
 title: "HNYC Cleaning"
-author: "Kyi Yeung Goh"
-date: "06/06/2019"
+author: "Bo Jumrustanasan"
+date: "11/6/19"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
+
+# 1. This could be integrated into the documentation Jolene's created
+# 2. Code was cleaned and refactored. The only jobs left here are 
+## (1) to have systematic functions for street cleaning and integrate them into the work flow.
+## (2) to match hh profiles with cleaned streets back to person profiles
 
 ```{r setup, include=FALSE}
 library(zoo)
@@ -12,7 +19,9 @@ library(readxl)
 library(stringr)
 library(fuzzyjoin)
 library(reshape2)
-df2<-read_csv("us1910m_usa_sample100k.csv")
+```
+
+```{r, eval=FALSE}
 oldstreets1<-read_xlsx("OldStreets_StreetNames_CleanNotChecked.xlsx")
 ed_descriptionMN<-read_xlsx("ED_descriptionsMN1910.xlsx")
 manhattan_dan<-read_csv("mn_segments_export.csv")
@@ -53,8 +62,6 @@ EDict_MN$cleaned<-gsub("\\<PLZ\\>|\\<PLAZ\\>|\\<PZ\\>|\\<PLZA\\>","PLAZA",EDict_
 EDict_MN$cleaned<-gsub("\\<LN\\>|\\<LNE\\>|\\<LAN\\>","LANE",EDict_MN$cleaned)
 EDict_MN$cleaned<-gsub("\\<BRG\\>|\\<BRGD\\>|\\<BGE\\>","BRIDGE",EDict_MN$cleaned)
 EDict_MN$cleaned<-gsub("\\<HL\\>|\\<HLL\\>|\\<HIL\\>","HILL",EDict_MN$cleaned)
-EDict_MN$cleaned<-gsub("\\<RO\\>|\\<ROM\\>|\\<RON\\>","ROW",EDict_MN$cleaned)
-EDict_MN$cleaned<-gsub("\\<SLP\\>|\\<SLEP\\>|\\<SLIIP\\>","SLIP",EDict_MN$cleaned)
 EDict_MN$cleaned<-gsub("\\<1ST\\>","FIRST",EDict_MN$cleaned)
 EDict_MN$cleaned<-gsub("\\b1\\b","FIRST",EDict_MN$cleaned)
 EDict_MN$cleaned<-gsub("\\<2ND\\>","SECOND",EDict_MN$cleaned)
@@ -89,65 +96,61 @@ EDict_MN$ED1<-as.numeric(as.character(EDict_MN$ED1))
 EDict_MN$ED2<-as.numeric(as.character(EDict_MN$ED2))
 ```
 
-### Addressing issues with addresses 
+# Matching Streets from Census Data to Streets in ED Dictionary
 
-### Working with the 100k sample
+This file walks through the process of matching streets from census data to corrected streets from the street dictionary.
 
-### Fill-down first
+## 1.Census Data Preperation
+
+### 1.1 Read in sample census data
 ```{r}
-df2<-read_csv("us1910m_usa_sample100k.csv")
-for (i in 1:ncol(df2)){
-if (is.na(df2[1,i]) == FALSE ){
-  df2[,i]=na.locf(df2[,i])}
-  else {
-  df2[,i]=df2[,i]
-    }
-}
+## change the path to your relative file directory
+df2 <- read_csv("/Users/panchanok/Desktop/HNYC/data/us1910m_usa_sample100k.csv")
 ```
 
-## Household profiles
+### 1.2 Creating dataframe of distinct addresses from sample census data
+
+Since 'person' records under the same household record have the same address, it is more efficieint to match only streets in household records and merge the result back to person records at the end. Notice that household records do not have page numbers. Before the estraction, we infer the page number by filling in with the page number of a person record immediately below the household record. With the same logic, it is even more efficient to keep only 1 instance for each unique address. Only address columns are kept:
+
+* `Enumeration district 2`
+* `House number`
+* `Street address 2` (This column sis renamed to "streets")
+* `Dwelling serial number`
+* `Dwelling serial number 2`
+* `Line Number`
+* `Line number 2`
+* `Microfilm page number 3`
+
 ```{r}
-not_all_na <- function(x) any(!is.na(x))
-hhprofiles<-df2%>%
-  dplyr::filter(is.na(df2$`Dwelling sequence number`)==TRUE)%>% 
-  select_if(not_all_na)
+## some tests needed here
+
+## checked: all h records have `Street address 2`
+hh_profiles <- df2 %>% 
+  fill(`Microfilm page number 3`, .direction = "up") %>%
+  filter(`Record type` == "H") %>%
+  dplyr::select(`Enumeration district 2`,`House number`,`Street address 2`,
+                `Dwelling serial number`,`Dwelling serial number 2`,`Line Number`,
+                `Line number 2`,`Microfilm page number 3`)%>%
+  distinct(`Street address 2`,.keep_all=TRUE) %>%
+  mutate(`Enumeration district 2` = as.numeric(`Enumeration district 2`)) %>%
+  rename(streets = `Street address 2`)
 ```
 
+### 1.3 Create a function that cleans/standardizes addresses
 
-### Removing the household and then joining it with persons
+There are some symbols and spaces that could deteriorate the address matching process. The function created at this step removes those symbols and standardizes the addresses:
+
+[Cleaning decription here]
+
+### These are functions for street cleaning
 ```{r}
-
-personprofile<-df2%>%
-  dplyr::filter(is.na(df2$`Consistent historical data person identifier`)==FALSE)
-
-```
-
-
-```{r}
-### Address problems
-df2$`Street address 2`<-na.locf(df2$`Street address 2`)
-
-### Inconsistent streetnames
-distinct_streets2<-personprofile%>%
-  dplyr::select(`Enumeration district 2`,`House number`,`Street address 2`,`Dwelling serial number`,`Dwelling serial number 2`,`Line Number`,`Line number 2`,`Microfilm page number 3`)%>%
-  distinct(`Street address 2`,.keep_all=TRUE)
-
-distinct_streets2$`Enumeration district 2`<-as.numeric(as.character(distinct_streets2$`Enumeration district 2`))
-
-colnames(distinct_streets2)[3]<-"streets"
-```
-
-### Function to clean existing streetnames and create a new 'cleaned' column, match using that and then drop it after
-
-```{r}
-## Preprocessing strings
 
 rem_dup_word <- function(x){
-x <- tolower(x)
-paste(unique(trimws(unlist(strsplit(x,split=" ",fixed=F,perl=T)))),collapse = 
-" ")
+  x <- tolower(x)
+  paste(unique(trimws(unlist(strsplit(x,split=" ",fixed=F,perl=T)))),collapse = " ")
 }
 
+### Function to clean existing streetnames and create a new 'cleaned' column, match using that and then drop it after
 str_clean<-function(x){
   x$cleaned<-gsub("\\<SRT\\>$|\\<SR\\>$\\<SRT\\>$|\\<STR\\>$|\\<SST\\>$|\\<SEET\\>$|\\<TREET\\>$|\\<SHEER\\>$|\\<SHEE\\>$|\\<STREE\\>$|\\<SREET\\>$|\\<REET\\>$|\\<STEE\\>$|\\<ST\\>$","STREET",x$cleaned)
   x$cleaned<-gsub("\\<N\\>","NORTH",x$cleaned)
@@ -170,9 +173,7 @@ str_clean<-function(x){
   x$cleaned<-gsub("\\<LN\\>|\\<LNE\\>|\\<LAN\\>","LANE",x$cleaned)
   x$cleaned<-gsub("\\<BRG\\>|\\<BRGD\\>|\\<BGE\\>","BRIDGE",x$cleaned)
   x$cleaned<-gsub("\\<HL\\>|\\<HLL\\>|\\<HIL\\>","HILL",x$cleaned)
-  x$cleaned<-gsub("\\<HTS\\>|\\<HT\\>|\\<HEIGHT\\>|\\<HEGHTS\\>|\\<HHT\\>|\\<HEIGT\\>","HEIGHTS",x$cleaned)
-  x$cleaned<-gsub("\\<RO\\>|\\<ROM\\>|\\<RON\\>","ROW",x$cleaned)
-  x$cleaned<-gsub("\\<SLP\\>|\\<SLEP\\>|\\<SLIIP\\>","SLIP",x$cleaned)
+  x$cleaned<-gsub("\\<HTS\\>|\\<HT\\>|\\<HEIGHT\\>|\\<HEGHTS\\>|\\<HHT\\>|\\<HEIGT\\>","HEIGHTS",x$cleaned) 
   x$cleaned<-gsub(".*\\((.*)\\).*", "\\1", x$cleaned)
   x$cleaned<-str_remove(x$cleaned,"STREET")
   x$cleaned<-gsub("\\d+\\ - *\\d*|\\d+\\ TO *\\d*|\\d+\\-\\d*","",x$cleaned) #remove addresses
@@ -246,62 +247,88 @@ x$cleaned<-gsub("(?<=\\d) (?=\\d)","",x$cleaned,perl = T) #new close gaps betwee
   ##x$cleaned<-gsub("\\<ST\\>","",x$cleaned)
   ##x$cleaned<-gsub("\\<STREET\\>","",x$cleaned)
 } 
-
-for (i in 1:nrow(distinct_streets2)){
-distinct_streets2$cleaned[i]<-toupper(rem_dup_word(distinct_streets2$streets[i]))
-}
-
-# create numbered list
-distinct_streets2$cleaned<-str_clean(distinct_streets2)
-colnames(distinct_streets2)[1]<-"ED"
 ```
 
-## Reshape original geodata ED dictionary (wide to long)
+
+### 1.4 Applying the cleaning function on the dataframe.
+
+A new column of cleaned addresses is appended to the dataframe.
+
 ```{r}
-EDict_MN_1<-EDict_MN%>%
-  select(-ED2)
+clean_hh_profiles <- hh_profiles %>%
+  rowwise() %>%
+  str_clean() # <<<<< add function that cleans addresses here
 
-colnames(EDict_MN_1)[2]="ED"
-
-EDict_MN_2<-EDict_MN%>%
-  select(-ED1)
-colnames(EDict_MN_2)[2]="ED"
-
-## long-form of ED1 and ED2 columns
-
-EDict_MN_all<-rbind(EDict_MN_1,EDict_MN_2)
-
+# for (i in 1:nrow(distinct_streets2)){
+# distinct_streets2$cleaned[i]<-toupper(rem_dup_word(distinct_streets2$streets[i]))
+# }
+# 
+# # create numbered list
+# distinct_streets2$cleaned<-str_clean(distinct_streets2)
+# colnames(distinct_streets2)[1]<-"ED"
 ```
 
-## combine with Steve Morse (new column spelling)
-```{r}
-morse_mn1910<-read_csv("MN_MORSE_EDstreet_dict_1910.csv")
-morse_mn_list<-gather(data = morse_mn1910, 
-             key = item, 
-             value = value, 
-             V1:V35)%>%
-   select(-item)
 
-morse_mn_list<-na.omit(morse_mn_list)
+
+## 2. 1910 geodata and Steve Morse's ED
+
+There are two sources of street referrences: a pull from 1910 geodata and ED information from Steve Morse's
+
+### 2.1 Read in and Reshape Edict dataframe
+
+```{r}
+manhattan_dan <- read_csv("/Users/panchanok/Desktop/HNYC/_working/mn_segments_export.csv")
+```
+
+```{r, warning=FALSE}
+## the new method produces an equivalent df to the old method's
+EDict_MN_all <- manhattan_dan %>%
+  rename(ED1 = MN_STREET1910_MINUS_ED_ED, ED2=MN_STREET1910_PLUS_ED_ED) %>%
+  dplyr::select(MN_STREET1910_FULL_STREE, MN_STREET1910_Y1910NAMESTREET, MN_STREET1910_Y1910NAMEALT, ED1, ED2) %>%
+  gather(key=street_sorce, value=streets,-ED1, -ED2) %>%
+  select(streets, ED1, ED2) %>%
+  gather(key=ed_type, value = ED,-streets) %>%
+  select(streets, ED)
+
+head(EDict_MN)
+```
+
+### 2.2 Read in and Reshape Steve Morse ED
+
+```{r}
+## the new method produces an equivalent df to the old method's
+morse_mn1910<-read_csv("/Users/panchanok/Desktop/HNYC/_working/MN_MORSE_EDstreet_dict_1910.csv")
+morse_mn_list <- morse_mn1910 %>% 
+  gather(key=item, value = streets, V1:V35) %>% 
+  dplyr::select(-item) %>% 
+  filter(!is.na(streets))
+```
+
+### 2.3 Append `Cleaned` column for Clean Steve Morse ED streets
+```{r}
+
+## this could be improved
 for (i in 1:nrow(morse_mn_list)){
-morse_mn_list$cleaned[i]<-toupper(rem_dup_word(morse_mn_list$value[i]))
+  morse_mn_list$cleaned[i]<-toupper(rem_dup_word(morse_mn_list$value[i]))
 }
 
 # create numbered list
 morse_mn_list$cleaned<-str_clean(morse_mn_list)
 colnames(morse_mn_list)[2]="streets"
-
-
 ```
 
-### Creating column for EDict which gives us name type
+
+### 2.4 Rbind Edict_MN_all and morse_mn_list
+
+!!!! required cleaned data onwards
 ```{r}
 ## combine
-EDICT_ALL_MN<-rbind(morse_mn_list,EDict_MN_all)
-EDICT_ALL_MN$streets<-toupper(EDICT_ALL_MN$streets)
-EDICT_ALL_MN<-EDICT_ALL_MN%>%
-  dplyr::filter(cleaned!="NULL")%>%
+EDICT_ALL_MN<-morse_mn_list %>% 
+  rbind(EDict_MN_all) %>%
+  mutate(streets = toupper(streets)) %>%
+  filter(cleaned != "NULL") %>%
   dplyr::mutate(type=cleaned)
+
 
 for (i in 1:nrow(EDICT_ALL_MN)){
   if (str_detect(EDICT_ALL_MN$cleaned[i],"\\bSTREET\\b")==TRUE){
