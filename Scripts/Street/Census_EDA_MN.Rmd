@@ -1,0 +1,86 @@
+---
+title: "Census_EDA_MN"
+author: "Jolene Lim"
+output: html_document
+---
+
+## 1. Setup
+```{r, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(hunspell)
+```
+
+Load Datasets
+```{r, message = FALSE}
+sample <- read_csv(here::here("Data/us1910m_usa_sample100k.csv"))
+
+names(sample) <- c("hnyc_id", "record", "township", "county", "ED", "person_id",
+                   "dwelling_seq", "dwelling_ser", "dwelling_ser2", "hh_seq", "hh_seq_8",
+                   "hh_ser2", "hh_ser_bef_split", "indiv_seq", "split", 
+                   "line_no", "line_no2", "microfilm",
+                   "n_fam", "n_person_bef_split", "house_num", "street_add")
+```
+
+## 2. Understanding the Dataset
+First, a look at the dataset:
+```{r, echo = FALSE}
+head(sample) %>% kable %>% kable_styling()
+```
+
+## 3. Variables
+For efficiency, the household records are extracted since they are the only ones that have street addresses.
+
+```{r}
+household <- filter(sample, record == "H")
+```
+
+### 3.1 Mispellings
+First, an EDA of possible mispellings in the addresses for this sample.
+
+```{r}
+mispellings <- household$street_add %>%
+  str_split(pattern = " ") %>%
+  unlist() %>%
+  unique()
+
+hunspell(mispellings) %>% unlist() %>% unique()
+```
+
+From a 100k census sample, only about 120 unique mispellings were identified. Of course, some may be correct street names that do not exist in the English language, but this example shows the usefulness of doing some EDA before street cleaning.
+
+It may also be possible to install the street dictionary as a dictionary for hunspell to perform spell check on, more information [here](https://cran.r-project.org/web/packages/hunspell/vignettes/intro.html#custom_dictionaries).
+
+### 3.2 Fill down options
+Next, I want to explore issues surrounding fill down options-- is it possible to use household persons for the joining of addresses?
+
+The number of missing values in ED is `r sum(is.na(household$ED))`. It is also noted that the number of person records with an address is `r sum(!is.na(sample[sample$record == "P", ]$street_add))`.
+
+However, the number of missing values in addresses among household persons is `r sum(is.na(household$street_add))`. Hence, we need to check that filling down a household person's address using the first non-NA above is accurate.
+
+To do so, the records were household persons have no address, and the row immediately above, are extracted.
+
+```{r}
+na_street <- which(is.na(household$street_add))
+na_street_1 <- na_street - 1
+na_street <- c(na_street, na_street_1) %>% unique() %>% sort()
+
+head(household[na_street, c("hh_seq", "street_add")], 30) %>% kable %>% kable_styling()
+```
+
+From a brief check of the dataset, it seems that the household sequences are generally consecutive for each set of addresses, suggesting that filling down from one household person to another is viable.
+
+The next thing to do is check that each person record has the same `dwelling_seq` as the household person's `dwelling_ser`.
+
+```{r}
+sample_filled <- sample %>%
+  fill("dwelling_ser", .direction = "down") %>%
+  filter(record == "P") %>%
+  mutate(dwelling_ser = str_pad(dwelling_ser, 8, "left", pad = 0)) %>%
+  mutate(flag = dwelling_seq != dwelling_ser)
+
+sum(sample_filled$flag)
+```
+
+This means that after filling down, all household persons have the same `dwelling_seq` as `dwelling_ser`, suggesting that this approach is viable.
