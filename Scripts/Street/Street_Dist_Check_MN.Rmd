@@ -6,14 +6,14 @@ output: html_document
 
 ## 1. Setup
 Load required libraries
-```{r}
+```{r, warning = FALSE, message = FALSE}
 library(kableExtra)
 library(tidyverse)
 library(fuzzyjoin)
 ```
 
 Load datasets
-```{r}
+```{r, message = FALSE}
 # load datasets
 sample <- read_csv(here::here("Data/us1910m_usa_sample100k.csv"))
 edict <- read_csv(here::here("Data/combined_edict_mn.csv"))
