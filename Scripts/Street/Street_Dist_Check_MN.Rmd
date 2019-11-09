@@ -1,10 +1,12 @@
 ---
 title: "String Distance Comparisons"
 author: "Jolene Lim"
-output: html_document
+output:
+  html_document:
+    toc: TRUE
 ---
 
-## 1. Setup
+# 1. Setup
 Load required libraries
 ```{r, warning = FALSE, message = FALSE}
 library(kableExtra)
@@ -38,10 +40,10 @@ unique_addresses <- sample %>%
   distinct(ED, street_add)
 ```
 
-## 2. Cleaning Addresses
-Importing functions created by Kyi, `rem_dup_word()` and `str_clean()`. Note: `str_clean()` is modified such that the output is a cleaned `x` rather than `x$cleaned`. This allows `x` to be a vector rather than strictly a dataframe.
+# 2. Cleaning Addresses
+Importing functions created by Kyi, `rem_dup_word()` and `str_clean()`. Note: `str_clean()` is modified such that the output is a cleaned `x` rather than `x$cleaned`. This allows `x` to be a vector rather than strictly a dataframe. (Code not shown as it is very long.)
 
-```{r}
+```{r, echo = FALSE}
 # import functions
 rem_dup_word <- function(x){
 x <- tolower(x)
@@ -156,7 +158,7 @@ cleaned[i] <- str_clean(cleaned[i])
 }
 ```
 
-## 3. Matching Addresses with EDict
+# 3. Matching Addresses with EDict
 The goal here is to create a "dictionary of matches", `match_dict`, which contains the variables:  
 * ED  
 * raw: raw address from sample  
@@ -206,7 +208,7 @@ for (i in unique(add_matches$ED)) {
                                    max_dist = 5, method = j, distance_col = "dscore") %>%
     select(ED, raw, clean.x, clean.y, dscore) %>%
     group_by(raw) %>%
-    arrange(desc(dscore)) %>%
+    arrange(dscore) %>%
     slice(1)
     
     # at this point, result = dataframe of addresses in ED (i), merged with method (j)
@@ -232,11 +234,11 @@ match_dict <- bind_rows(ed_list) %>%
            match_jw = "clean.y", dscore_jw = "dscore")
 
 head(match_dict) %>%
-  kable() %>% kable_styling()
+  kable() %>% kable_styling() %>% scroll_box(width = "100%")
 ```
 
-## 4. EDA of Results
-### How consistent are the matches?
+# 4. EDA of Results
+## How consistent are the matches?
 
 Ideally, all 5 algorithm matches will perfectly match the clean string. This table explores the number of records by the number of perfect matches with (which ranges from 0-5), e.g. 0 would mean that none of the algorithms produced a perfect match with the cleaned string.
 ```{r}
@@ -246,29 +248,56 @@ n_match <- match_dict %>%
          yes_cos = clean == match_cos,
          yes_jac = clean == match_jac,
          yes_jw = clean == match_jw) %>%
-  replace(is.na(.), 0) %>%
+  replace(is.na(.), 0) %>% # so that NA matches are 0
   mutate(sum_match = yes_dl + yes_qgram + yes_cos + yes_jac + yes_jw)
 
 table(n_match$sum_match) %>%
-  kable(col.names = c("No. of Perfect Matches", "No. of Records")) %>% 
+  as.data.frame() %>% mutate(perc = round(Freq / nrow(add_matches) * 100, 1)) %>%
+  kable(col.names = c("No. of Perfect Matches", "No. of Records", "%")) %>% 
   kable_styling(full_width = FALSE)
 ```
+242 (39.6%) records have a perfect match.
 
-This could be problem with the cleaning rather than the matching process. Hence, we should investigate the similarity of the matches given by the algorithms for each row.
 ```{r}
 n_match_within_algo <- match_dict %>%
-  distinct(raw, .keep_all = TRUE) %>%
+  distinct(ED, raw, .keep_all = TRUE) %>%
   gather(key = "method", value = "match", 
          c("match_dl", "match_qgram", "match_cos", "match_jac", "match_jw")) %>%
-  group_by(raw) %>%
+  group_by(ED, raw) %>%
   summarise(n_diff_match = n_distinct(match))
 
 table(n_match_within_algo$n_diff_match) %>%
-  kable(col.names = c("No. of Unique Matches Given by Algorithms", "No. of Records")) %>%
+  as.data.frame() %>% mutate(perc = round(Freq / nrow(add_matches) * 100, 1)) %>%
+  kable(col.names = c("No. of Unique Matches Given by Algorithms", "No. of Records", "%")) %>%
   kable_styling(full_width = FALSE)
 ```
+We know that 242 records have perfect matches between all results from the string algorithms and the clean string. Additionally, 394 - 242 = 152 (24.9%) records have all string algorithms giving the same result--suggesting that this is a problem with the cleaning rather than matching. To verify this, the records that are not a perfect match, but have all the same results are shown below:
 
-### Which string match algorithm is on average more accurate?
+```{r}
+match_dict %>%
+  replace(is.na(.), 0) %>%
+  filter(clean != match_dl &
+         match_dl == match_qgram & 
+         match_dl == match_cos & 
+         match_dl == match_jac & 
+         match_dl == match_jw) %>%
+  kable %>% kable_styling() %>% scroll_box(width = "100%", height = "500px")
+```
+It does seem that for such records, we can confidently replace the string with the matched string. At this point, perfect matches and records with identical matches comprise 64.5% of the records, i.e. we can confidently say at least 64.5% of our records are accurately matched.
+
+Another 217 (35.5%) records have different matches depending on string algorithm. These are shown below.
+```{r}
+match_dict %>%
+  replace(is.na(.), 0) %>%
+  filter(!(match_dl == match_qgram & 
+           match_dl == match_cos & 
+           match_dl == match_jac & 
+           match_dl == match_jw)) %>%
+  kable %>% kable_styling() %>% scroll_box(width = "100%", height = "500px")
+```
+For such records, using the modal match might be a good way to solve the issue.
+
+## Which string match algorithm is on average more accurate?
 To answer this question, we will look at the distribution of `dscores` for each match algorithm, focusing on the mean and median `dscores`.
 ```{r}
 dscore_accuracy <- match_dict %>%
@@ -280,12 +309,12 @@ dscore_accuracy$dscore[is.na(dscore_accuracy$dscore)] <- 5 # replace NA score wi
 dscore_accuracy %>%
   group_by(method) %>%
   summarise(mean = mean(dscore), median = median(dscore)) %>%
-  arrange(median) %>%
+  arrange(mean) %>%
   kable() %>%
   kable_styling()
 ```
 
-From the table, cosine, jaccard and jw seem like the best (in terms of dscores). Qgram and dl do not perform very well.
+From the table, cosine, jaccard and jw seem like the best (in terms of dscores). Qgram and dl do not perform very well. Nonetheless, it is important to note that this might be due to dl and qgram being more strict algorithms--in the 10k sample, this can be seen through the matching of an address called "SHEET 4 LINE 1", for which only these 2 algorithms did not return a match.
 
 ```{r}
 ggplot(dscore_accuracy, aes(x = dscore, color = method)) +
@@ -295,9 +324,317 @@ ggplot(dscore_accuracy, aes(x = dscore, color = method)) +
   theme_bw()
 ```
 
-## 5. Further Thoughts
-Via some brief manual inspection, it seems that the lack of perfect matches is more commonly due to differences such as spelling errors or incomplete addresses in the cleaning process. Hence, there are many cases when visually one can tell that the matched string is correct, but it does not get recognized as it is not a perfect match.
+# 5. Further tuning of dscore
+Using dscore relative to each ED as the `max_dist` for `stringdist_join()`.
 
-Moreover, for different types of errors, different string algorithms seem to be more successful. 
+First, get the mean and sd dscore for each ED.
+```{r}
+# create summary statistics
+summ_dscores <- match_dict %>%
+  replace(is.na(.), 5) %>%
+  group_by(ED) %>%
+  summarize(mean_dl = mean(dscore_dl), sd_dl = sd(dscore_dl),
+            mean_qgram = mean(dscore_qgram), sd_qgram = sd(dscore_qgram),
+            mean_cos = mean(dscore_cos), sd_cos = sd(dscore_cos),
+            mean_jac = mean(dscore_jac), sd_jac = sd(dscore_jac),
+            mean_jw = mean(dscore_jw), sd_jw = sd(dscore_jw)) %>%
+  replace(is.na(.), 0)
 
-Hence, it might be worthy to keep the existing method of using all string joining methods and selecting the modal match, which is likelier to be accurate. 
+# format into a list such that e.g. `summ_dscores_list$0010$jw$mean` gives mean jw dscore of ED 0010
+summ_dscores_list <- unique(summ_dscores$ED) %>% as.list()
+names(summ_dscores_list) <- unique(summ_dscores$ED)
+
+for (i in names(summ_dscores_list)) {
+  s <- filter(summ_dscores, ED == i)
+  ED_sum_list <- list(dl = list(mean = s$mean_dl, sd = s$sd_dl),
+                      qgram = list(mean = s$mean_qgram, sd = s$sd_qgram),
+                      cosine = list(mean = s$mean_cos, sd = s$sd_cos),
+                      jaccard = list(mean = s$mean_jac, sd = s$sd_jac),
+                      jw = list(mean = s$mean_jw, sd = s$sd_jw))
+  summ_dscores_list[[i]] <- ED_sum_list
+}
+```
+
+Run again, this time max_dist is dependent on mean and sd dscore of ED, output is `match_dict_imp`.
+```{r}
+for (i in unique(add_matches$ED)) {
+  # create subset of edict and add_matches for a particular ED
+  ED_dict <- filter(edict, ED == i) %>% 
+    select(- "ED") %>%
+    unlist() 
+  ED_dict <- data.frame(clean = ED_dict, stringsAsFactors = FALSE) %>%
+    filter(!is.na(clean))
+  ED_add <- filter(add_matches, ED == i)
+  
+  for (j in str_algo) {
+    # set a max_dist that varies by ED. max_dist is 2sd higher than mean.
+    threshold <- summ_dscores_list[[i]][[j]]$mean + 2 * summ_dscores_list[[i]][[j]]$sd
+    
+    # stringdist_join, extract best match for each method
+    result <- stringdist_left_join(ED_add, ED_dict, by = "clean", 
+                                   max_dist = threshold, method = j, distance_col = "dscore") %>%
+    select(ED, raw, clean.x, clean.y, dscore) %>%
+    group_by(raw) %>%
+    arrange(dscore) %>%
+    slice(1)
+    
+    # at this point, result = dataframe of addresses in ED (i), merged with method (j)
+    # append result to algo_list, each element in algo_list is a dataframe
+    algo_list[[j]] <- result
+    
+    # "column bind" all elements in algo_list to form a df called ed_df
+    # ed_df now contains all addresses in ED(i) with matches using all methods
+    ed_df <- algo_list %>% 
+      reduce(left_join, by = c("ED", "raw", "clean.x"))
+  }
+  # append each ed_df to ed_list 
+  ed_list[[i]] <- ed_df
+}
+
+# bind all dfs by row
+match_dict_imp <- bind_rows(ed_list) %>%
+    select(ED = "ED", raw = "raw", clean = "clean.x",
+           match_dl = "clean.y.x", dscore_dl = "dscore.x",
+           match_qgram = "clean.y.y", dscore_qgram = "dscore.y",
+           match_cos = "clean.y.x.x", dscore_cos = "dscore.x.x",
+           match_jac = "clean.y.y.y", dscore_jac = "dscore.y.y",
+           match_jw = "clean.y", dscore_jw = "dscore")
+```
+
+## 5.1 EDA of results
+How consistent are the matches? 
+```{r, echo = FALSE}
+n_match_imp <- match_dict_imp %>%
+  mutate(yes_dl = clean == match_dl,
+         yes_qgram = clean == match_qgram,
+         yes_cos = clean == match_cos,
+         yes_jac = clean == match_jac,
+         yes_jw = clean == match_jw) %>%
+  replace(is.na(.), 0) %>%
+  mutate(sum_match = yes_dl + yes_qgram + yes_cos + yes_jac + yes_jw)
+
+table(n_match_imp$sum_match) %>%
+  as.data.frame() %>% mutate(perc = round(Freq / nrow(add_matches) * 100, 1)) %>%
+  kable(col.names = c("No. of Perfect Matches", "No. of Records", "%")) %>% 
+  kable_styling(full_width = FALSE)
+```
+
+```{r, echo = FALSE}
+n_match_within_algo_imp <- match_dict_imp %>%
+  distinct(ED, raw, .keep_all = TRUE) %>%
+  gather(key = "method", value = "match", 
+         c("match_dl", "match_qgram", "match_cos", "match_jac", "match_jw")) %>%
+  group_by(ED, raw) %>%
+  summarise(n_diff_match = n_distinct(match))
+
+table(n_match_within_algo_imp$n_diff_match) %>%
+  as.data.frame() %>% mutate(perc = round(Freq / nrow(add_matches) * 100, 1)) %>%
+  kable(col.names = c("No. of Unique Matches Given by Algorithms", "No. of Records", "%")) %>%
+  kable_styling(full_width = FALSE)
+```
+The results are similar to before. This is because the original string distance join used a very high threshold (5), hence false negatives are unlikely to occur and the results will still hold.
+
+### Result 2: Identical matches, different from cleaned string
+Exploring cases where all string algorithms returned the same result different to cleaned string:
+```{r, echo = FALSE}
+match_dict_imp %>%
+  replace(is.na(.), 0) %>%
+  filter(clean != match_dl &
+         match_dl != 0 &
+         match_dl == match_qgram & 
+         match_dl == match_cos & 
+         match_dl == match_jac & 
+         match_dl == match_jw) %>%
+  kable %>% kable_styling() %>% scroll_box(width = "100%", height = "500px")
+```
+Similarly, the string distance algorithms seem to be giving the correct match here.
+
+### Result 2: Different matches
+Cases where string distance algorithms return different matches are shown here:
+```{r, echo = FALSE}
+match_dict_imp %>%
+  replace(is.na(.), 0) %>%
+  filter(!(match_dl == match_qgram & 
+           match_dl == match_cos & 
+           match_dl == match_jac & 
+           match_dl == match_jw)) %>%
+  kable %>% kable_styling() %>% scroll_box(width = "100%", height = "500px")
+```
+
+For these cases, it seems like the modal match (i.e. most common match) is a good representative of the true match. This hypothesis is tested and a few issues are described.
+
+```{r, echo = FALSE}
+modal <- function(x) {
+  freq <- table(x) %>% as.data.frame(stringsAsFactors = FALSE)
+  result <- freq[which(freq$Freq == max(freq$Freq)), 1]
+  if (length(result) > 1){
+    result <- str_c(result, collapse = "+")
+  }
+  result
+}
+```
+
+Code to extract the modal match:  
+_Note: this required creating a `modal()` function to extract the mode (code hidden). If there are more than two modes, the result returns "mode1+mode2"_
+
+```{r}
+# extract modes
+match_dict_modes <- match_dict_imp %>%
+  replace(is.na(.), "0") %>%
+  select(- c("dscore_dl", "dscore_qgram", "dscore_cos", "dscore_jac", "dscore_jw")) %>%
+  gather("method", "match", - c("ED", "raw", "clean")) %>%
+  group_by(ED, raw) %>%
+  summarise(mode = modal(match))
+
+# join to match_dict_imp
+match_dict_imp <- left_join(match_dict_imp, match_dict_modes, by = c("ED", "raw"))
+```
+
+How many records have single (i.e. at least 3 algorithms giving same result), non-NA modes?
+```{r}
+match_dict_imp %>%
+  filter(str_detect(mode, "^[^+]+$") & mode != 0) %>%
+  nrow()
+```
+This represents 93.4% of the sample. They are again shown here:
+
+```{r, echo = FALSE}
+match_dict_imp %>%
+  filter(str_detect(mode, "^[^+]+$") & mode != 0) %>%
+  select(ED, raw, clean, mode) %>%
+  kable() %>% kable_styling() %>% scroll_box(height = "300px")
+```
+
+#### Issue 1: Situations where the less common match is identical to clean
+However, it is noted from the table earlier that there are a few records (10, 1.6%) were 2 string algorithms return a perfect match. This is important to examine because if only 2 string algorithms gave a true, correct match, the modal match would not identify this. These are shown here:
+```{r, echo = FALSE}
+n_match_imp %>%
+  filter(sum_match == 2) %>%
+  kable %>% kable_styling() %>% scroll_box(width = "100%", height = "500px")
+```
+
+Interestingly, this seems to reflect an issue with the way either cleaning or the street dictionary is made. All these records reflect issues of whether the number should be placed before or after a street. Once standardized, this should no longer pose an issue.
+
+#### Issue 2: Multiple modes
+There may be situations there are multiple modes.
+
+```{r, echo = FALSE}
+match_dict_imp %>%
+  filter(str_detect(mode, "\\+")) %>%
+  select(ED, raw, clean, mode) %>%
+  kable() %>% kable_styling() %>% scroll_box(height = "300px")
+```
+There are 15 such rows, i.e. 2.5% of the sample.
+
+To clean these, there are a few options:  
+1. Potentially use the mode that has a lower dscore--although this is problematic as the different algorithms may have different dscore ranges, hence it is hard to compare.  
+2. Leave blank and fill using fill down. This is recommended as it seems that none of the matches are truly similar.  
+3. Manual Cleaning.
+
+#### Issue 3: There are matches, but the mode is NA
+```{r}
+match_dict_imp %>%
+  filter(mode == "0") %>%
+  filter(!(is.na(match_dl) & is.na(match_qgram) & is.na(match_cos) &
+           is.na(match_jac) & is.na(match_jw))) %>%
+  select(raw, clean, match_dl, match_qgram, match_cos, match_jac, match_jw) %>%
+  kable() %>% kable_styling() %>% scroll_box(height = "300px")
+```
+There are 13 such records (2.1%). Again, there are instances where the match seems correct, and others where the mode is correct. Nonetheless, fill down cleaning is recommended instead, especially due to the small size of this issue.
+
+### Result 4: No matches at all
+Lastly, using this method returns records (13 records, 2.1%) that have no matches at all. These are shown below:
+
+```{r, echo = FALSE}
+match_dict_imp %>%
+  filter(is.na(match_dl) & is.na(match_qgram) & is.na(match_cos) &
+         is.na(match_jac) & is.na(match_jw)) %>%
+  kable %>% kable_styling() %>% scroll_box(width = "100%", height = "300px")
+```
+
+This set of records show the main usefulnessness of using a ED-based `max_dist`: nonsensical records, such as "2ND BLANK", will not be given a false positive and can be quickly identified. These records might need to be filled down using neighboring matched records or manually cleaned.
+
+# 6. Extracting Best Matches + Fill Down?
+Recap of types of result:  
+1. Algthms return same match, match = clean. `Match` = match (i.e. mode)  
+2. Algthms return same match, match != clean. `Match` = match  (i.e. mode)
+3. Algthms return diff matches, singular non-NA mode. `Match` = mode(match)  
+4. Algthms return diff matches, multiple modes. `Match` = NA  
+5. Result 3iii: Algthms return diff matches, mode is NA. `Match` = NA  
+6. Algthms return no matches. `Match` = NA  
+
+This equates to the following nested conditional for classifying:
+```{r, eval = FALSE}
+if (match_dl == match_cos & match_dl == match_qgram & match_dl == match_jac & match_dl == match_jw) {
+    if (clean == match_dl) {1} else if (mode == 0) {6} else {2}
+   } else {
+    if (str_detect(mode, "\\+")) {4} else if (mode == 0) {5} else {3}
+   }
+}
+```
+
+Code to extract best match:
+```{r}
+match_dict_imp <- match_dict_imp %>%
+  replace(is.na(.), 0) %>%
+  rowwise() %>%
+  mutate(result_type = ifelse(match_dl == match_cos & match_dl == match_qgram & match_dl == match_jac & match_dl == match_jw, ifelse(clean == match_dl, 1, ifelse(mode == 0, 6, 2)), ifelse(str_detect(mode, "\\+"), 4, ifelse(mode == 0, 5, 3)))) %>%
+  mutate(best_match = case_when(result_type %in% c(1, 2, 3) ~ mode,
+                                result_type %in% c(4, 5, 6) ~ "0"))
+```
+
+Fill down?
+To examine if fill down will work, records with no matches (i.e. type 4, 5, 6), and their preceding 3 records are extracted.
+```{r}
+na_match <- which(match_dict_imp$best_match == 0)
+na_match_1 <- na_match- 1
+na_match_2 <- na_match - 2
+na_match_3 <- na_match - 3
+na_match <- c(na_match, na_match_1, na_match_2, na_match_3) %>% unique() %>% sort()
+
+match_dict_imp[na_match, ] %>%
+  select(ED, raw, clean, result_type, mode, best_match) %>%
+  kable() %>% kable_styling() %>% scroll_box(width = "100%", height = "300px")
+```
+Fill down may not be the best option as it does not seem like the matches above are applicable.
+
+# 7. Testing on another 10k sample
+The script was quickly re-run with a separate 10k sample. The results were similar in terms of distribution: about 50% of the records had all perfect matches, and using the string cleaning method, only about 2% of the records returned no matches.
+
+# 8. Conclusion + Recommendations
+Important observations:  
+1. While `jw`, `cos`, and `jac` algorithms tend to give matches more frequently (with a lower dscore as well), there is value in keeping `dl` and `qgram` as these are very helpful in catching false positives.  
+2. The method of using a `max_dist` that depends on the ED tends to guard against false positives better than the base method of `max_dist = 5` (which increases the error rate). 
+
+Finally, to recap the types of results:
+```{r, warning = FALSE}
+result_freq <- match_dict_imp %>%
+  transmute(result_type = factor(as.numeric(result_type), levels = 1:6,
+                              labels = c("Perfect Match", "Identical Matches",
+                                         "Singular Mode", "Multiple Modes",
+                                         "NA Mode", "No Match"))) %>% 
+  group_by(result_type) %>%
+  summarize(count = n(), perc = count / nrow(match_dict) * 100) %>%
+  mutate(cumsum = cumsum(perc))
+
+ggplot(result_freq, aes(x = result_type, y = cumsum)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Cumulative Proportions of Result Type", x = "Result Type", y = "Cumulative Proportion") +
+  theme_bw()
+```
+
+This EDA gives a good directive of the street matching workflow. The suggested workflow is:
+
+N. | Step | Notes
+---| --- | ---
+0 | Sample census data by EDs | Currently the matching script runs loops through unique number of EDs in the census data; the process can be simplified and made more efficient if there are fewer EDs in each census data (not crucial)
+1 | Extract unique sets of ED and addresses for matching | For computational efficiency
+2 | Clean streets for mispellings and arranging in correct format (e.g. 104 E St) | Using existing `str_clean()` and `rem_dup_word()` functions.
+3 | Run `stringdist_join()` on the cleaned data using max_dist = 5, using all 5 algo | Catch mean & sd of dscores for the ED
+4 | Run `stringdist_join()` on cleaned data again, using max_dist = mean * 2 sd, using all 5 algo | Stricter against false positives
+5 | Result 1: Algthms return same match, match = clean. `Match` = match | about 30% 
+6 | Result 2: Algthms return same match, match != clean. `Match` = match | about 50-60%
+7 | Result 3i: Algthms return diff matches, singular non-NA mode. `Match` = mode(match)| 93-95% 
+8 | Result 3ii: Algthms return diff matches, multiple modes. `Match` = ? | the last 5-7%
+9 | Result 3iii: Algthms return diff matches, mode is NA. `Match` = fill down/manual | the last 5-7%
+10 | Result 4: Algthms return no matches. `Match` = fill down/manual | the last 5-7%

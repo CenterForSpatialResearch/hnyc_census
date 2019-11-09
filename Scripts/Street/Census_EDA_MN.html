@@ -203,6 +203,7 @@ names(sample) &lt;- c(&quot;hnyc_id&quot;, &quot;record&quot;, &quot;township&qu
 <div id="understanding-the-dataset" class="section level2">
 <h2>2. Understanding the Dataset</h2>
 First, a look at the dataset:
+<div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:100%; ">
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
@@ -686,6 +687,7 @@ NA
 </tbody>
 </table>
 </div>
+</div>
 <div id="variables" class="section level2">
 <h2>3. Variables</h2>
 <p>For efficiency, the household records are extracted since they are the only ones that have street addresses.</p>
@@ -731,267 +733,11 @@ hunspell(mispellings) %&gt;% unlist() %&gt;% unique()</code></pre>
 <p>Next, I want to explore issues surrounding fill down options– is it possible to use household persons for the joining of addresses?</p>
 <p>The number of missing values in ED is 0. It is also noted that the number of person records with an address is 0.</p>
 <p>However, the number of missing values in addresses among household persons is 934. Hence, we need to check that filling down a household person’s address using the first non-NA above is accurate.</p>
-<p>To do so, the records were household persons have no address, and the row immediately above, are extracted.</p>
+<p><strong>NOTE: this is not true as hh_seq does not break for each new dwelling</strong> To do so, the records were household persons have no address, and the row immediately above, are extracted.</p>
 <pre class="r"><code>na_street &lt;- which(is.na(household$street_add))
 na_street_1 &lt;- na_street - 1
-na_street &lt;- c(na_street, na_street_1) %&gt;% unique() %&gt;% sort()
-
-head(household[na_street, c(&quot;hh_seq&quot;, &quot;street_add&quot;)], 30) %&gt;% kable %&gt;% kable_styling()</code></pre>
-<table class="table" style="margin-left: auto; margin-right: auto;">
-<thead>
-<tr>
-<th style="text-align:left;">
-hh_seq
-</th>
-<th style="text-align:left;">
-street_add
-</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align:left;">
-97
-</td>
-<td style="text-align:left;">
-PEARL STREET
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-98
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-99
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-00
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-01
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-02
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-03
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-04
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-05
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-06
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-07
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-08
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-09
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-10
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-11
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-12
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-13
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-14
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-15
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-16
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-17
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-18
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-19
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-20
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-21
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-74
-</td>
-<td style="text-align:left;">
-MADISON STREET
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-75
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-28
-</td>
-<td style="text-align:left;">
-CATHERINE STREET
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-29
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-52
-</td>
-<td style="text-align:left;">
-OLWER STREET
-</td>
-</tr>
-</tbody>
-</table>
-<p>From a brief check of the dataset, it seems that the household sequences are generally consecutive for each set of addresses, suggesting that filling down from one household person to another is viable.</p>
+na_street &lt;- c(na_street, na_street_1) %&gt;% unique() %&gt;% sort()</code></pre>
+<p>From a brief check of the dataset, it seems that the household sequences are generally consecutive for each set of addresses, suggesting that filling down from one household person to another is viable. <strong>NOTE: this is not true as hh_seq does not break for each new dwelling</strong>.</p>
 <p>The next thing to do is check that each person record has the same <code>dwelling_seq</code> as the household person’s <code>dwelling_ser</code>.</p>
 <pre class="r"><code>sample_filled &lt;- sample %&gt;%
   fill(&quot;dwelling_ser&quot;, .direction = &quot;down&quot;) %&gt;%
@@ -1002,6 +748,49 @@ OLWER STREET
 sum(sample_filled$flag)</code></pre>
 <pre><code>## [1] 0</code></pre>
 <p>This means that after filling down, all household persons have the same <code>dwelling_seq</code> as <code>dwelling_ser</code>, suggesting that this approach is viable.</p>
+</div>
+<div id="house-numbers" class="section level3">
+<h3>3.3 House Numbers</h3>
+<p>Checking how many records have either house no. or street_address or both.</p>
+<pre class="r"><code>tibble(none = nrow(filter(household, is.na(house_num) &amp; is.na(street_add))),
+       only_house = nrow(filter(household, !is.na(house_num) &amp; is.na(street_add))),
+       only_street = nrow(filter(household, is.na(house_num) &amp; !is.na(street_add))),
+       both = nrow(filter(household, !is.na(house_num) &amp; !is.na(street_add)))) %&gt;%
+  kable() %&gt;% kable_styling(full_width = FALSE)</code></pre>
+<table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:right;">
+none
+</th>
+<th style="text-align:right;">
+only_house
+</th>
+<th style="text-align:right;">
+only_street
+</th>
+<th style="text-align:right;">
+both
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+744
+</td>
+<td style="text-align:right;">
+190
+</td>
+<td style="text-align:right;">
+13825
+</td>
+<td style="text-align:right;">
+4678
+</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 
