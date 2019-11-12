@@ -1,0 +1,355 @@
+---
+title: "House Number Cleaning (1910 Census Data)"
+author: "temp"
+date: '`r format(Sys.Date(), "%Y-%B-%d")`'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE, warning = FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(knitr)
+```
+
+# Flow:
+
+**Census --> Extract HN from Street column (+flag1) --> clean HN (+flag2) --> outliers (+flag3) --> handle HN range (+flag4) --> HN interpolation (+flag5)**
+
+# 1. Raw Census
+
+This script explores the 1910 census sample data in order to gain insights about filling in missing house numbers.  Furthermore, address information is only available in household records except for `microfilm.page.number.3` that may be useful for house number filling down. Furthermore, most of the columns are irrelevant. Thus, these rows and columns will not be considered during the EDA.
+
+```{r}
+HN1 <- read.csv("/Users/panchanok/Desktop/HNYC/data/us1910m_usa_sample100k.csv") %>% 
+    as.data.frame() %>%
+    fill(Microfilm.page.number.3, .direction = "up") %>%
+    filter(Record.type=="H") %>%
+    select(Microfilm.page.number.3, Enumeration.district.2, 
+           Dwelling.serial.number, House.number, Street.address.2) %>%
+  mutate(originalHN = House.number,
+         House.number = ifelse(House.number=="", NA, as.character(House.number)))
+```
+
+### Note:
+
+* Although some different `Enumeration.district.2` share the same `Microfilm.page.number.3`, the page seems to signify different actual enumeration pages. Thus, an enumeration page can be uniquely identified by both `Enumeration.district.2` and `Microfilm.page.number.3`. (I only quickly look through the pages. Any rigorous check?)
+* Records are ordered by `Dwelling.serial.number`.
+
+
+=======================this block shall be removed=================
+```{r, eval = FALSE}
+## get pages that are associated with each ED. Then, check if there is an overlap
+ed <- HN1 %>% pull(Enumeration.district.2) %>% as.numeric() %>% unique()
+page_list <- lapply(ed, function(n){
+  HN1 %>% filter(Enumeration.district.2==ed) %>% pull(Microfilm.page.number.3) %>% unique() 
+})
+
+Reduce(intersect, page_list)
+```
+
+It is very important that the order of the records are preserved. We need a column that has a natural ordering for the census data.
+
+```{r}
+e_page = HN1 %>% pull(Microfilm.page.number.3) %>% unique() %>% na.omit()
+ggplot(HN1, aes(x=Microfilm.page.number.3, y=Dwelling.serial.number, color=Enumeration.district.2)) + 
+  geom_point()
+```
+
+=======================above shall be removed=============================
+
+```{r}
+count_missing <- function(HN_df){
+  HN_df %>% mutate(na.cnt = ifelse(is.na(House.number), "Missing", "Present")) %>% group_by(na.cnt) %>% summarize(count_missing=n()) 
+}
+count_missing(HN1) %>% kable()
+```
+
+Most of `House.number`s in the sample census data are missing.
+
+# 2. Extract house number from `Street.address.2`
+
+Some house numbers make into `Street.address.2` column. Numbers in a form of "100 - 120" or "100 TO 120" in `Street.address.2` are considered house numbers and copied to `House.number` if a current `House.number` is `NA`. A record is flagged if a house number is detected in `Street.address.2` but `House.number` is not `NA`. `flg_hn_from_strt` indicates whether a record is flagged (1 means flagged).
+
+```{r, echo=FALSE}
+## subset of the sample
+HN1 %>%
+  select(Dwelling.serial.number, originalHN, Street.address.2) %>%
+  filter(Dwelling.serial.number == 14004) %>%
+  kable()
+```
+
+
+```{r}
+HN2 <- HN1%>% rowwise() %>%
+  mutate(flag1=ifelse(is.na(House.number)&
+                               !is.na(str_extract(Street.address.2,"[0-9]+\\s*(-|TO)+\\s*[0-9]+")), 
+                             str_extract(Street.address.2,"[0-9]+\\s*(-|TO)+\\s*[0-9]+"),
+                             NA),
+         House.number=ifelse(is.na(flag1), House.number, flag1),
+         flg_hn_from_strt=ifelse(is.na(flag1), 0, 1),
+         House.number = gsub("\\s*(TO)\\s*", "-", House.number, ignore.case = TRUE)) %>%
+  select(-flag1)
+```
+
+There are `r sum(HN2$flg_hn_from_strt)` records whose house numbers are detected from `Street.address.2`. They are flagged.
+
+[if different format of house numbers are found in street column, extracting should be taken care in this step]
+
+
+# 3. Clean `House.number`
+
+Ideally, we want `House.number` to contain only numerical values. But here are problems.
+
+```{r, eval = FALSE, echo = TRUE}
+## run this code to see all possible house numbers
+HN1 %>% pull(House.number) %>% unique()
+```
+
+```{r, echo=FALSE}
+## subset of the sample
+HN1 %>%
+  select(Dwelling.serial.number, originalHN, Street.address.2) %>%
+  filter(Dwelling.serial.number %in% c(13797, 13855, 13970, 14250, 14910, 17365, 17649, 29158, 16231)) %>%
+  kable()
+```
+
+1. Some house numbers have "1/2"s, which should be moved into `modifier` column for the geocoder.
+2. Modifiers (e.g. "REAR") are included in `House.number` column. The modifiers may be helpful to geocoder later so we will create a new column specifically for them. 
+3. There are words in `House.number`. Currently, the code moves these words to `modifier` column.
+4. House number ranges are used instead of house numbers (using "TO", "&", "/", and " "). These symbols should all be uniformly turned into "-". A slash (`/`) is used to indicate a house number range except for the case when it is exactly `1/2`. 
+
+```{r}
+HN3 <- HN2 %>% rowwise() %>%
+  mutate(modifier.number = str_extract(House.number, "\\s1[/-]2\\b"), 
+         House.number = gsub("\\s1[/-]2\\b", " ", House.number),  
+         House.number = gsub("\\s*(TO|/|&)\\s*", "-", House.number, ignore.case = TRUE), 
+         House.number = gsub("(?<=\\d)\\s+(?=\\d)", "-", House.number, ignore.case = TRUE, perl = TRUE), 
+         modifier.word = trimws(str_extract(House.number, "[A-Za-z\\s]+")),            
+         House.number = gsub("\\s+", " ", House.number),                    
+         House.number = trimws(gsub("[A-Za-z\\s]+", "", House.number)),
+         House.number = gsub("^\\D+", "", House.number, ignore.case = TRUE), 
+         House.number = gsub("\\D+$", "", House.number, ignore.case = TRUE), 
+         flg_cleaned = ifelse(originalHN=="", 0, ifelse(House.number==originalHN, 0, 1))) 
+```
+
+The chunk above does:
+
+1. Copy `1/2` or `1-2` from `House.number` to `modifier.number` column
+2. Remove `1/2` or `1-2` from `House.number`
+3. Change `TO` and `/` into `-`
+4. Copy any modifier words from `House.number` to `modifier.number` column
+5. Remove excess whitespaces
+6. Remove any modifier words from `House.number`
+
+** I include `1-2` just in case this exists. The regex for this case excludes `11-20` for example.
+
+# 4. Flag outliers
+
+House numbers that are strangely different from other house numbers in the same enumeration page should be flagged for manual check.
+
+House numbers that should be flagged are:
+
+* house numbers that are not in the house number ranges specified in the ED dict
+* house numbers that were mistranscribed into bizarrely large number. E.g. house number range 100-120 that was transcribed into 100120
+
+## [to be implemented]
+
+# 5. Handle house number ranges 
+
+```{r, eval = FALSE, echo = TRUE}
+## run this chunk to see all possible house numbers
+HN3 %>% pull(House.number) %>% unique()
+```
+
+There are (i) [number], (ii) [number]-[number], and (iii) [number]-[number]-[number] in this sample census data. Each [number] will be separated into new columns: `hn_1`, `hn_2`, and `hn_3`.
+
+```{r, echo = FALSE}
+splt_df <- str_split_fixed(HN3$House.number, "-", 3) %>% data.frame() %>% rename(hn_1 = X1, hn_2 = X2, hn_3 = X3) %>% mutate_all(as.character) %>% mutate_all(as.numeric)
+HN4 <- HN3  %>% cbind(splt_df) 
+```
+
+```{r}
+HN4 %>% head(5) %>% kable()
+```
+
+Part of the resulting table.
+
+# 6. Identify house number sequences
+
+## Within an enumeration page?
+
+As mentioned that an enumeration page can be uniquely identified using a combination of `Enumeration.district.2` and `Microfilm.page.number.3`, we create a new index column `grp` for the combination.
+
+```{r}
+HN_grp <- HN4 %>% mutate(grp = paste0(Enumeration.district.2,"_",Microfilm.page.number.3 )) %>%
+  group_by(grp) %>%
+  mutate(index = row_number()) %>%
+  ungroup() %>% select(grp, index, House.number)
+```
+
+We can run into a difficulty if there is too few avaiable house numers in an unumeration page. Thus, it is important to see how likely the issue can occur.
+
+```{r}
+temp <- HN_grp %>% mutate(not_missing = !is.na(House.number)) %>% group_by(grp) %>% summarize(cnt_not_missing = sum(not_missing))
+temp %>% ggplot(aes(x=cnt_not_missing)) + geom_bar() + xlab("The number of available house numbers")
+```
+
+The majority of the page have fewer than 5 house numbers for the interpolation. There are a few with 50 present house numbers (all records have ones).
+
+```{r, eval = FALSE}
+## see which group has complete HN
+HN_grp %>% mutate(not_missing = !is.na(House.number)) %>% group_by(grp) %>% summarize(cnt_not_missing = sum(not_missing)) %>% filter(cnt_not_missing > 20) %>% View
+```
+
+Below are sample tables whose all records have house numbers.
+
+```{r}
+HN_grp %>% filter(grp=="24_348") %>% head(5) %>% kable()
+
+#HN_grp %>% filter(grp=="44_635") %>% head(5)
+```
+
+Can a sequence go over a page?
+
+## Across an enumeration page
+
+[Is this assumption valid? Otherwise we can only do within an enumeration page, which can be an issue.]
+Assuming that household records are collected consecutively, it is possible to recover house number sequences across pages as long as all records are ordered by `Dwelling.serial.number`.
+
+### Approach 0: fill down. This may not be ideal because we are missing too many house numbers. We should be able to do better.
+
+### Approach 1: write a program to run through all house numbers and break into sequences when appropriate.
+
+It is likely that a large gap of missing house numbers between 2 and 10 should be evenly filled with 4, 6, and 8. To do so, we need to ientify possible house number sequences from available house numbers. There are some characteristics we know about house number sequence that can be used for filling in blank streets.
+
+* An enumerator is likely to collect data from one side of a street at a time. Thus, we expect to see sequences of odd numbers and sequences of even numbers separately.
+* There is a range for possible house numbers that exist on a street. Any house number outside the range can be considered as mistranscribed.
+* It is unlikely that there are more than 500 house numbers on a street. (This 500 is arbitrary and can be made dynamic depending on width and length of an ED.)
+
+We can use these observations to break a sequence.
+
+### Approach 2: scatter plot and fitted regression lines. This should assign house numbers in the range evenly to records with missing house numbers.
+
+This is very promissing for pages with enough housing numbers. For instance,
+
+```{r}
+HN_grp %>% filter(grp == "21_232") %>% mutate(House.number = as.numeric(House.number)) %>% 
+  ggplot(aes(x=index, y = House.number)) + geom_point()
+```
+
+However, this still does not solve the problem if there are too few available house numbers.
+
+#### issues
+
+* There is only 1 house number in the page (see grp == "354_205") so no seqence can be implied.
+* Some page does not even have house numbers (see grp == "354_208")
+
+## Note from Dan
+
+* There is a mistake in transcription that may post a challenge in house number inferring. "3-5-7" is transcribed as "357". However, this should be less painful to handle once we have a new ED dict that comes with house number ranges. 
+
+
+
+
+
+
+========================= below shall be removed =========================
+
+
+
+
+### 2.2.2 Determine house numbers
+
+#### Apprach I: Fill down within a page
+
+For any record with missing house number, the gap is naively filled with the last available house number before the record. The fill down is carried through out and within an enumeration page only. 
+
+```{r}
+HN4 <- HN3 %>% 
+  group_by(Microfilm.page.number.3) %>% 
+  fill(House.number, .direction = "down") %>%
+  ungroup() %>%
+  arrange(Dwelling.serial.number)
+
+count_missing(HN4)
+```
+
+The fill down should recover most missing house numbers. However, this process can be so crude that the mapping can be inaccurate.
+
+#### Appraoch II: Infer a sequence from available house numbers
+
+It is likely that a large gap of missing house numbers between 2 and 10 should be evenly filled with 4, 6, and 8. To do so, we need to ientify possible house number sequences from available house numbers. There are some characteristics we know about house number sequence that cna be used for filling in blank streets.
+
+* An enumerator is likely to collect data from one side of a street at a time. Thus, we expect to see sequences of odd numbers and sequences of even numbers separately.
+* There is a range for possible house numbers that exist on a street. Any house number outside the range can be considered as mistranscribed.
+* It is unlikely that there are more than 500 house numbers on a street. (This 500 is arbitrary and can be made dynamic depending on width and length of an ED.)
+
+We can use these observations to break a sequence.
+
+
+
+
+
+
+
+A new column `grp` of page index is added. Now a record can be uniquely identified using `grp` and `index`.
+
+#### Point 1: What do sequences look like in each enumeration page?
+
+
+
+### trying to get a list of HN from each page.
+### using group_by but the order may not be preseved
+
+```{r}
+## all are complete cases
+## complete.cases(e_page) %>% sum == nrow(e_page)
+e_page <- HN3 %>% select(Microfilm.page.number.3, Enumeration.district.2) %>% unique()
+e_page[1,][1] ==184
+```
+
+
+```{r}
+
+HN_grp <- HN3 %>% mutate(grp = paste0(Enumeration.district.2,"_",Microfilm.page.number.3 )) %>%
+  group_by(grp) %>%
+  mutate(index = row_number()) %>%
+  ungroup() %>% select(grp, index, House.number) %>%
+  mutate(House.number = gsub("\\s*(TO|/).*$", "", House.number, ignore.case = TRUE)) %>%
+  mutate(House.number = as.numeric(House.number))
+
+sample_grp <- HN_grp %>% pull(grp) %>% unique()
+x <- HN_grp %>%
+  spread(key = index, value = House.number)
+
+# ggplot(HN_grp %>% filter(grp %in% sample_grp[1:10]), aes(x=index, y=House.number, color = grp)) + 
+#   geom_point()
+
+#na_to_empty <- function(a){ifelse(a=="NA", "", a)}
+#x %>% mutate_at(na_to_empty(.)) %>% kable()
+#x %>% rowwise() %>% mutate_all(na_to_empty) %>% kable()
+
+
+# hn_list <- lapply(seq(1:nrow(x)), function(i){
+#   datax[i,][-1] %>% as.numeric()
+# })
+```
+
+```{r, eval = FALSE}
+for(i in seq(1:nrow(x))){
+  print(x[i,] %>% as.numeric())
+}
+```
+
+#### handle ranges before 
+* There is only 1 house number in the page (see grp == "354_205") so no seqence can be implied.
+* Some page does not even have house numbers (see grp == "354_208")
+
+## Note from Dan
+
+* There is a mistake in transcription that may post a challenge in house number inferring. "3-5-7" is transcribed as "357". However, this should be less painful to handle once we have a new ED dict that comes with house number ranges. 
+
+
+
