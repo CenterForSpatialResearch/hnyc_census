@@ -11,6 +11,7 @@ editor_options:
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message=FALSE, fig.align='center', fig.width=6, fig.height=4)
 library(tidyverse)
 library(knitr)
+library(kableExtra)
 ```
 
 # Flow:
@@ -236,7 +237,7 @@ It is likely that a large gap of missing house numbers between 2 and 10 should b
 
 We can use these observations to break a sequence.
 
-#### Operationalizing Approach 1
+#### Confident Fill Downs
 Basic Principle: if the first non-NA above and first non-NA below has a difference of 0 or 2, AND the ED of those are the same, AND the street address are the same, fill down.
 
 ```{r}
@@ -274,6 +275,29 @@ sum(approach_1$yes_fill) - sum(!is.na(approach_1$hn_1))
 Using this method, 6092 additional records have been recovered (with confidence), i.e. we have 10946 (56.3%) confident house numbers.
 (Note: without controlling for ED and street address, the number was 8067 additional records, i.e. 12921 total, 66.5%. The difference in records is likely due to unclean street_add, which can be resolved soon).
 
+#### Breaking overly large numbers
+First, an EDA of house numbers with 4 or more digits:
+```{r}
+unique(HN4[HN4$hn_1 > 999, "hn_1"]) 
+```
+
+Code to select house numbers that might be a sequence, e.g. "6765" (which is 67-65) or "38040" (38-40)
+```{r}
+large_hn <- HN4 %>%
+  mutate(hn1_first_2 = as.integer(str_sub(hn_1, 1, 2))) %>%
+  mutate(hn1_last_2 = as.integer(str_sub(hn_1, str_length(hn_1) - 1, str_length(hn_1)))) %>%
+  filter(abs(hn1_first_2 - hn1_last_2) < 10)
+  
+# visualization
+large_hn %>%
+  filter(!is.na(hn_1) &
+         str_length(hn_1) >= 4 &
+         hn1_first_2 != hn1_last_2) %>%
+  select(microfilm, ED, dwelling_ser, house_num, hn_1, hn1_first_2, hn1_last_2) %>%
+  kable() %>% kable_styling()
+```
+
+This helps, but we can't tell what is a valid gap. E.g. 90-92 is likely a range, but what about 1813? 
 ### Approach 2: scatter plot and fitted regression lines. 
 
 This is similar to approach 1 but simplier because we don't have to iterate over house numbers. The idea is to plot available house numbers and recover house numbers from a fitted line.
