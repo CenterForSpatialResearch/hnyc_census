@@ -583,20 +583,59 @@ match_dict_imp <- match_dict_imp %>%
                                 result_type %in% c(4, 5, 6) ~ "0"))
 ```
 
-Fill down?
-To examine if fill down will work, records with no matches (i.e. type 4, 5, 6), and their preceding 3 records are extracted.
+## 6.1. Fill down?
+Proposed Fill down method: 
+1. Flag NAs  
+2. Extract the matched string of 3 rows above and below the records with missing matches, subject to condition that those rows are in the same ED. This forms the pool of potential matches.  
+3. Match cleaned string of missing record to the potential matches using jw.
 ```{r}
-na_match <- which(match_dict_imp$best_match == 0)
-na_match_1 <- na_match- 1
-na_match_2 <- na_match - 2
-na_match_3 <- na_match - 3
-na_match <- c(na_match, na_match_1, na_match_2, na_match_3) %>% unique() %>% sort()
+match_dict_imp <- mutate(match_dict_imp, flag = ifelse(best_match == 0, 1, 0))
+match_dict_imp$index <- 1:nrow(match_dict_imp)
 
-match_dict_imp[na_match, ] %>%
-  select(ED, raw, clean, result_type, mode, best_match) %>%
-  kable() %>% kable_styling() %>% scroll_box(width = "100%", height = "300px")
+na_matches <- filter(match_dict_imp, best_match == 0)
 ```
-Fill down may not be the best option as it does not seem like the matches above are applicable.
+
+```{r}
+for (i in na_matches$index) {
+  # extract pool of potential matches
+  i <- as.numeric(i)
+  match_ED <- na_matches[na_matches$index == i, "ED"]
+  pool_indexes <- c(i - 3, i - 2, i - 1, i + 1, i + 2, i + 3)
+  pool_matches <- filter(match_dict_imp, index %in% pool_indexes & ED == match_ED) %>%
+    select(best_match) %>%
+    distinct()
+  
+  # match using jw
+  match <- stringdist_left_join(filter(na_matches, index == i), pool_matches, by = c(clean = "best_match"), 
+                                max_dist = 5, method = "jw", distance_col = "dscore") %>%
+  group_by(raw) %>%
+  arrange(dscore) %>%
+  slice(1)
+
+  # 
+  match_dict_imp[match_dict_imp$index == i, "best_match"] <- match$best_match.y
+}
+```
+
+To examine if fill down will work, records with no matches (i.e. type 4, 5, 6), and their above/below 3 records are extracted. For this EDA, the code extracts the above/below 3 regardless of whether the match was in the same ED (for simplicity's sake).
+```{r, echo = FALSE}
+na_match_in <- na_matches$index
+na_match_1 <- na_match_in - 1
+na_match_2 <- na_match_in - 2
+na_match_3 <- na_match_in - 3
+na_1 <- na_match_in + 1
+na_2 <- na_match_in + 2
+na_3 <- na_match_in + 3
+na_match_in <- c(na_match_in, na_match_1, na_match_2, na_match_3, na_1, na_2, na_3) %>% unique() %>% sort()
+
+fill_down_EDA <- match_dict_imp[na_match_in, ]
+
+fill_down_EDA %>%
+  select(ED, raw, best_match) %>%
+  kable() %>% kable_styling() %>%
+  row_spec(row = which(fill_down_EDA$flag == 1), background = "#ff8080") %>%
+  scroll_box(width = "100%", height = "300px")
+```
 
 # 7. Testing on another 10k sample
 The script was quickly re-run with a separate 10k sample. The results were similar in terms of distribution: about 50% of the records had all perfect matches, and using the string cleaning method, only about 2% of the records returned no matches.

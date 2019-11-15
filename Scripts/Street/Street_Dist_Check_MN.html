@@ -202,7 +202,9 @@ summary {
 <li><a href="#result-4-no-matches-at-all">Result 4: No matches at all</a></li>
 </ul></li>
 </ul></li>
-<li><a href="#extracting-best-matches-fill-down">6. Extracting Best Matches + Fill Down?</a></li>
+<li><a href="#extracting-best-matches-fill-down">6. Extracting Best Matches + Fill Down?</a><ul>
+<li><a href="#fill-down">6.1. Fill down?</a></li>
+</ul></li>
 <li><a href="#testing-on-another-10k-sample">7. Testing on another 10k sample</a></li>
 <li><a href="#conclusion-recommendations">8. Conclusion + Recommendations</a></li>
 </ul>
@@ -40901,16 +40903,35 @@ NA
   mutate(result_type = ifelse(match_dl == match_cos &amp; match_dl == match_qgram &amp; match_dl == match_jac &amp; match_dl == match_jw, ifelse(clean == match_dl, 1, ifelse(mode == 0, 6, 2)), ifelse(str_detect(mode, &quot;\\+&quot;), 4, ifelse(mode == 0, 5, 3)))) %&gt;%
   mutate(best_match = case_when(result_type %in% c(1, 2, 3) ~ mode,
                                 result_type %in% c(4, 5, 6) ~ &quot;0&quot;))</code></pre>
-<p>Fill down? To examine if fill down will work, records with no matches (i.e. type 4, 5, 6), and their preceding 3 records are extracted.</p>
-<pre class="r"><code>na_match &lt;- which(match_dict_imp$best_match == 0)
-na_match_1 &lt;- na_match- 1
-na_match_2 &lt;- na_match - 2
-na_match_3 &lt;- na_match - 3
-na_match &lt;- c(na_match, na_match_1, na_match_2, na_match_3) %&gt;% unique() %&gt;% sort()
+<div id="fill-down" class="section level2">
+<h2>6.1. Fill down?</h2>
+<p>Proposed Fill down method: 1. Flag NAs<br />
+2. Extract the matched string of 3 rows above and below the records with missing matches, subject to condition that those rows are in the same ED. This forms the pool of potential matches.<br />
+3. Match cleaned string of missing record to the potential matches using jw.</p>
+<pre class="r"><code>match_dict_imp &lt;- mutate(match_dict_imp, flag = ifelse(best_match == 0, 1, 0))
+match_dict_imp$index &lt;- 1:nrow(match_dict_imp)
 
-match_dict_imp[na_match, ] %&gt;%
-  select(ED, raw, clean, result_type, mode, best_match) %&gt;%
-  kable() %&gt;% kable_styling() %&gt;% scroll_box(width = &quot;100%&quot;, height = &quot;300px&quot;)</code></pre>
+na_matches &lt;- filter(match_dict_imp, best_match == 0)</code></pre>
+<pre class="r"><code>for (i in na_matches$index) {
+  # extract pool of potential matches
+  i &lt;- as.numeric(i)
+  match_ED &lt;- na_matches[na_matches$index == i, &quot;ED&quot;]
+  pool_indexes &lt;- c(i - 3, i - 2, i - 1, i + 1, i + 2, i + 3)
+  pool_matches &lt;- filter(match_dict_imp, index %in% pool_indexes &amp; ED == match_ED) %&gt;%
+    select(best_match) %&gt;%
+    distinct()
+  
+  # match using jw
+  match &lt;- stringdist_left_join(filter(na_matches, index == i), pool_matches, by = c(clean = &quot;best_match&quot;), 
+                                max_dist = 5, method = &quot;jw&quot;, distance_col = &quot;dscore&quot;) %&gt;%
+  group_by(raw) %&gt;%
+  arrange(dscore) %&gt;%
+  slice(1)
+
+  # 
+  match_dict_imp[match_dict_imp$index == i, &quot;best_match&quot;] &lt;- match$best_match.y
+}</code></pre>
+To examine if fill down will work, records with no matches (i.e. type 4, 5, 6), and their above/below 3 records are extracted. For this EDA, the code extracts the above/below 3 regardless of whether the match was in the same ED (for simplicity’s sake).
 <div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:300px; overflow-x: scroll; width:100%; ">
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <thead>
@@ -40920,15 +40941,6 @@ ED
 </th>
 <th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
 raw
-</th>
-<th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
-clean
-</th>
-<th style="text-align:right;position: sticky; top:0; background-color: #FFFFFF;">
-result_type
-</th>
-<th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
-mode
 </th>
 <th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;">
 best_match
@@ -40946,15 +40958,6 @@ ROOSEVELT STREET
 <td style="text-align:left;">
 ROOSEVELT
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-ROOSEVELT
-</td>
-<td style="text-align:left;">
-ROOSEVELT
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -40962,15 +40965,6 @@ ROOSEVELT
 </td>
 <td style="text-align:left;">
 ROOSEVLT STREET
-</td>
-<td style="text-align:left;">
-ROOSEVLT
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-ROOSEVELT
 </td>
 <td style="text-align:left;">
 ROOSEVELT
@@ -40986,11 +40980,24 @@ ROOSEVELT
 <td style="text-align:left;">
 PARK ROW
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0021
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+APD 18
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+JAMES
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0021
 </td>
 <td style="text-align:left;">
-PARK ROW
+APRIL 22
 </td>
 <td style="text-align:left;">
 PARK ROW
@@ -41001,19 +41008,21 @@ PARK ROW
 0021
 </td>
 <td style="text-align:left;">
-APD 18
+JAMES STREET
 </td>
 <td style="text-align:left;">
-APD EIGHTEENTH
+JAMES
 </td>
-<td style="text-align:right;">
-4
+</tr>
+<tr>
+<td style="text-align:left;">
+0021
 </td>
 <td style="text-align:left;">
-0+SAINT JAMES PLACE
+NAMES STREET
 </td>
 <td style="text-align:left;">
-0
+JAMES
 </td>
 </tr>
 <tr>
@@ -41026,28 +41035,10 @@ OLIVER STREET
 <td style="text-align:left;">
 OLIVER
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-OLIVER
-</td>
-<td style="text-align:left;">
-OLIVER
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
 0022
-</td>
-<td style="text-align:left;">
-PARK ROW
-</td>
-<td style="text-align:left;">
-PARK ROW
-</td>
-<td style="text-align:right;">
-1
 </td>
 <td style="text-align:left;">
 PARK ROW
@@ -41064,16 +41055,18 @@ PARK ROW
 SAMES STREET
 </td>
 <td style="text-align:left;">
-SAMES
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
 JAMES
 </td>
-<td style="text-align:left;">
-JAMES
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0023
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+2ND BLANK
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+CATHERINE
 </td>
 </tr>
 <tr>
@@ -41081,19 +41074,32 @@ JAMES
 0023
 </td>
 <td style="text-align:left;">
-2ND BLANK
+CATHERINE STREET
 </td>
 <td style="text-align:left;">
-2 BLANK
+CATHERINE
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;">
+0023
 </td>
 <td style="text-align:left;">
-0
+KATHERINE SREET
 </td>
 <td style="text-align:left;">
-0
+CATHERINE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0023
+</td>
+<td style="text-align:left;">
+KATHERINE STREET
+</td>
+<td style="text-align:left;">
+CATHERINE
 </td>
 </tr>
 <tr>
@@ -41102,15 +41108,6 @@ JAMES
 </td>
 <td style="text-align:left;">
 OLWER
-</td>
-<td style="text-align:left;">
-OLWER
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-OLIVER
 </td>
 <td style="text-align:left;">
 OLIVER
@@ -41124,15 +41121,6 @@ OLIVER
 OLWER ST
 </td>
 <td style="text-align:left;">
-OLWER
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-OLIVER
-</td>
-<td style="text-align:left;">
 OLIVER
 </td>
 </tr>
@@ -41144,55 +41132,62 @@ OLIVER
 OLWER STREET
 </td>
 <td style="text-align:left;">
-OLWER
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-OLIVER
-</td>
-<td style="text-align:left;">
 OLIVER
 </td>
 </tr>
 <tr>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 0024
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 S AVENUE SHEER
 </td>
-<td style="text-align:left;">
-SOUTH AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+OLIVER
 </td>
-<td style="text-align:right;">
-5
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0024
 </td>
-<td style="text-align:left;">
-0
+<td style="text-align:left;background-color: #ff8080 !important;">
+ST ST
 </td>
-<td style="text-align:left;">
-0
+<td style="text-align:left;background-color: #ff8080 !important;">
+OLIVER
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-0024
+0025
 </td>
 <td style="text-align:left;">
-ST ST
+JAINES STREET
 </td>
 <td style="text-align:left;">
+JAMES
 </td>
-<td style="text-align:right;">
-5
+</tr>
+<tr>
+<td style="text-align:left;">
+0025
 </td>
 <td style="text-align:left;">
-0
+JAMES ST
 </td>
 <td style="text-align:left;">
-0
+JAMES
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0025
+</td>
+<td style="text-align:left;">
+JAMES STREET
+</td>
+<td style="text-align:left;">
+JAMES
 </td>
 </tr>
 <tr>
@@ -41201,15 +41196,6 @@ ST ST
 </td>
 <td style="text-align:left;">
 JANIES STREET
-</td>
-<td style="text-align:left;">
-JANIES
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-JAMES
 </td>
 <td style="text-align:left;">
 JAMES
@@ -41221,15 +41207,6 @@ JAMES
 </td>
 <td style="text-align:left;">
 MADCEM STREET
-</td>
-<td style="text-align:left;">
-MADCEM
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-JAMES
 </td>
 <td style="text-align:left;">
 JAMES
@@ -41245,34 +41222,16 @@ MADISON ST
 <td style="text-align:left;">
 MADISON
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-MADISON
-</td>
-<td style="text-align:left;">
-MADISON
-</td>
 </tr>
 <tr>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 0025
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 MADISON ST REAR
 </td>
-<td style="text-align:left;">
-MADISON ST REAR
-</td>
-<td style="text-align:right;">
-4
-</td>
-<td style="text-align:left;">
-0+MADISON
-</td>
-<td style="text-align:left;">
-0
+<td style="text-align:left;background-color: #ff8080 !important;">
+MADISON
 </td>
 </tr>
 <tr>
@@ -41281,15 +41240,6 @@ MADISON ST REAR
 </td>
 <td style="text-align:left;">
 MADISON STREET
-</td>
-<td style="text-align:left;">
-MADISON
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-MADISON
 </td>
 <td style="text-align:left;">
 MADISON
@@ -41303,15 +41253,6 @@ MADISON
 MADISON STREET REAR
 </td>
 <td style="text-align:left;">
-MADISON REAR
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-MADISON
-</td>
-<td style="text-align:left;">
 MADISON
 </td>
 </tr>
@@ -41323,50 +41264,23 @@ MADISON
 MODREM STREET
 </td>
 <td style="text-align:left;">
-MODREM
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-ROSE
-</td>
-<td style="text-align:left;">
 ROSE
 </td>
 </tr>
 <tr>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 0025
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 N BOURG
 </td>
-<td style="text-align:left;">
-NORTH BOURG
-</td>
-<td style="text-align:right;">
-4
-</td>
-<td style="text-align:left;">
-0+NEW BOWERY
-</td>
-<td style="text-align:left;">
-0
+<td style="text-align:left;background-color: #ff8080 !important;">
+NEW BOWERY
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
 0025
-</td>
-<td style="text-align:left;">
-NEW BOWERY
-</td>
-<td style="text-align:left;">
-NEW BOWERY
-</td>
-<td style="text-align:right;">
-1
 </td>
 <td style="text-align:left;">
 NEW BOWERY
@@ -41376,23 +41290,47 @@ NEW BOWERY
 </td>
 </tr>
 <tr>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 0025
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 NEW CHANCHERE ST
 </td>
-<td style="text-align:left;">
-NEW CHANCHERE
+<td style="text-align:left;background-color: #ff8080 !important;">
+NEW BOWERY
 </td>
-<td style="text-align:right;">
-4
+</tr>
+<tr>
+<td style="text-align:left;">
+0025
 </td>
 <td style="text-align:left;">
-0+NEW BOWERY
+OAK STREET
 </td>
 <td style="text-align:left;">
-0
+OAK
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0025
+</td>
+<td style="text-align:left;">
+ROMAINE ST
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0025
+</td>
+<td style="text-align:left;">
+ROOSEVELT STREET
+</td>
+<td style="text-align:left;">
+ROOSEVELT
 </td>
 </tr>
 <tr>
@@ -41401,15 +41339,6 @@ NEW CHANCHERE
 </td>
 <td style="text-align:left;">
 OAK STREET OAK STREET
-</td>
-<td style="text-align:left;">
-OAK
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-OAK
 </td>
 <td style="text-align:left;">
 OAK
@@ -41425,15 +41354,6 @@ OLIVER ST
 <td style="text-align:left;">
 OLIVER
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-OLIVER
-</td>
-<td style="text-align:left;">
-OLIVER
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -41445,34 +41365,27 @@ OLIVER STREET
 <td style="text-align:left;">
 OLIVER
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0026
 </td>
-<td style="text-align:left;">
-OLIVER
+<td style="text-align:left;background-color: #ff8080 !important;">
+OLWEN STREET
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 OLIVER
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-0026
+0027
 </td>
 <td style="text-align:left;">
-OLWEN STREET
+OLIVER STREET
 </td>
 <td style="text-align:left;">
-OLWEN
-</td>
-<td style="text-align:right;">
-5
-</td>
-<td style="text-align:left;">
-0
-</td>
-<td style="text-align:left;">
-0
+OLIVER
 </td>
 </tr>
 <tr>
@@ -41481,15 +41394,6 @@ OLWEN
 </td>
 <td style="text-align:left;">
 CHERRY ST
-</td>
-<td style="text-align:left;">
-CHERRY
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-CHERRY
 </td>
 <td style="text-align:left;">
 CHERRY
@@ -41505,15 +41409,6 @@ JAMES ST
 <td style="text-align:left;">
 JAMES
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-JAMES
-</td>
-<td style="text-align:left;">
-JAMES
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -41525,14 +41420,16 @@ JAMES
 <td style="text-align:left;">
 CHERRY
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0029
 </td>
-<td style="text-align:left;">
-CHERRY
+<td style="text-align:left;background-color: #ff8080 !important;">
+364 WATER ST
 </td>
-<td style="text-align:left;">
-CHERRY
+<td style="text-align:left;background-color: #ff8080 !important;">
+CATHERINE SLIP
 </td>
 </tr>
 <tr>
@@ -41540,19 +41437,32 @@ CHERRY
 0029
 </td>
 <td style="text-align:left;">
-364 WATER ST
+8 JAMES SLIP
 </td>
 <td style="text-align:left;">
-364 WATER
+JAMES SLIP
 </td>
-<td style="text-align:right;">
-5
+</tr>
+<tr>
+<td style="text-align:left;">
+0029
 </td>
 <td style="text-align:left;">
-0
+AMES SLIP JAMES SLIP JAMES SLIP
 </td>
 <td style="text-align:left;">
-0
+JAMES SLIP
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0029
+</td>
+<td style="text-align:left;">
+BATTER INC SLIP
+</td>
+<td style="text-align:left;">
+CATHERINE SLIP
 </td>
 </tr>
 <tr>
@@ -41563,30 +41473,12 @@ CHERRY
 PARK ROUT
 </td>
 <td style="text-align:left;">
-PARK ROUT
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-PARK ROW
-</td>
-<td style="text-align:left;">
 PARK ROW
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
 0037
-</td>
-<td style="text-align:left;">
-PARK ROW
-</td>
-<td style="text-align:left;">
-PARK ROW
-</td>
-<td style="text-align:right;">
-1
 </td>
 <td style="text-align:left;">
 PARK ROW
@@ -41605,34 +41497,49 @@ PEARL ST
 <td style="text-align:left;">
 PEARL
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0037
 </td>
-<td style="text-align:left;">
-PEARL
+<td style="text-align:left;background-color: #ff8080 !important;">
+ST CLSE HOTEL PARK ROAD
 </td>
-<td style="text-align:left;">
-PEARL
+<td style="text-align:left;background-color: #ff8080 !important;">
+PARK ROW
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-0037
+0038
 </td>
 <td style="text-align:left;">
-ST CLSE HOTEL PARK ROAD
+BROADWAY
 </td>
 <td style="text-align:left;">
-SAINT CLSE PARK ROAD
+BROADWAY
 </td>
-<td style="text-align:right;">
-4
+</tr>
+<tr>
+<td style="text-align:left;">
+0038
 </td>
 <td style="text-align:left;">
-0+SAINT ANDREW’SOUTH PLAZA
+CENTER ST
 </td>
 <td style="text-align:left;">
-0
+CENTRE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0038
+</td>
+<td style="text-align:left;">
+FRANKIN
+</td>
+<td style="text-align:left;">
+FRANKLIN
 </td>
 </tr>
 <tr>
@@ -41641,15 +41548,6 @@ SAINT CLSE PARK ROAD
 </td>
 <td style="text-align:left;">
 FRANKLIN ST
-</td>
-<td style="text-align:left;">
-FRANKLIN
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-FRANKLIN
 </td>
 <td style="text-align:left;">
 FRANKLIN
@@ -41663,15 +41561,6 @@ FRANKLIN
 GARTER ST
 </td>
 <td style="text-align:left;">
-GARTER
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-BAXTER
-</td>
-<td style="text-align:left;">
 BAXTER
 </td>
 </tr>
@@ -41683,16 +41572,18 @@ BAXTER
 GRATER ST
 </td>
 <td style="text-align:left;">
-GRATER
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
 BAXTER
 </td>
-<td style="text-align:left;">
-BAXTER
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0040
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+HIANAKIU ST
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+FRANKLIN
 </td>
 </tr>
 <tr>
@@ -41700,19 +41591,21 @@ BAXTER
 0040
 </td>
 <td style="text-align:left;">
-HIANAKIU ST
+HUIKAHI ST
 </td>
 <td style="text-align:left;">
-HIANAKIU
+WHITE
 </td>
-<td style="text-align:right;">
-4
+</tr>
+<tr>
+<td style="text-align:left;">
+0040
 </td>
 <td style="text-align:left;">
-FRANKLIN+MAIN
+MASTER ST
 </td>
 <td style="text-align:left;">
-0
+BAXTER
 </td>
 </tr>
 <tr>
@@ -41721,15 +41614,6 @@ FRANKLIN+MAIN
 </td>
 <td style="text-align:left;">
 OLLIES ST
-</td>
-<td style="text-align:left;">
-OLLIES
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-LEONARD
 </td>
 <td style="text-align:left;">
 LEONARD
@@ -41741,15 +41625,6 @@ LEONARD
 </td>
 <td style="text-align:left;">
 W BILTO ST
-</td>
-<td style="text-align:left;">
-WEST BILTO
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-WHITE
 </td>
 <td style="text-align:left;">
 WHITE
@@ -41765,34 +41640,49 @@ WHITE ST
 <td style="text-align:left;">
 WHITE
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0040
 </td>
-<td style="text-align:left;">
-WHITE
+<td style="text-align:left;background-color: #ff8080 !important;">
+WPS ALINE ST
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 WHITE
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-0040
+0041
 </td>
 <td style="text-align:left;">
-WPS ALINE ST
+BAXTER
 </td>
 <td style="text-align:left;">
-WPS ALINE
+BAXTER
 </td>
-<td style="text-align:right;">
-4
+</tr>
+<tr>
+<td style="text-align:left;">
+0041
 </td>
 <td style="text-align:left;">
-FRANK HOGAN PLACE+FRANKLIN
+BAXTER STREET
 </td>
 <td style="text-align:left;">
-0
+BAXTER
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0041
+</td>
+<td style="text-align:left;">
+CENTRE STREET
+</td>
+<td style="text-align:left;">
+CENTRE
 </td>
 </tr>
 <tr>
@@ -41801,15 +41691,6 @@ FRANK HOGAN PLACE+FRANKLIN
 </td>
 <td style="text-align:left;">
 WARTH STREET
-</td>
-<td style="text-align:left;">
-WARTH
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-WORTH
 </td>
 <td style="text-align:left;">
 WORTH
@@ -41825,15 +41706,6 @@ WORTH ST
 <td style="text-align:left;">
 WORTH
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-WORTH
-</td>
-<td style="text-align:left;">
-WORTH
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -41845,14 +41717,16 @@ WORTH STREET
 <td style="text-align:left;">
 WORTH
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0045
 </td>
-<td style="text-align:left;">
-WORTH
+<td style="text-align:left;background-color: #ff8080 !important;">
+HAULL STREET
 </td>
-<td style="text-align:left;">
-WORTH
+<td style="text-align:left;background-color: #ff8080 !important;">
+MULBERRY
 </td>
 </tr>
 <tr>
@@ -41860,19 +41734,32 @@ WORTH
 0045
 </td>
 <td style="text-align:left;">
-HAULL STREET
+MOLESEY STREET
 </td>
 <td style="text-align:left;">
-HAULL
+MULBERRY
 </td>
-<td style="text-align:right;">
-4
+</tr>
+<tr>
+<td style="text-align:left;">
+0045
 </td>
 <td style="text-align:left;">
-0+CHATHAM SQUARE
+MOTT STREET
 </td>
 <td style="text-align:left;">
-0
+MOTT
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0045
+</td>
+<td style="text-align:left;">
+MULBERRY ST
+</td>
+<td style="text-align:left;">
+MULBERRY
 </td>
 </tr>
 <tr>
@@ -41885,28 +41772,10 @@ BAYARD STREET
 <td style="text-align:left;">
 BAYARD
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-BAYARD
-</td>
-<td style="text-align:left;">
-BAYARD
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
 0047
-</td>
-<td style="text-align:left;">
-BOWERY
-</td>
-<td style="text-align:left;">
-BOWERY
-</td>
-<td style="text-align:right;">
-1
 </td>
 <td style="text-align:left;">
 BOWERY
@@ -41925,14 +41794,16 @@ BOWERY LODGING HOUSE
 <td style="text-align:left;">
 BOWERY
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0047
 </td>
-<td style="text-align:left;">
-BOWERY
+<td style="text-align:left;background-color: #ff8080 !important;">
+FLEE ST
 </td>
-<td style="text-align:left;">
-BOWERY
+<td style="text-align:left;background-color: #ff8080 !important;">
+PELL
 </td>
 </tr>
 <tr>
@@ -41940,19 +41811,32 @@ BOWERY
 0047
 </td>
 <td style="text-align:left;">
-FLEE ST
+MOTT STREET
 </td>
 <td style="text-align:left;">
-FLEE
+MOTT
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;">
+0047
 </td>
 <td style="text-align:left;">
-0
+PELL STREET
 </td>
 <td style="text-align:left;">
-0
+PELL
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0048
+</td>
+<td style="text-align:left;">
+BAYARD STREET
+</td>
+<td style="text-align:left;">
+BAYARD
 </td>
 </tr>
 <tr>
@@ -41965,28 +41849,10 @@ PARK STREET
 <td style="text-align:left;">
 PARK
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-PARK
-</td>
-<td style="text-align:left;">
-PARK
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
 0049
-</td>
-<td style="text-align:left;">
-CANAL
-</td>
-<td style="text-align:left;">
-CANAL
-</td>
-<td style="text-align:right;">
-1
 </td>
 <td style="text-align:left;">
 CANAL
@@ -42005,14 +41871,16 @@ CANAL ST
 <td style="text-align:left;">
 CANAL
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0049
 </td>
-<td style="text-align:left;">
-CANAL
+<td style="text-align:left;background-color: #ff8080 !important;">
+MALLERY ST
 </td>
-<td style="text-align:left;">
-CANAL
+<td style="text-align:left;background-color: #ff8080 !important;">
+MULBERRY
 </td>
 </tr>
 <tr>
@@ -42020,19 +41888,32 @@ CANAL
 0049
 </td>
 <td style="text-align:left;">
-MALLERY ST
+MULBERRY ST
 </td>
 <td style="text-align:left;">
-MALLERY
+MULBERRY
 </td>
-<td style="text-align:right;">
-5
+</tr>
+<tr>
+<td style="text-align:left;">
+0049
 </td>
 <td style="text-align:left;">
-0
+MULBERRY STREET
 </td>
 <td style="text-align:left;">
-0
+MULBERRY
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0049
+</td>
+<td style="text-align:left;">
+MULLBERRY ST
+</td>
+<td style="text-align:left;">
+MULBERRY
 </td>
 </tr>
 <tr>
@@ -42041,15 +41922,6 @@ MALLERY
 </td>
 <td style="text-align:left;">
 MARLBERRY ST
-</td>
-<td style="text-align:left;">
-MARLBERRY
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-MULBERRY
 </td>
 <td style="text-align:left;">
 MULBERRY
@@ -42063,15 +41935,6 @@ MULBERRY
 MARLBERRY STREET
 </td>
 <td style="text-align:left;">
-MARLBERRY
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-MULBERRY
-</td>
-<td style="text-align:left;">
 MULBERRY
 </td>
 </tr>
@@ -42083,13 +41946,26 @@ MULBERRY
 MATT ST
 </td>
 <td style="text-align:left;">
-MATT
+MOTT
 </td>
-<td style="text-align:right;">
-2
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0050
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+MATT ST PLACE
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+MOTT
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0050
 </td>
 <td style="text-align:left;">
-MOTT
+MATT STREET
 </td>
 <td style="text-align:left;">
 MOTT
@@ -42100,19 +41976,21 @@ MOTT
 0050
 </td>
 <td style="text-align:left;">
-MATT ST PLACE
+MOTT ST
 </td>
 <td style="text-align:left;">
-MATT ST PLACE
+MOTT
 </td>
-<td style="text-align:right;">
-4
+</tr>
+<tr>
+<td style="text-align:left;">
+0050
 </td>
 <td style="text-align:left;">
-0+MOTT
+MOTT STREET
 </td>
 <td style="text-align:left;">
-0
+MOTT
 </td>
 </tr>
 <tr>
@@ -42121,15 +41999,6 @@ MATT ST PLACE
 </td>
 <td style="text-align:left;">
 NUTT ST
-</td>
-<td style="text-align:left;">
-NUTT
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-MOTT
 </td>
 <td style="text-align:left;">
 MOTT
@@ -42141,15 +42010,6 @@ MOTT
 </td>
 <td style="text-align:left;">
 APEL
-</td>
-<td style="text-align:left;">
-APEL
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-WALKER
 </td>
 <td style="text-align:left;">
 WALKER
@@ -42163,36 +42023,51 @@ WALKER
 BARFORD ST
 </td>
 <td style="text-align:left;">
-BARFORD
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-BAYARD
-</td>
-<td style="text-align:left;">
 BAYARD
 </td>
 </tr>
 <tr>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 0051
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 BARFORD STREET BARFORD ST
 </td>
-<td style="text-align:left;">
-BARFORD STREET
+<td style="text-align:left;background-color: #ff8080 !important;">
+BAYARD
 </td>
-<td style="text-align:right;">
-4
+</tr>
+<tr>
+<td style="text-align:left;">
+0051
 </td>
 <td style="text-align:left;">
-0+BAYARD
+BAYARD
 </td>
 <td style="text-align:left;">
-0
+BAYARD
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0051
+</td>
+<td style="text-align:left;">
+BAYARD ST
+</td>
+<td style="text-align:left;">
+BAYARD
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0051
+</td>
+<td style="text-align:left;">
+BAYARD STREET
+</td>
+<td style="text-align:left;">
+BAYARD
 </td>
 </tr>
 <tr>
@@ -42201,15 +42076,6 @@ BARFORD STREET
 </td>
 <td style="text-align:left;">
 ELYDIA
-</td>
-<td style="text-align:left;">
-ELYDIA
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-ELIZABETH
 </td>
 <td style="text-align:left;">
 ELIZABETH
@@ -42223,15 +42089,6 @@ ELIZABETH
 MOLT ST
 </td>
 <td style="text-align:left;">
-MOLT
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-MOTT
-</td>
-<td style="text-align:left;">
 MOTT
 </td>
 </tr>
@@ -42245,34 +42102,16 @@ MOTT
 <td style="text-align:left;">
 MOTT
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-MOTT
-</td>
-<td style="text-align:left;">
-MOTT
-</td>
 </tr>
 <tr>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 0051
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 MOTT ELIZEBETH
 </td>
-<td style="text-align:left;">
-MOTT ELIZEBETH
-</td>
-<td style="text-align:right;">
-4
-</td>
-<td style="text-align:left;">
-0+ELIZABETH
-</td>
-<td style="text-align:left;">
-0
+<td style="text-align:left;background-color: #ff8080 !important;">
+MOTT
 </td>
 </tr>
 <tr>
@@ -42281,15 +42120,6 @@ MOTT ELIZEBETH
 </td>
 <td style="text-align:left;">
 MOTT ST
-</td>
-<td style="text-align:left;">
-MOTT
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-MOTT
 </td>
 <td style="text-align:left;">
 MOTT
@@ -42305,34 +42135,27 @@ MOTT STREET
 <td style="text-align:left;">
 MOTT
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0051
 </td>
-<td style="text-align:left;">
-MOTT
+<td style="text-align:left;background-color: #ff8080 !important;">
+REEN
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 MOTT
 </td>
 </tr>
 <tr>
-<td style="text-align:left;">
-0051
+<td style="text-align:left;background-color: #ff8080 !important;">
+0126
 </td>
-<td style="text-align:left;">
-REEN
+<td style="text-align:left;background-color: #ff8080 !important;">
+BARREE ST
 </td>
-<td style="text-align:left;">
-REEN
-</td>
-<td style="text-align:right;">
-5
-</td>
-<td style="text-align:left;">
-0
-</td>
-<td style="text-align:left;">
-0
+<td style="text-align:left;background-color: #ff8080 !important;">
+BARROW
 </td>
 </tr>
 <tr>
@@ -42340,19 +42163,32 @@ REEN
 0126
 </td>
 <td style="text-align:left;">
-BARREE ST
+BARROW ST
 </td>
 <td style="text-align:left;">
-BARREE
+BARROW
 </td>
-<td style="text-align:right;">
-5
+</tr>
+<tr>
+<td style="text-align:left;">
+0126
 </td>
 <td style="text-align:left;">
-0
+BEDFORD ST
 </td>
 <td style="text-align:left;">
-0
+BEDFORD
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0126
+</td>
+<td style="text-align:left;">
+BLACKER ST
+</td>
+<td style="text-align:left;">
+BLEECKER
 </td>
 </tr>
 <tr>
@@ -42361,15 +42197,6 @@ BARREE
 </td>
 <td style="text-align:left;">
 HUDSON STREET
-</td>
-<td style="text-align:left;">
-HUDSON
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-HUDSON
 </td>
 <td style="text-align:left;">
 HUDSON
@@ -42385,15 +42212,6 @@ LEROY ST
 <td style="text-align:left;">
 LEROY
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-LEROY
-</td>
-<td style="text-align:left;">
-LEROY
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -42405,13 +42223,15 @@ LEROY STREET
 <td style="text-align:left;">
 LEROY
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0131
 </td>
-<td style="text-align:left;">
-LEROY
+<td style="text-align:left;background-color: #ff8080 !important;">
+LEROY STRRET
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 LEROY
 </td>
 </tr>
@@ -42420,19 +42240,32 @@ LEROY
 0131
 </td>
 <td style="text-align:left;">
-LEROY STRRET
+MORTON ST
 </td>
 <td style="text-align:left;">
-LEROY STRRET
+MORTON
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;">
+0131
 </td>
 <td style="text-align:left;">
-0
+MORTON STREET
 </td>
 <td style="text-align:left;">
-0
+MORTON
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0131
+</td>
+<td style="text-align:left;">
+ST LINKER PLACE
+</td>
+<td style="text-align:left;">
+SAINT LUKES PLACE
 </td>
 </tr>
 <tr>
@@ -42441,15 +42274,6 @@ LEROY STRRET
 </td>
 <td style="text-align:left;">
 ST LUKE PLACE
-</td>
-<td style="text-align:left;">
-SAINT LUKE PLACE
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-SAINT LUKES PLACE
 </td>
 <td style="text-align:left;">
 SAINT LUKES PLACE
@@ -42465,15 +42289,6 @@ ST LUKES PLACE
 <td style="text-align:left;">
 SAINT LUKES PLACE
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-SAINT LUKES PLACE
-</td>
-<td style="text-align:left;">
-SAINT LUKES PLACE
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -42483,16 +42298,18 @@ SAINT LUKES PLACE
 ST LUKIA PL
 </td>
 <td style="text-align:left;">
-SAINT LUKIA PLACE
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
 SAINT LUKES PLACE
 </td>
-<td style="text-align:left;">
-SAINT LUKES PLACE
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0132
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+73
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+BEDFORD
 </td>
 </tr>
 <tr>
@@ -42500,19 +42317,32 @@ SAINT LUKES PLACE
 0132
 </td>
 <td style="text-align:left;">
-73
+BEDFORD ST
 </td>
 <td style="text-align:left;">
-73
+BEDFORD
 </td>
-<td style="text-align:right;">
-5
+</tr>
+<tr>
+<td style="text-align:left;">
+0132
 </td>
 <td style="text-align:left;">
-0
+BEDFORD STREET
 </td>
 <td style="text-align:left;">
-0
+BEDFORD
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0132
+</td>
+<td style="text-align:left;">
+BIDFORD ST
+</td>
+<td style="text-align:left;">
+BEDFORD
 </td>
 </tr>
 <tr>
@@ -42521,15 +42351,6 @@ SAINT LUKES PLACE
 </td>
 <td style="text-align:left;">
 CLAKOW ST
-</td>
-<td style="text-align:left;">
-CLAKOW
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-CLARKSON
 </td>
 <td style="text-align:left;">
 CLARKSON
@@ -42545,15 +42366,6 @@ CLARKSON ST
 <td style="text-align:left;">
 CLARKSON
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-CLARKSON
-</td>
-<td style="text-align:left;">
-CLARKSON
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -42565,13 +42377,15 @@ CLARKSON STREET
 <td style="text-align:left;">
 CLARKSON
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0133
 </td>
-<td style="text-align:left;">
-CLARKSON
+<td style="text-align:left;background-color: #ff8080 !important;">
+COURSEY ST
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 CLARKSON
 </td>
 </tr>
@@ -42580,19 +42394,32 @@ CLARKSON
 0133
 </td>
 <td style="text-align:left;">
-COURSEY ST
+DOUNREAY ST
 </td>
 <td style="text-align:left;">
-COURSEY
+BEDFORD
 </td>
-<td style="text-align:right;">
-4
+</tr>
+<tr>
+<td style="text-align:left;">
+0133
 </td>
 <td style="text-align:left;">
-0+CLARKSON
+DOUSAY ST
 </td>
 <td style="text-align:left;">
-0
+HUDSON
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0133
+</td>
+<td style="text-align:left;">
+DOUSAY STREET
+</td>
+<td style="text-align:left;">
+HUDSON
 </td>
 </tr>
 <tr>
@@ -42601,15 +42428,6 @@ COURSEY
 </td>
 <td style="text-align:left;">
 VANCIK STREET
-</td>
-<td style="text-align:left;">
-VANCIK
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-VARICK
 </td>
 <td style="text-align:left;">
 VARICK
@@ -42623,15 +42441,6 @@ VARICK
 VANRICK ST
 </td>
 <td style="text-align:left;">
-VANRICK
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-VARICK
-</td>
-<td style="text-align:left;">
 VARICK
 </td>
 </tr>
@@ -42643,36 +42452,29 @@ VARICK
 VANRICK STREET
 </td>
 <td style="text-align:left;">
-VANRICK
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-VARICK
-</td>
-<td style="text-align:left;">
 VARICK
 </td>
 </tr>
 <tr>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 0133
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 W H
 </td>
-<td style="text-align:left;">
-WEST H
+<td style="text-align:left;background-color: #ff8080 !important;">
+HOUSTON WEST
 </td>
-<td style="text-align:right;">
-4
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0133
 </td>
-<td style="text-align:left;">
-HOUSTON WEST+WEST HOUSTON
+<td style="text-align:left;background-color: #ff8080 !important;">
+W H DOWNING
 </td>
-<td style="text-align:left;">
-0
+<td style="text-align:left;background-color: #ff8080 !important;">
+HOUSTON WEST
 </td>
 </tr>
 <tr>
@@ -42680,19 +42482,21 @@ HOUSTON WEST+WEST HOUSTON
 0133
 </td>
 <td style="text-align:left;">
-W H DOWNING
+W HORNTON ST
 </td>
 <td style="text-align:left;">
-WEST H DOWNING
+HOUSTON WEST
 </td>
-<td style="text-align:right;">
-4
+</tr>
+<tr>
+<td style="text-align:left;">
+0133
 </td>
 <td style="text-align:left;">
-0+WEST HOUSTON
+WEST HOUSTON STREET
 </td>
 <td style="text-align:left;">
-0
+HOUSTON WEST
 </td>
 </tr>
 <tr>
@@ -42701,15 +42505,6 @@ WEST H DOWNING
 </td>
 <td style="text-align:left;">
 100TGH STREET EAST
-</td>
-<td style="text-align:left;">
-100TGH EAST
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-100 EAST
 </td>
 <td style="text-align:left;">
 100 EAST
@@ -42725,15 +42520,6 @@ WEST H DOWNING
 <td style="text-align:left;">
 100 EAST
 </td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-100 EAST
-</td>
-<td style="text-align:left;">
-100 EAST
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -42743,16 +42529,18 @@ WEST H DOWNING
 100TH STRET EAST
 </td>
 <td style="text-align:left;">
-100 STRET EAST
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
 100 EAST
 </td>
-<td style="text-align:left;">
-100 EAST
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+1654
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+10TH STREET EAST
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+99 EAST
 </td>
 </tr>
 <tr>
@@ -42760,19 +42548,32 @@ WEST H DOWNING
 1654
 </td>
 <td style="text-align:left;">
-10TH STREET EAST
+99TH STREET EAST
 </td>
 <td style="text-align:left;">
-TENTH EAST
+99 EAST
 </td>
-<td style="text-align:right;">
-5
+</tr>
+<tr>
+<td style="text-align:left;">
+1654
 </td>
 <td style="text-align:left;">
-0
+EAST
 </td>
 <td style="text-align:left;">
-0
+99 EAST
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1654
+</td>
+<td style="text-align:left;">
+EAST 100 ST
+</td>
+<td style="text-align:left;">
+100 EAST
 </td>
 </tr>
 <tr>
@@ -42781,15 +42582,6 @@ TENTH EAST
 </td>
 <td style="text-align:left;">
 EAST 100TH ST
-</td>
-<td style="text-align:left;">
-EAST 100
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-100 EAST
 </td>
 <td style="text-align:left;">
 100 EAST
@@ -42803,15 +42595,6 @@ EAST 100
 EAST 100TH STREET
 </td>
 <td style="text-align:left;">
-EAST 100
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-100 EAST
-</td>
-<td style="text-align:left;">
 100 EAST
 </td>
 </tr>
@@ -42823,13 +42606,26 @@ EAST 100
 EAST 99 STREET
 </td>
 <td style="text-align:left;">
-EAST 99
+99 EAST
 </td>
-<td style="text-align:right;">
-3
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0353
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+EAST 99TH STREEET
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+99 EAST
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0353
 </td>
 <td style="text-align:left;">
-99 EAST
+EAST 99TH STREET
 </td>
 <td style="text-align:left;">
 99 EAST
@@ -42840,19 +42636,10 @@ EAST 99
 0353
 </td>
 <td style="text-align:left;">
-EAST 99TH STREEET
+EAST 99THTREET
 </td>
 <td style="text-align:left;">
-EAST 99 STREEET
-</td>
-<td style="text-align:right;">
-4
-</td>
-<td style="text-align:left;">
-99 EAST+EAST 99
-</td>
-<td style="text-align:left;">
-0
+99 EAST
 </td>
 </tr>
 <tr>
@@ -42865,15 +42652,6 @@ SECOND AVENUE
 <td style="text-align:left;">
 2 AVENUE
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -42881,15 +42659,6 @@ SECOND AVENUE
 </td>
 <td style="text-align:left;">
 THIRD AVENUE
-</td>
-<td style="text-align:left;">
-3 AVENUE
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-3 AVENUE
 </td>
 <td style="text-align:left;">
 3 AVENUE
@@ -42903,15 +42672,17 @@ THIRD AVENUE
 2D AVE
 </td>
 <td style="text-align:left;">
-2D AVENUE
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
 2 AVENUE
 </td>
-<td style="text-align:left;">
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0354
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+EAST
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
 2 AVENUE
 </td>
 </tr>
@@ -42920,19 +42691,32 @@ THIRD AVENUE
 0354
 </td>
 <td style="text-align:left;">
-EAST
+EAST 98 ST
 </td>
 <td style="text-align:left;">
-EAST
+98 EAST
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;">
+0354
 </td>
 <td style="text-align:left;">
-0
+EAST 98TH STREET
 </td>
 <td style="text-align:left;">
-0
+98 EAST
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0354
+</td>
+<td style="text-align:left;">
+EAST 99TH ST
+</td>
+<td style="text-align:left;">
+99 EAST
 </td>
 </tr>
 <tr>
@@ -42945,15 +42729,6 @@ SECOND AVENUE
 <td style="text-align:left;">
 2 AVENUE
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -42961,15 +42736,6 @@ SECOND AVENUE
 </td>
 <td style="text-align:left;">
 SECOND AVEUNE
-</td>
-<td style="text-align:left;">
-2 AVEUNE
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-2 AVENUE
 </td>
 <td style="text-align:left;">
 2 AVENUE
@@ -42985,14 +42751,16 @@ THIRD AVENUE
 <td style="text-align:left;">
 3 AVENUE
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0355
 </td>
-<td style="text-align:left;">
-3 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+E 91 ST
 </td>
-<td style="text-align:left;">
-3 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+97 EAST
 </td>
 </tr>
 <tr>
@@ -43000,19 +42768,10 @@ THIRD AVENUE
 0355
 </td>
 <td style="text-align:left;">
-E 91 ST
+E 97 ST
 </td>
 <td style="text-align:left;">
-EAST 91
-</td>
-<td style="text-align:right;">
-5
-</td>
-<td style="text-align:left;">
-0
-</td>
-<td style="text-align:left;">
-0
+97 EAST
 </td>
 </tr>
 <tr>
@@ -43021,15 +42780,6 @@ EAST 91
 </td>
 <td style="text-align:left;">
 E 97 STREET
-</td>
-<td style="text-align:left;">
-EAST 97
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-97 EAST
 </td>
 <td style="text-align:left;">
 97 EAST
@@ -43043,15 +42793,6 @@ EAST 97
 E 98 ST
 </td>
 <td style="text-align:left;">
-EAST 98
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-98 EAST
-</td>
-<td style="text-align:left;">
 98 EAST
 </td>
 </tr>
@@ -43063,16 +42804,18 @@ EAST 98
 E 98 STREET
 </td>
 <td style="text-align:left;">
-EAST 98
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
 98 EAST
 </td>
-<td style="text-align:left;">
-98 EAST
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0355
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+EAST 91 STREET
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+97 EAST
 </td>
 </tr>
 <tr>
@@ -43080,19 +42823,32 @@ EAST 98
 0355
 </td>
 <td style="text-align:left;">
-EAST 91 STREET
+EAST 97 ST
 </td>
 <td style="text-align:left;">
-EAST 91
+97 EAST
 </td>
-<td style="text-align:right;">
-5
+</tr>
+<tr>
+<td style="text-align:left;">
+0355
 </td>
 <td style="text-align:left;">
-0
+EAST 97 STREET
 </td>
 <td style="text-align:left;">
-0
+97 EAST
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0355
+</td>
+<td style="text-align:left;">
+EAST 98 STREET
+</td>
+<td style="text-align:left;">
+98 EAST
 </td>
 </tr>
 <tr>
@@ -43101,15 +42857,6 @@ EAST 91
 </td>
 <td style="text-align:left;">
 FIRST AVE
-</td>
-<td style="text-align:left;">
-1 AVENUE
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-1 AVENUE
 </td>
 <td style="text-align:left;">
 1 AVENUE
@@ -43125,15 +42872,6 @@ FIRST AVENUE
 <td style="text-align:left;">
 1 AVENUE
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-1 AVENUE
-</td>
-<td style="text-align:left;">
-1 AVENUE
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -43145,11 +42883,24 @@ SECOND AVENUE
 <td style="text-align:left;">
 2 AVENUE
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0356
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+18TH ST
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+2 AVENUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0356
 </td>
 <td style="text-align:left;">
-2 AVENUE
+2ND AVE
 </td>
 <td style="text-align:left;">
 2 AVENUE
@@ -43160,19 +42911,21 @@ SECOND AVENUE
 0356
 </td>
 <td style="text-align:left;">
-18TH ST
+2ND AVENUE
 </td>
 <td style="text-align:left;">
-EIGHTEENTH
+2 AVENUE
 </td>
-<td style="text-align:right;">
-5
+</tr>
+<tr>
+<td style="text-align:left;">
+0356
 </td>
 <td style="text-align:left;">
-0
+3RD AVE
 </td>
 <td style="text-align:left;">
-0
+3 AVENUE
 </td>
 </tr>
 <tr>
@@ -43185,15 +42938,6 @@ EIGHTEENTH
 <td style="text-align:left;">
 2 AVENUE
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -43201,15 +42945,6 @@ EIGHTEENTH
 </td>
 <td style="text-align:left;">
 3 AVE
-</td>
-<td style="text-align:left;">
-3 AVENUE
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-3 AVENUE
 </td>
 <td style="text-align:left;">
 3 AVENUE
@@ -43225,14 +42960,16 @@ EIGHTEENTH
 <td style="text-align:left;">
 3 AVENUE
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0357
 </td>
-<td style="text-align:left;">
-3 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+96 ST
 </td>
-<td style="text-align:left;">
-3 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+96 EAST
 </td>
 </tr>
 <tr>
@@ -43240,19 +42977,32 @@ EIGHTEENTH
 0357
 </td>
 <td style="text-align:left;">
-96 ST
+EAST 91TH STREET
 </td>
 <td style="text-align:left;">
-96
+96 EAST
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;">
+0357
 </td>
 <td style="text-align:left;">
-0
+EAST 96 ST
 </td>
 <td style="text-align:left;">
-0
+96 EAST
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0357
+</td>
+<td style="text-align:left;">
+EAST 96 STREET
+</td>
+<td style="text-align:left;">
+96 EAST
 </td>
 </tr>
 <tr>
@@ -43265,15 +43015,6 @@ EIGHTEENTH
 <td style="text-align:left;">
 1 AVENUE
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-1 AVENUE
-</td>
-<td style="text-align:left;">
-1 AVENUE
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -43281,15 +43022,6 @@ EIGHTEENTH
 </td>
 <td style="text-align:left;">
 2D AVE
-</td>
-<td style="text-align:left;">
-2D AVENUE
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-2 AVENUE
 </td>
 <td style="text-align:left;">
 2 AVENUE
@@ -43305,14 +43037,16 @@ EIGHTEENTH
 <td style="text-align:left;">
 2 AVENUE
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0358
 </td>
-<td style="text-align:left;">
-2 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+95TH ST
 </td>
-<td style="text-align:left;">
-2 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+95 EAST
 </td>
 </tr>
 <tr>
@@ -43320,19 +43054,32 @@ EIGHTEENTH
 0358
 </td>
 <td style="text-align:left;">
-95TH ST
+E 94 ST
 </td>
 <td style="text-align:left;">
-95
+94 EAST
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;">
+0358
 </td>
 <td style="text-align:left;">
-0
+E 95 ST
 </td>
 <td style="text-align:left;">
-0
+95 EAST
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0358
+</td>
+<td style="text-align:left;">
+EAST 75TH STREET
+</td>
+<td style="text-align:left;">
+95 EAST
 </td>
 </tr>
 <tr>
@@ -43341,15 +43088,6 @@ EIGHTEENTH
 </td>
 <td style="text-align:left;">
 SECOND AVENUE
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-2 AVENUE
 </td>
 <td style="text-align:left;">
 2 AVENUE
@@ -43365,15 +43103,6 @@ SECOND AVENUE
 <td style="text-align:left;">
 2 AVENUE
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -43385,34 +43114,27 @@ SECOND AVENUE
 <td style="text-align:left;">
 3 AVENUE
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-3 AVENUE
-</td>
-<td style="text-align:left;">
-3 AVENUE
-</td>
 </tr>
 <tr>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 0359
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;background-color: #ff8080 !important;">
 95TH ST
 </td>
-<td style="text-align:left;">
-95
+<td style="text-align:left;background-color: #ff8080 !important;">
+95 EAST
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0359
 </td>
-<td style="text-align:left;">
-0
+<td style="text-align:left;background-color: #ff8080 !important;">
+96 ST
 </td>
-<td style="text-align:left;">
-0
+<td style="text-align:left;background-color: #ff8080 !important;">
+96 EAST
 </td>
 </tr>
 <tr>
@@ -43420,19 +43142,32 @@ SECOND AVENUE
 0359
 </td>
 <td style="text-align:left;">
-96 ST
+EAST 95 ST
 </td>
 <td style="text-align:left;">
-96
+95 EAST
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;">
+0359
 </td>
 <td style="text-align:left;">
-0
+EAST 96 ST
 </td>
 <td style="text-align:left;">
-0
+96 EAST
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0359
+</td>
+<td style="text-align:left;">
+EAST NINETY SIXTH
+</td>
+<td style="text-align:left;">
+96 EAST
 </td>
 </tr>
 <tr>
@@ -43441,15 +43176,6 @@ SECOND AVENUE
 </td>
 <td style="text-align:left;">
 EAST NINTY SIXTH ST
-</td>
-<td style="text-align:left;">
-EAST 96
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-96 EAST
 </td>
 <td style="text-align:left;">
 96 EAST
@@ -43463,15 +43189,6 @@ EAST 96
 EAST UNITY FIFTH ST
 </td>
 <td style="text-align:left;">
-EAST 95
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-95 EAST
-</td>
-<td style="text-align:left;">
 95 EAST
 </td>
 </tr>
@@ -43483,16 +43200,18 @@ EAST 95
 EAST UNITY FIFTH STREET
 </td>
 <td style="text-align:left;">
-EAST 95
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
 95 EAST
 </td>
-<td style="text-align:left;">
-95 EAST
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0359
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+NINTY SIXTH
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+96 EAST
 </td>
 </tr>
 <tr>
@@ -43500,19 +43219,32 @@ EAST 95
 0359
 </td>
 <td style="text-align:left;">
-NINTY SIXTH
+SECOND AVE
 </td>
 <td style="text-align:left;">
-96
+2 AVENUE
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;">
+0359
 </td>
 <td style="text-align:left;">
-0
+THIRD AVE
 </td>
 <td style="text-align:left;">
-0
+3 AVENUE
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0360
+</td>
+<td style="text-align:left;">
+3 AVE
+</td>
+<td style="text-align:left;">
+3 AVENUE
 </td>
 </tr>
 <tr>
@@ -43521,15 +43253,6 @@ NINTY SIXTH
 </td>
 <td style="text-align:left;">
 EAST 95TH ST
-</td>
-<td style="text-align:left;">
-EAST 95
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-95 EAST
 </td>
 <td style="text-align:left;">
 95 EAST
@@ -43541,15 +43264,6 @@ EAST 95
 </td>
 <td style="text-align:left;">
 EAST 95TH STREET
-</td>
-<td style="text-align:left;">
-EAST 95
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-95 EAST
 </td>
 <td style="text-align:left;">
 95 EAST
@@ -43565,14 +43279,16 @@ SECOND AVE
 <td style="text-align:left;">
 2 AVENUE
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0360
 </td>
-<td style="text-align:left;">
-2 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+SECOND W ST
 </td>
-<td style="text-align:left;">
-2 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+95 EAST
 </td>
 </tr>
 <tr>
@@ -43580,19 +43296,21 @@ SECOND AVE
 0360
 </td>
 <td style="text-align:left;">
-SECOND W ST
+THIRD AVE
 </td>
 <td style="text-align:left;">
-2 WEST
+3 AVENUE
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;">
+0360
 </td>
 <td style="text-align:left;">
-0
+THIRD AVENUE
 </td>
 <td style="text-align:left;">
-0
+3 AVENUE
 </td>
 </tr>
 <tr>
@@ -43601,15 +43319,6 @@ SECOND W ST
 </td>
 <td style="text-align:left;">
 2ND AVE
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-2 AVENUE
 </td>
 <td style="text-align:left;">
 2 AVENUE
@@ -43625,15 +43334,6 @@ SECOND W ST
 <td style="text-align:left;">
 2 AVENUE
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -43645,14 +43345,16 @@ SECOND W ST
 <td style="text-align:left;">
 3 AVENUE
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0361
 </td>
-<td style="text-align:left;">
-3 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+E93 ST
 </td>
-<td style="text-align:left;">
-3 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+93 EAST
 </td>
 </tr>
 <tr>
@@ -43660,19 +43362,32 @@ SECOND W ST
 0361
 </td>
 <td style="text-align:left;">
-E93 ST
+EAST 93 ST
 </td>
 <td style="text-align:left;">
-E93
+93 EAST
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;">
+0361
 </td>
 <td style="text-align:left;">
-0
+EAST 93 STREET
 </td>
 <td style="text-align:left;">
-0
+93 EAST
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0361
+</td>
+<td style="text-align:left;">
+EAST 93D STREET
+</td>
+<td style="text-align:left;">
+93 EAST
 </td>
 </tr>
 <tr>
@@ -43681,15 +43396,6 @@ E93
 </td>
 <td style="text-align:left;">
 94TH STREET
-</td>
-<td style="text-align:left;">
-94
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-94 EAST
 </td>
 <td style="text-align:left;">
 94 EAST
@@ -43703,15 +43409,6 @@ E93
 NINETY-FOUNTH STREET (94 ST)
 </td>
 <td style="text-align:left;">
-94 ST
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-94 EAST
-</td>
-<td style="text-align:left;">
 94 EAST
 </td>
 </tr>
@@ -43723,13 +43420,26 @@ NINETY-FOUNTH STREET (94 ST)
 NINETY-FOURTH STREET (94TH ST)
 </td>
 <td style="text-align:left;">
-94 ST
+94 EAST
 </td>
-<td style="text-align:right;">
-3
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0362
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+NINETY-FOURTH STREET 94 (94TH ST
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+94 EAST
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0362
 </td>
 <td style="text-align:left;">
-94 EAST
+NINETY FOURTH ST (94TH ST)
 </td>
 <td style="text-align:left;">
 94 EAST
@@ -43740,19 +43450,21 @@ NINETY-FOURTH STREET (94TH ST)
 0362
 </td>
 <td style="text-align:left;">
-NINETY-FOURTH STREET 94 (94TH ST
+NINETY FOURTH STREET (94TH ST)
 </td>
 <td style="text-align:left;">
-94 94 (94 STREET
+94 EAST
 </td>
-<td style="text-align:right;">
-5
+</tr>
+<tr>
+<td style="text-align:left;">
+0362
 </td>
 <td style="text-align:left;">
-0
+NINETY THIRD ST (93RD ST)
 </td>
 <td style="text-align:left;">
-0
+93 EAST
 </td>
 </tr>
 <tr>
@@ -43761,15 +43473,6 @@ NINETY-FOURTH STREET 94 (94TH ST
 </td>
 <td style="text-align:left;">
 2ND AVE
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-2 AVENUE
 </td>
 <td style="text-align:left;">
 2 AVENUE
@@ -43783,15 +43486,6 @@ NINETY-FOURTH STREET 94 (94TH ST
 3D AVE
 </td>
 <td style="text-align:left;">
-3D AVENUE
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-3 AVENUE
-</td>
-<td style="text-align:left;">
 3 AVENUE
 </td>
 </tr>
@@ -43803,13 +43497,37 @@ NINETY-FOURTH STREET 94 (94TH ST
 91 ST STREET
 </td>
 <td style="text-align:left;">
-91 ST
+91 EAST
 </td>
-<td style="text-align:right;">
-3
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0364
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+92ND ST
+</td>
+<td style="text-align:left;background-color: #ff8080 !important;">
+91 EAST
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0364
 </td>
 <td style="text-align:left;">
-91 EAST
+E 90ST
+</td>
+<td style="text-align:left;">
+90 EAST
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0364
+</td>
+<td style="text-align:left;">
+E 91 ST
 </td>
 <td style="text-align:left;">
 91 EAST
@@ -43820,19 +43538,10 @@ NINETY-FOURTH STREET 94 (94TH ST
 0364
 </td>
 <td style="text-align:left;">
-92ND ST
+E 91ST
 </td>
 <td style="text-align:left;">
-92
-</td>
-<td style="text-align:right;">
-6
-</td>
-<td style="text-align:left;">
-0
-</td>
-<td style="text-align:left;">
-0
+91 EAST
 </td>
 </tr>
 <tr>
@@ -43841,15 +43550,6 @@ NINETY-FOURTH STREET 94 (94TH ST
 </td>
 <td style="text-align:left;">
 FIRST AVENUE
-</td>
-<td style="text-align:left;">
-1 AVENUE
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-1 AVENUE
 </td>
 <td style="text-align:left;">
 1 AVENUE
@@ -43865,15 +43565,6 @@ SECOND AVE
 <td style="text-align:left;">
 2 AVENUE
 </td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
-<td style="text-align:left;">
-2 AVENUE
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -43885,40 +43576,55 @@ SECOND AVENUE
 <td style="text-align:left;">
 2 AVENUE
 </td>
-<td style="text-align:right;">
-1
+</tr>
+<tr>
+<td style="text-align:left;background-color: #ff8080 !important;">
+0366
 </td>
-<td style="text-align:left;">
-2 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+WEST 90TH STREET
 </td>
-<td style="text-align:left;">
-2 AVENUE
+<td style="text-align:left;background-color: #ff8080 !important;">
+1 AVENUE
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
-0366
+NA
 </td>
 <td style="text-align:left;">
-WEST 90TH STREET
+NA
 </td>
 <td style="text-align:left;">
-WEST 90
+NA
 </td>
-<td style="text-align:right;">
-6
+</tr>
+<tr>
+<td style="text-align:left;">
+NA
 </td>
 <td style="text-align:left;">
-0
+NA
 </td>
 <td style="text-align:left;">
-0
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
 </td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>Fill down may not be the best option as it does not seem like the matches above are applicable.</p>
+</div>
 </div>
 <div id="testing-on-another-10k-sample" class="section level1">
 <h1>7. Testing on another 10k sample</h1>
@@ -43945,7 +43651,7 @@ ggplot(result_freq, aes(x = result_type, y = cumsum)) +
   theme_bw()</code></pre>
 <p><img src="data:image/png;base64,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3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpIoSPfFIYCjYEUOkihI98UhgKNgRQ6SKEj3xSGAo2BFDpI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" width="672" /></p>
 <p>This EDA gives a good directive of the street matching workflow. The suggested workflow is:</p>
-<table style="width:100%;">
+<table style="width:17%;">
 <colgroup>
 <col width="5%"></col>
 <col width="5%"></col>
