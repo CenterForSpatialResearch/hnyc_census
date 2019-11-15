@@ -27,7 +27,7 @@ std_name <- c("hnyc_id", "record", "township", "county", "ED", "person_id",
               "hh_ser2", "hh_ser_bef_split", "indiv_seq", "split",
               "line_no", "line_no2", "microfilm",
               "n_fam", "n_person_bef_split", "house_num", "street_add")
-HN1 <- read.csv("/Users/panchanok/Desktop/HNYC/data/us1910m_usa_sample100k.csv") %>% 
+HN1 <- read.csv(here::here("Data/us1910m_usa_sample100k.csv")) %>% 
     as.data.frame()
 names(HN1) <- std_name
 
@@ -36,8 +36,8 @@ HN1 <- HN1 %>%
     filter(record=="H") %>%
     select(microfilm, ED, 
            dwelling_ser, house_num, street_add) %>%
-  mutate(originalHN = house_num,
-         house_num = ifelse(house_num=="", NA, as.character(house_num)))
+    mutate(originalHN = house_num,
+           house_num = ifelse(house_num=="", NA, as.character(house_num)))
 ```
 
 ### Note:
@@ -120,7 +120,7 @@ HN3 <- HN2 %>% rowwise() %>%
          house_num = gsub("\\s+", " ", house_num),                    
          house_num = trimws(gsub("[A-Za-z\\s]+", "", house_num)),
          house_num = gsub("^\\D+", "", house_num, ignore.case = TRUE), 
-         house_num = gsub("\\D+$", "", house_num, ignore.case = TRUE), 
+         house_num = gsub("\\D+$", "", house_num, ignore.case = TRUE),
          flg_cleaned = ifelse(originalHN=="", 0, ifelse(house_num==originalHN, 0, 1))) 
 ```
 
@@ -235,6 +235,44 @@ It is likely that a large gap of missing house numbers between 2 and 10 should b
 * It is unlikely that there are more than 500 house numbers on a street. (This 500 is arbitrary and can be made dynamic depending on width and length of an ED.)
 
 We can use these observations to break a sequence.
+
+#### Operationalizing Approach 1
+Basic Principle: if the first non-NA above and first non-NA below has a difference of 0 or 2, AND the ED of those are the same, AND the street address are the same, fill down.
+
+```{r}
+approach_1 <- HN4 %>%
+  
+  # fix street_add
+  mutate(street_add = as.character(street_add)) %>%
+  
+  # create copy of the columns to filled up/down - these should only be filled for records with house no.s
+  mutate(above_hn = hn_1, below_hn = hn_1) %>% 
+  mutate(above_ED = ifelse(!is.na(hn_1), ED, NA), below_ED = ifelse(!is.na(hn_1), ED, NA)) %>%
+  mutate(above_add = ifelse(!is.na(hn_1), street_add, NA), 
+         below_add = ifelse(!is.na(hn_1), street_add, NA)) %>%
+  
+  # fill
+  fill(above_hn, .direction = "down") %>%
+  fill(below_hn, .direction = "up") %>%
+  fill(above_ED, .direction = "down") %>%
+  fill(below_ED, .direction = "up") %>%
+  fill(above_add, .direction = "down") %>%
+  fill(below_add, .direction = "up") %>%
+  
+  # can we confidently fill up/down?
+  mutate(yes_fill = ifelse(abs(above_hn - below_hn) %in% c(0, 2) 
+                           & above_ED == below_ED & above_ED == ED
+                           & above_add == below_add & above_add == street_add, 
+                           1, 0))
+```
+
+```{r}
+sum(approach_1$yes_fill)
+sum(approach_1$yes_fill) - sum(!is.na(approach_1$hn_1))
+```
+
+Using this method, 6092 additional records have been recovered (with confidence), i.e. we have 10946 (56.3%) confident house numbers.
+(Note: without controlling for ED and street address, the number was 8067 additional records, i.e. 12921 total, 66.5%. The difference in records is likely due to unclean street_add, which can be resolved soon).
 
 ### Approach 2: scatter plot and fitted regression lines. 
 
