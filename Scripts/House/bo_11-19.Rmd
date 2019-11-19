@@ -1,0 +1,455 @@
+---
+title: "11/19"
+author: "Bo Jumrustanasan"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+```
+
+### Last time
+
+* Use fitted lines to predict missing house numbers.
+* Break into sequences to avoid overly complex fitted lines
+* Then regress house numbers on indices
+
+```{r}
+#load("Scripts/House/HN5.RData")
+load("HN5.RData")
+```
+
+```{r seqbreaker, echo = FALSE}
+# called by appendSeqCol()
+getSequenceHead <- function(sample_hn_seq){
+  
+  ## use index referencing nona_sample_hn_seq (consecutive)
+  ## must start from the second HN
+  ## return (head_index, new_prev_index, new_current_index, new_next_index)
+  isHead <- function(prev_index, curr_index, next_index){
+    if (next_index>list_length){
+      message("must stop")
+      stop()
+    }
+    if (next_index>list_length){
+      return() ## out-of-bound. stop.
+    }
+    
+    if(is.na(next_index)) return()
+    
+    same_parity <- sameParity(getHouseNum(prev_index), getHouseNum(curr_index))
+    # diff parity --> start new seq
+    if(!same_parity)return(c(curr_index, curr_index, curr_index+1, curr_index+2))
+    
+    # same parity and same direction --> still in the seq
+    if(sameDirection(prev_index, curr_index)) return(c(NA, curr_index, curr_index+1, curr_index+2))
+    
+    # same parity but diff direction
+    dist <- checkDistance(prev_index, curr_index, next_index)
+    if(dist >= 0){
+      return(c(curr_index, curr_index, curr_index+1, curr_index+2))
+    } else if(dist==-1){
+      return(c(curr_index+1, curr_index+1, curr_index+2, curr_index+3))
+    } else{
+      message("Something is wring. dist = ", dist)
+      stop()
+    }
+  }
+  
+  ## get the actual house number for a given index
+  getHouseNum <- function(i){
+    return(nona_sample_hn_seq[i])
+  }
+  
+  ## use the same index as nona_sample_hn_seq
+  ## return 1 if i is going up relative to i-1
+  ## return -1 if i is going down relative to i-1
+  ## return 0 if i = i-1
+  getDirections <- function(){
+    dir_list <- c()
+    dir <- diff(nona_sample_hn_seq)
+    for(d in dir){
+      if(d>0) current_dir <- 1
+      else if(d<0) current_dir <- -1
+      else current_dir <- 0
+      
+      dir_list <- c(dir_list, current_dir)
+    }
+    
+    ## if current direction does not change, take previous direction as current
+    for(i in seq(2, length(dir_list))){
+      if(dir_list[i]==0) dir_list[i] <- dir_list[i-1] 
+    }
+    return(dir_list)
+  }
+  
+  sameDirection <- function(prev_index, curr_index){
+    if(dir_list[prev_index]==dir_list[curr_index]) return(TRUE)
+    else return(FALSE)
+  }
+  
+  checkDistance <- function(prev_index, curr_index, next_index){
+    prev_dist <- abs(getHouseNum(prev_index) - getHouseNum(curr_index))
+    next_dist <- abs(getHouseNum(next_index) - getHouseNum(curr_index))
+    if(prev_dist<next_dist) return(-1) # go with the prev seq
+    else if (prev_dist>next_dist) return(1) # go with the next seq
+    else return(0) # equal distance -> vague
+  }
+  
+  ## return TRUE if num_1 and num_2 have the same parity
+  sameParity <- function(num_1, num_2){
+    if (isEven(num_1+num_2))return(TRUE)
+    else return(FALSE)
+  }
+  
+  ## return TRUE if num_1 is even
+  isEven <- function(num_1){
+    if(num_1%%2==0) return(TRUE)
+    else return(FALSE)
+  }
+  
+  
+  ## index of non NA in raw sequence
+  not_na_index_ref_raw <- which(!is.na(sample_hn_seq))
+  
+  nona_sample_hn_seq <- sample_hn_seq[not_na_index_ref_raw]
+  
+  
+  ## current list of indices of heads
+  current_index_of_heads <- c(1)
+  
+  ## dirrection list
+  dir_list <- getDirections()
+  
+  list_length <- length(nona_sample_hn_seq)
+  
+  prev_i <- 1
+  curr_i <- 2
+  next_i <- 3
+  while(next_i <= list_length){
+    result <- isHead(prev_i,curr_i,next_i)
+    if (!is.na(result[1])){
+      current_index_of_heads <- c(current_index_of_heads, result[1])
+    }
+    prev_i <- result[2]
+    curr_i <- result[3]
+    next_i <- result[4]
+  }
+  index_of_seq_ref_raw <- not_na_index_ref_raw[current_index_of_heads]
+  return(index_of_seq_ref_raw)
+}
+
+appendSeqCol <- function(sample_df){
+  x <- sample_df$house_num %>% as.numeric()
+  begin <- getSequenceHead(x)
+  SEQ <- rep(NA, length(x))
+  SEQ[begin] <- seq(1,length(begin))
+  sample_df["SEQ"] <- SEQ
+  return(sample_df %>% fill(SEQ, .direction = "down"))
+}
+```
+
+```{r}
+HN6 <- appendSeqCol(HN5 %>% mutate(house_num = as.numeric(house_num))) %>% mutate(i = row_number(), SEQ = as.factor(SEQ))
+```
+
+
+```{r}
+cnt_hn <- HN6 %>% filter(!is.na(house_num)) %>% group_by(SEQ) %>% summarize(cnt = n())
+
+seq1 <- cnt_hn %>% filter(cnt > 4, cnt < 6) %>% pull(SEQ) %>% na.omit()
+sample_seq <- seq1[2]
+```
+
+
+### Sequence breaking function
+
+* Takes in the census dataframe. 
+* Returns a list of indices where new sequences start
+* The list of indices is applied on the dataframe to group records into sequences
+* Each sequence gets a unique sequence id, starting from 1
+* how it does:
+    * odd VS even
+    * decreasing VS increasing
+    * distance to previous and after HNs
+* more improvement can be made for a better precision
+    
+### Actual Code
+
+[see getSequence.R]
+
+* getSequenceHead(): knows which HH recordd are sequence heads
+* appendSeqCol(): assigns unique number for each sequence (new column)
+
+### How it is doing: sequences
+
+* House_num and index colored by sequence id
+* Long missing house number gap after index 540
+
+```{r}
+ggplot(HN6[400:700,], aes(x = i, y = house_num, color = SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 1")
+```
+
+* Repeated house numbers after index 3170
+* Outlier at house number ~ 3000
+
+```{r}
+ggplot(HN6[3100:3400,], aes(x = i, y = house_num, color = SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 2")
+```
+
+
+### How it is doing: HH records
+
+* Counts of records in a sequence
+* One sequence has more than 500 HH records in it (SEQ153).
+
+```{r}
+cnt_records <- HN6 %>% group_by(SEQ) %>% summarize(cnt = n())
+ggplot(cnt_records, aes(x=cnt)) + 
+  geom_bar() + 
+  ylab("Sequence Count") + 
+  xlab("Counts of HH Records in a Sequence")
+```
+
+* What does it like on the page?
+* With missing `house_num` and `street_add` gaps in the middle. This seems like a valid sequence (from 92 to 118) except that both records with available house numbers have different street names
+* Can we handle house numbers completely independently from street names?
+
+```{r}
+HN6 %>% filter(SEQ==152) %>% select(house_num, street_add, SEQ)
+HN6 %>% filter(SEQ==153) %>% select(house_num, street_add, SEQ)%>% 
+  head(2)
+HN6 %>% filter(SEQ==153) %>% select(house_num, street_add, SEQ)%>% 
+  tail(2)
+HN6 %>% filter(SEQ==154) %>% select(house_num, street_add, SEQ)%>% 
+  head(2)
+```
+
+* Exactly 121 (out of 760 sequences detected) sequences have only one HH record in a sequence
+
+```{r}
+cnt_records <- HN6 %>% group_by(SEQ) %>% summarize(cnt = n())
+ggplot(cnt_records, aes(x=cnt)) + 
+  geom_bar() + 
+  ylab("Sequence Count") + 
+  xlab("Counts of HH Records in a Sequence")+
+  xlim(0,50)
+```
+
+* EXAMPLE1: see SEQ30. It also seems like a good sequence break given previous and next sequences.
+
+```{r}
+one_hh <- cnt_records %>% filter(cnt == 1) %>% pull(SEQ)
+sample_one_hh <- one_hh[1] #SEQ30
+
+HN6 %>% filter(SEQ==as.numeric(sample_one_hh)-1) %>% select(house_num, street_add, SEQ)
+HN6 %>% filter(SEQ==sample_one_hh) %>% select(house_num, street_add, SEQ)
+HN6 %>% filter(SEQ==as.numeric(sample_one_hh)+1) %>% select(house_num, street_add, SEQ)
+```
+
+* EXAMPLE2: Another sequence with 1 HH record (SEQ45). 
+
+```{r}
+sample_one_hh <- one_hh[3] #SEQ45
+
+HN6 %>% filter(SEQ==as.numeric(sample_one_hh)-1) %>% select(house_num, street_add, SEQ)
+HN6 %>% filter(SEQ==sample_one_hh) %>% select(house_num, street_add, SEQ)
+HN6 %>% filter(SEQ==as.numeric(sample_one_hh)+1) %>% select(house_num, street_add, SEQ)
+```
+
+### How it is doing: house number
+
+* Counts of house_num in a sequence
+* A few sequences have more than 200 house numbers in one sequence
+
+```{r}
+cnt_hn <- HN6 %>% filter(!is.na(house_num)) %>% group_by(SEQ) %>% summarize(cnt = n())
+ggplot(cnt_hn, aes(x=cnt)) + 
+  geom_bar() + 
+  ylab("Sequence Count") + 
+  xlab("Counts of House Numbers in a Sequence")
+```
+
+* EXAMPLE1:
+
+```{r}
+cnt_hn_200 <- cnt_hn %>% filter(cnt > 200) %>% pull(SEQ)
+
+#SEQ5
+HN6 %>% filter(SEQ==cnt_hn_200[1]) %>% select(house_num, street_add, SEQ) %>% kable %>%
+  kableExtra::scroll_box(width = "100%", height = "400px")
+```
+
+* EXAMPLE2:
+
+```{r}
+#SEQ211
+HN6 %>% filter(SEQ==cnt_hn_200[3]) %>% select(house_num, street_add, SEQ) %>% kable %>%
+  kableExtra::scroll_box(width = "100%", height = "400px")
+```
+
+* almost 250 sequences have only one house numbers.
+
+```{r}
+ggplot(cnt_hn, aes(x=cnt)) + 
+  geom_bar() + 
+  ylab("Sequence Count") + 
+  xlab("Counts of House Numbers in a Sequence") +
+  xlim(c(0,10.5))
+```
+
+* SEQ164 has only 1 house number but with 3 HH records.
+* Confident if there are a small number of HH records.
+
+```{r}
+cnt_hn_1 <- cnt_hn %>% filter(cnt ==1) %>% pull(SEQ)
+
+#SEQ164
+HN6 %>% filter(SEQ==cnt_hn_1[55]) %>% select(house_num, street_add, SEQ)
+```
+
+* But could be worrisome when a sequence has *many HH records* but *few house numers*.
+
+```{r}
+j_cnt <- cnt_hn %>% full_join(cnt_records, by = "SEQ") %>%
+  rename(cnt_record = cnt.y, cnt_hn = cnt.x)
+
+ggplot(j_cnt, aes(x=cnt_record, y = cnt_hn)) + 
+  geom_point() + 
+  xlab("count of records in a sequence") + 
+  ylab("count number of HN in a sequence")
+```
+
+* SEQ15 has 126 records with 2 house numbers.
+
+```{r}
+cnt_hn_3 <- cnt_hn %>% filter(cnt < 3) %>% pull(SEQ)
+cnt_hh_30 <- cnt_records %>% filter(cnt > 40) %>% pull(SEQ)
+
+small_hn_large_hh <- intersect(cnt_hn_3,cnt_hh_30)
+
+#SEQ15
+HN6 %>% filter(SEQ==small_hn_large_hh[1]) %>% select(house_num, street_add, SEQ) %>% 
+  kable %>% kable_styling() %>%
+  kableExtra::scroll_box(width = "100%", height = "400px")
+```
+
+* Main concern is with sequences with tens of records but one or two house numbers
+* But there are only a few. (buttom left)
+
+```{r}
+ggplot(j_cnt, aes(x=cnt_record, y = cnt_hn)) + 
+  geom_point(alpha = 0.3, color = "red") + 
+  xlab("count of records in a sequence") + 
+  ylab("count number of HN in a sequence") + 
+  ylim(c(1, 10)) 
+```
+
+
+## Next Step
+
+### Try fitting a linear line to a random sequence.
+
+* SEQ 67
+* Red are predictions for missing house numbers
+* Blue are actual house numbers
+* Predictions are rounded to the closest even (or odd depending on the parity of the current sequence) integer
+    * See `roundHouseNum()` and `fillHN()` in `House/roundHouseNum.R`
+
+```{r}
+load("filled_page.RData")
+s <- filled_page %>% filter(SEQ == 67) %>% 
+  mutate(filled_hn = ifelse(flg_filled_hn ==1, filled_hn,NA))
+ggplot(HN6 %>% filter(SEQ == 67), aes(x = i, y = house_num, label = house_num)) + 
+  geom_point(color = "blue") +
+  geom_point(aes(x = s$i, y=s$filled_hn), color = "red")+
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_text(hjust=0, vjust=0) + 
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("SEQ: 67")
+```
+
+* Some sequences are broken after the fill in (SEQ17)
+
+```{r}
+s <- filled_page %>% filter(SEQ == sample_seq) %>% 
+  mutate(filled_hn = ifelse(flg_filled_hn ==1, filled_hn,NA))
+
+ggplot(HN6 %>% filter(SEQ == sample_seq), aes(x = i, y = house_num, label = house_num)) + 
+  geom_point(color = "blue") +
+  geom_point(aes(x = s$i, y=s$filled_hn), color = "red")+
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_text(hjust=0, vjust=0) + 
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("SEQ: 17")
+```
+
+
+
+* Out of 759 sequences, filling in using fitted linear lines breaks 160 sequences.
+* 0 means not broken sequence. 1 means broken sequence
+
+```{r}
+filled_page %>% group_by(SEQ) %>% summarize(brk = mean(flg_brk_seq)) %>% pull(brk) %>% table %>% kable
+```
+
+### Try fitting a non-linear line to a random sequence.
+
+* Last time I mentioned non-linear regression
+* May not be viable because it requires a specific/unique regression function for each of the sequences
+
+```{r, eval = FALSE}
+ggplot(HN6 %>% filter(SEQ == sample_seq), aes(x = i, y = house_num, label = house_num)) + 
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  geom_text(hjust=0, vjust=0) + 
+  xlab("Record Index") + 
+  ylab("House Number")
+```
+
+### What do we do with broken sequences?**
+
+* There are ~760 sequences from 100k records
+* About ~160 of them are broken
+* Too much to handle manually?
+* What if we drop the regression approach and linearly fill in like this:
+
+```{r}
+ggplot(HN6 %>% ungroup() %>% filter(SEQ == sample_seq, !is.na(house_num)), aes(x = i, y = house_num, label = house_num)) + 
+  geom_point() +
+  geom_line() + 
+  geom_text(hjust=0, vjust=0) + 
+  xlab("Record Index") + 
+  ylab("House Number")
+```
+
+* Pro
+    * assuming sequence breaker does a job well, there will be no broken sequences
+* Con
+    * one time expensive computation (I have not tried)
+
+
+### To-do
+
+* Better documented process and functions
+* Place the second (and the third) house numbers from house number ranges somewhere in `house_num`:
+    * Head and tail of a sequence?
+* Add flags to some sequence break points:
+    * Those with 1 record in a sequence?
+

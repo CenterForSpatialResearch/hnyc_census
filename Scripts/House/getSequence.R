@@ -5,9 +5,7 @@ getSequenceHead <- function(sample_hn_seq){
   ## must start from the second HN
   ## return (head_index, new_prev_index, new_current_index, new_next_index)
   isHead <- function(prev_index, curr_index, next_index){
-    message(next_index,"\n")
     if (next_index>list_length){
-      message("must stop")
       stop()
     }
     if (next_index>list_length){
@@ -127,6 +125,9 @@ appendSeqCol <- function(sample_df){
   return(sample_df %>% fill(SEQ, .direction = "down"))
 }
 
-HN6 <- appendSeqCol(HN5)
-class(HN5$house_num)
+###########
+## working sample
+###########
+# HN6 <- appendSeqCol(HN5)
+# class(HN5$house_num)
 
