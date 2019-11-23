@@ -122,12 +122,18 @@ appendSeqCol <- function(sample_df){
   SEQ <- rep(NA, length(x))
   SEQ[begin] <- seq(1,length(begin))
   sample_df["SEQ"] <- SEQ
-  return(sample_df %>% fill(SEQ, .direction = "down"))
+  
+  r <- sample_df %>% 
+    mutate(seq_par = ifelse(is.na(house_num), NA, ifelse(house_num%%2==0, 1, 0))) %>% 
+    tidyr::fill(seq_par, .direction = "down") %>%
+    tidyr::fill(SEQ, .direction = "down") 
+  return(r)
 }
 
 ###########
 ## working sample
 ###########
-# HN6 <- appendSeqCol(HN5)
+HN6 <- appendSeqCol(HN5%>%mutate(house_num = as.numeric(house_num)))
+HN6 %>% fill(SEQ, .direction = "down") %>% View
 # class(HN5$house_num)
 
