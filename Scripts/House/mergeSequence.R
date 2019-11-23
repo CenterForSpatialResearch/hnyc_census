@@ -1,0 +1,55 @@
+## merge sequences
+
+sample_df <-  HN6 %>% select(ED, house_num, street_add, SEQ, seq_par)
+
+s1_df <- sample_df %>% filter(SEQ == 1)
+s2_df <- sample_df %>% filter(SEQ == 2)
+
+p1 <- rbind(s1_df, s2_df)
+table(p1$seq_par) 
+
+## return TRUE if 2 sequences in df can be merged into 1
+mergeSeq <- function(df){
+  
+  if(df$SEQ %>% unique() %>% length != 2){
+    message("must provide 2 sequences")
+    exit()
+  }
+  par <- chkPar(df)
+  str <- chkStreet(df)
+  jump <- chkJump(df, 10)
+  
+  if (par && jump) return(TRUE)
+  else return(FALSE)
+}
+
+# return true if the proportion of parity after merge does not exceed 10%
+chkPar <- function(p1){
+  prop <- table(p1$seq_par)[1]/sum(table(p1$seq_par))
+  if (length(table(p1$seq_par)) == 1) return(TRUE)
+  else if (min(prop, 1- prop) < 0.1) return(TRUE)
+  else return(FALSE)
+}
+
+## return TRUE if both sequences have the same street name
+## may be too restrictive
+chkStreet <- function(p1){
+  if(p1$street_add %>% unique() %>% na.omit %>% length != 1) return(FALSE)
+  else return(TRUE)
+}
+
+## return TRUE if house number does not jump more than jump_size
+chkJump <- function(p1, jump_size){
+  x <- p1 %>% filter(!is.na(house_num)) %>% pull(house_num)
+  #message(x)
+  for(i in seq(1, length(x)-1)){
+    if(abs(x[i] - x[i+1]) > jump_size) return(FALSE)
+  }
+  return(TRUE)
+}
+
+chkPar(p1)
+chkRoad(p1)
+chkJump(p1, 10)
+mergeSeq(p1)
+
