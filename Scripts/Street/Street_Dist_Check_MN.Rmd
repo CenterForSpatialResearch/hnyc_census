@@ -637,6 +637,65 @@ fill_down_EDA %>%
   scroll_box(width = "100%", height = "300px")
 ```
 
+## 6.2. Address Sequences
+Currently, fill down looks at the 3 rows above and below missing records. Fill down could be improved by examining the average length of a sequence.
+
+```{r}
+add_seq_ED <- match_dict_imp %>%
+  bind_cols(ED2 = as.factor(as.numeric(match_dict_imp$ED))) %>%
+  split(., .$ED2)
+
+add_seq_breaker <- function(df) {
+  df$next_match <- df$best_match %>% unlist() %>%
+    append(NA_character_, after = nrow(df)) %>%
+    .[-1]
+  
+  if (nrow(df) > 1) {
+    seq <- df %>%
+      filter(best_match != next_match) %>%
+      select(index) %>%
+      bind_cols(seq = 1:nrow(.))
+    
+    df <- left_join(df, seq, by = "index") %>%
+      fill(seq, .direction = "up")
+  
+    df[nrow(df), "seq"] <- 0
+    df <- df %>%
+      fill(seq, .direction = "up") %>%
+      mutate(seq = paste(ED, seq, sep = "_"))
+      
+  } else if (nrow(df) == 1) {
+    df$seq <- paste(df$ED, "1", sep = "_")
+  }
+  
+  df <- select(df, - c("ED2", "next_match"))
+  return(df)
+}
+
+add_seq <- add_seq_ED %>%
+  map(add_seq_breaker) %>%
+  reduce(bind_rows)
+```
+
+```{r, message=FALSE}
+add_seq %>% ungroup() %>%
+  group_by(seq) %>%
+  summarize(length = n()) %>%
+  ggplot(aes(x = length)) +
+    geom_bar() +
+    geom_vline(aes(xintercept = mean(length), color = "red")) + 
+    labs(title = "Distribution of Sequence Lengths") +
+    scale_color_discrete(name = "", labels = c("Mean Length"))
+```
+
+```{r}
+seq_length_ED <- add_seq %>% ungroup() %>%
+  group_by(ED, seq) %>%
+  summarise(length = n()) %>%
+  group_by(ED) %>%
+  summarise(n_seq = n(), mean_length = mean(length))
+```
+
 # 7. Testing on another 10k sample
 The script was quickly re-run with a separate 10k sample. The results were similar in terms of distribution: about 50% of the records had all perfect matches, and using the string cleaning method, only about 2% of the records returned no matches.
 
