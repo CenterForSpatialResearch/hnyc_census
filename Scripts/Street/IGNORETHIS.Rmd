@@ -1,0 +1,18 @@
+---
+title: "MY TRASH"
+author: "Jolene Lim"
+date: "8 November 2019"
+output: html_document
+---
+
+A more stringent check of whether household sequences are consecutive is done below. This code uses principles of arithmetic series; if a series is consecutive, their sum should be = $n(a_1 + a_2) / 2$:
+```{r}
+household[na_street, c("hh_seq", "street_add", "same")] %>%
+  mutate(hh_seq = as.numeric(hh_seq)) %>%
+  fill("street_add", "same", .direction = "down") %>%
+  group_by(same) %>%
+  summarize(exp_sum = n() * (first(hh_seq) + last(hh_seq)) / 2, act_sum = sum(hh_seq)) %>%
+  filter(exp_sum != act_sum) %>%
+  kable %>% kable_styling()
+```
+There are 6 addresses for which it seems like the household sequences are not consecutive. Manually checking these sequences, the difference is due to series which start at 90s and continue onto 00s (e.g. 99, 00, 01...), which are not caught by the simple formula above. Nonetheless, the check supports the idea that all household numbers are consecutive for each set of addresses.
