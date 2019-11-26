@@ -1,3 +1,6 @@
+
+## @knitr getSeq_fxs
+
 # called by appendSeqCol()
 getSequenceHead <- function(sample_hn_seq){
   
@@ -130,10 +133,10 @@ appendSeqCol <- function(sample_df){
   return(r)
 }
 
-###########
-## working sample
-###########
-HN6 <- appendSeqCol(HN5%>%mutate(house_num = as.numeric(house_num)))
-HN6 %>% fill(SEQ, .direction = "down") %>% View
-# class(HN5$house_num)
+# ###########
+# ## working sample
+# ###########
+# HN6 <- appendSeqCol(HN5%>%mutate(house_num = as.numeric(house_num)))
+# HN6 %>% fill(SEQ, .direction = "down") %>% View
+# # class(HN5$house_num)
 
