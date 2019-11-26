@@ -1,13 +1,5 @@
 ## merge sequences
 
-# sample_df <-  HN6 %>% select(ED, house_num, street_add, SEQ, seq_par)
-# 
-# s1_df <- sample_df %>% filter(SEQ == 1)
-# s2_df <- sample_df %>% filter(SEQ == 2)
-# 
-# p1 <- rbind(s1_df, s2_df)
-# table(p1$seq_par) 
-
 ## @knitr  read_merge_fxs
 
 ## return TRUE if 2 sequences in sdf can be merged into 1
@@ -72,7 +64,9 @@ appendMergeSeq <- function(sdf){
   meageable_seq <- which(mergeable==TRUE) + 1
   appended_df <- appended_df %>%
     mutate(merge_SEQ = ifelse(SEQ %in% meageable_seq, NA, merge_SEQ)) %>% 
-    fill(merge_SEQ, .direction = "down")
+    fill(merge_SEQ, .direction = "down") %>%
+    mutate(merge_SEQ = as.factor(merge_SEQ),
+           SEQ = as.factor(SEQ))
   return(appended_df)
 }
 
@@ -82,25 +76,10 @@ appendMergeSeq <- function(sdf){
 ## sample code
 HN6 <- appendSeqCol(HN5%>%mutate(house_num = as.numeric(house_num),
                                  i = row_number())) %>% fill(SEQ, .direction = "down")
-HN7 <- appendMergeSeq(HN6)
+HN7 <- appendMergeSeq(HN6) 
 
 #save(HN7, file="HN7.RData")
 
-# merge_list <- sapply(seq(1,length(seq_list)-1), function(i){
-#   s_df1 <- HN6 %>% filter(SEQ == seq_list[i])
-#   s_df2 <- HN6 %>% filter(SEQ == seq_list[i+1])
-#   c <- rbind(s_df1, s_df2)
-#   message(i, "==",i+1)
-#   mergeSeq(rbind(s_df1, s_df2))
-# })
-
-# seq_list <- HN6 %>%
-#   mutate(SEQ = as.numeric(SEQ)) %>%
-#   pull(SEQ) %>% unique() %>% na.omit
-# 
-# s_df1 <- HN6 %>% filter(SEQ == seq_list[1])
-# s_df2 <- HN6 %>% filter(SEQ == seq_list[2])
-# c <- rbind(s_df1, s_df2)
 
 # chkPar(p1)
 # chkRoad(p1)
