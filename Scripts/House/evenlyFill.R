@@ -1,6 +1,18 @@
 
-sam <- HN7 %>% filter(SEQ %in% c(NA, 1:6))
-dummy <- sam %>% mutate(merge_SEQ = as.numeric(as.character(merge_SEQ)),
+## @knitr  evenly_fill_HN7
+
+## taken from roundHouseNum.R
+## round HN to the closest even (or odd) number
+roundHouseNum <- function(hn, toEven = TRUE){
+  if(toEven){
+    return(2 * round(hn/2))
+  } else{
+    return(2*floor(hn/2)+1)
+  }
+}
+
+# HN7 must exist
+dummy <- HN7 %>% mutate(merge_SEQ = as.numeric(as.character(merge_SEQ)),
                         merge_SEQ = ifelse(is.na(merge_SEQ), -1, merge_SEQ))
 seq_list <- dummy %>% pull(merge_SEQ) %>% unique() %>% as.numeric()
 
@@ -46,8 +58,8 @@ temp_list <- lapply(seq(1, length(seq_list)), function(s){
   
 })
 
+## this is HN7 with new columns for filled in house numbers and their flags
 filled_df <- do.call(rbind, temp_list)
-filled_df %>% select(house_num, seq_par, merge_SEQ, hn_filled, flg_hn_filled) %>% View
 
 
 

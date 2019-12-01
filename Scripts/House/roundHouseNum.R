@@ -1,4 +1,6 @@
 
+## @knitr round_HN
+
 ## round HN to the closest even (or odd) number
 roundHouseNum <- function(hn, toEven = TRUE){
   if(toEven){
@@ -8,42 +10,42 @@ roundHouseNum <- function(hn, toEven = TRUE){
   }
 }
 
-## return TRUE if num_1 is even
-isEven <- function(num_1){
-  if(num_1%%2==0) return(TRUE)
-  else return(FALSE)
-}
-
-fillHN <- function(datafr, seq_num){
-  
-  x <- datafr %>% filter(SEQ == seq_num)
-  is_even <- x$house_num %>% unique() %>% head(1) %>% isEven()
-  m <- lm(house_num~i, data = x)
-  new_df <- x %>% select(i)
-  pred <- predict(object = m, newdata = new_df)
-  #new_df["raw_filled_house_num"] <- pred
-  new_df["round_filled_house_num"] <- roundHouseNum(pred, is_even)
-  
-  or <- x$house_num
-  new <- new_df$round_filled_house_num
-  
-  for(i in seq_along(or)){
-    if(is.na(or[i])){
-      or[i] <- new[i]
-    }
-  }
-  
-  x["filled_hn"] <- or
-  return(x %>% mutate(flg_filled_hn = ifelse(is.na(house_num), 1, 0)))
-}
-
-## return true if filled in HN breaks a seq of a datafr
-brokenSequence <- function(datafr){
-  s1 <- datafr$filled_hn %>% diff
-  s2 <- s1[which(s1 != 0)]
-  if(sum(s2>0) == 0 | sum(s2>0) == length(s2)) return(FALSE)
-  else return(TRUE)
-}
+# ## return TRUE if num_1 is even
+# isEven <- function(num_1){
+#   if(num_1%%2==0) return(TRUE)
+#   else return(FALSE)
+# }
+# 
+# fillHN <- function(datafr, seq_num){
+#   
+#   x <- datafr %>% filter(SEQ == seq_num)
+#   is_even <- x$house_num %>% unique() %>% head(1) %>% isEven()
+#   m <- lm(house_num~i, data = x)
+#   new_df <- x %>% select(i)
+#   pred <- predict(object = m, newdata = new_df)
+#   #new_df["raw_filled_house_num"] <- pred
+#   new_df["round_filled_house_num"] <- roundHouseNum(pred, is_even)
+#   
+#   or <- x$house_num
+#   new <- new_df$round_filled_house_num
+#   
+#   for(i in seq_along(or)){
+#     if(is.na(or[i])){
+#       or[i] <- new[i]
+#     }
+#   }
+#   
+#   x["filled_hn"] <- or
+#   return(x %>% mutate(flg_filled_hn = ifelse(is.na(house_num), 1, 0)))
+# }
+# 
+# ## return true if filled in HN breaks a seq of a datafr
+# brokenSequence <- function(datafr){
+#   s1 <- datafr$filled_hn %>% diff
+#   s2 <- s1[which(s1 != 0)]
+#   if(sum(s2>0) == 0 | sum(s2>0) == length(s2)) return(FALSE)
+#   else return(TRUE)
+# }
 
 
 
