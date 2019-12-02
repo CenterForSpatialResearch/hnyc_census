@@ -8,10 +8,12 @@ output:
 
 # 1. Setup
 Load required libraries
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, include = FALSE}
 library(kableExtra)
 library(tidyverse)
 library(fuzzyjoin)
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 Load datasets
@@ -695,6 +697,58 @@ seq_length_ED <- add_seq %>% ungroup() %>%
   group_by(ED) %>%
   summarise(n_seq = n(), mean_length = mean(length))
 ```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(sf)
+ED_geom <- st_read(here::here("data/Manhattan_1910.shp")) %>%
+  st_transform(crs="+proj=longlat +datum=WGS84") %>%
+  mutate(ED = as.character(ED)) %>%
+  mutate(ED = str_pad(ED, 4, "left", pad = "0")) %>%
+  merge(seq_length_ED)
+```
+
+```{r}
+library(leaflet)
+
+binpal_len <- colorBin("YlOrRd", ED_geom$mean_length, c(0, 1.5, 2, 3, 4.25))
+binpal_seq <- colorQuantile("YlOrRd", ED_geom$n_seq)
+
+popup <- paste("<b>ED:</b>", ED_geom$ED, "<br>",
+               "<b>Mean Length:</b>", round(ED_geom$mean_length, 2), "<br>",
+               "<b>No. of Sequences:</b>", ED_geom$n_seq)
+
+leaflet(ED_geom) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  
+  # mean length
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~ binpal_len(ED_geom$mean_length),
+    popup = popup,
+    group = "Mean Length") %>%
+  addLegend("bottomright", pal = binpal_len, values = ~ mean_length,
+    title = "Mean Length of Sequences in EDs",
+    opacity = 1,
+    group = "Mean Length") %>%
+  
+  # number of sequences
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.5,
+    fillColor = ~ binpal_seq(ED_geom$n_seq),
+    popup = popup,
+    group = "Number of Sequences") %>%
+  addLegend("bottomright", pal = binpal_seq, values = ~ n_seq,
+    title = "Number of Sequences in EDs",
+    opacity = 1,
+    group = "Number of Sequences") %>%
+  
+  # toggle
+  addLayersControl(overlayGroups = c("Mean Length", "Number of Sequences"), 
+               options = layersControlOptions(collapsed = T)) %>%
+  hideGroup("Number of Sequences")
+```
+
+
 
 # 7. Testing on another 10k sample
 The script was quickly re-run with a separate 10k sample. The results were similar in terms of distribution: about 50% of the records had all perfect matches, and using the string cleaning method, only about 2% of the records returned no matches.
