@@ -293,6 +293,12 @@ large_hn$prev_hn <- large_hn$hn_1 %>% unlist() %>%
 
 large_hn %>%
   filter(str_length(hn_1) != str_length(next_hn) & str_length(hn_1) != str_length(prev_hn)) %>%
+  select(ED, house_num, hn_1, hn1_first_2, hn1_last_2, prev_hn, next_hn) %>%
+  kable() %>% kable_styling() %>%
+  scroll_box(height = "300px")
+
+large_hn %>%
+  filter(str_length(hn_1) != str_length(next_hn) & str_length(hn_1) != str_length(prev_hn)) %>%
   filter(hn1_first_2 - hn1_last_2 < 10) %>%
   filter(str_length(hn_1) >= 4) %>%
   select(ED, house_num, hn_1, hn1_first_2, hn1_last_2, prev_hn, next_hn) %>%
