@@ -1,0 +1,189 @@
+---
+title: "12/3"
+author: "Bo Jumrustanasan"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(gridExtra)
+```
+
+## Merge
+
+* The house number string is broken into small *subsequences*
+    * odd VS even
+    * decreasing VS increasing
+    * distance to previous and after HNs
+* If *subsequences* are merged into one *merged sequence* if possible
+    * a new larger sequence contains less than 2 rows with house numbers of different parity
+    * house number does not skip larger than `jump_size`, which is currently set to 10 units.
+    * [same street name (waiting for cleaned + processed street column)]
+
+
+
+```{r}
+#load("Scripts/House/HN5.RData")
+load("HN5.RData")
+```
+
+```{r}
+## Tell R we will read in codes from these files.
+read_chunk("getSequence.R")
+read_chunk("mergeSequence.R")
+read_chunk("evenlyFill.R")
+```
+
+
+### Sequence breaking function
+
+* see getSequence.R
+    * getSequenceHead(): knows which HH recordd are sequence heads
+    * appendSeqCol(): assigns unique number for each sequence (new column)
+
+### Sequence merging function
+
+* see `mergeSequence.R`
+    * `mergeSeq()`: returns a vector of TRUE/FALSE. TRUE at index i means that seq at i and seq at i+1 can be merged. Called in `appendMergeSeq()`.
+    * `appendMergeSeq()`: calls `mergeSeq()` and assigns unique numbers for each merged sequence (new column).
+
+The code below (hidden) calls processes in `getSequence.R` and `mergeSequence.R` to create a dataframe with new sequence column (`HN7`). 
+
+```{r}
+## Read specific parts of code from files
+
+## getSequece.R
+<<getSeq_fxs>>
+  
+## mergeSequence.R
+<<read_merge_fxs>>
+<<create_HN7>>
+```
+
+
+## House numbers by `SEQ` and `merged_SEQ`
+
+**On us1910m_usa_sample100k.csv**
+
+Left: house number *subsequences*
+Right: house number *merged sequences*
+
+```{r, fig.width=10}
+sub_seq <- ggplot(HN7[700:1000,], aes(x = i, y = house_num, color = SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 1: Subsequences")
+
+seq <- ggplot(HN7[700:1000,], aes(x = i, y = house_num, color = merge_SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 1: Merged Sequences")
+
+grid.arrange(sub_seq, seq, ncol = 2)
+```
+
+
+```{r, fig.width=10}
+sub_seq <- ggplot(HN7[3100:3400,], aes(x = i, y = house_num, color = SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 2: Subsequences")
+
+seq <- ggplot(HN7[3100:3400,], aes(x = i, y = house_num, color = merge_SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 2: Merged Sequences")
+
+grid.arrange(sub_seq, seq, ncol = 2)
+```
+
+The total number of sequences reduces.
+
+```{r}
+HN7 %>% select(SEQ, merge_SEQ) %>%  gather(key = type, value = value) %>% unique() %>%
+  group_by(type) %>% summarize(cnt = n()) %>% kable()
+```
+
+Sample rows with their subsequence number and merged sequence number.
+
+* 18 Madison is treated as a mistranscription because it is the only even number among its neighboring subsequences. **very crucial to fix this before filling in missing house numbers**
+* 3 Pearl is merged to the previous sequence. Moving to the new street has not been included as a condition to merge.
+* 430 Pearl is not merged to the previous subsequence because the house number jump (from 3 to 430) is too large.
+
+See below.
+
+```{r}
+x <- HN7 %>% select(house_num, street_add, SEQ, merge_SEQ)
+x[20:65,] %>% kable %>% kable_styling() %>% 
+  kableExtra::scroll_box(width = "100%", height = "400px")
+```
+
+## Linear Fill-in
+
+```{r}
+## evenlyFill.R
+<<evenly_fill_HN7>>
+```
+
+merge_SEQ 2 and 3 (top) and 501 and 502 (bottom). Blue dots are real house numbers. Red dots are interpolations.
+
+```{r}
+## need filled_df from evenlyFill.R
+## plot house number movement by merged sequences
+filled_hn <- filled_df %>% select(i, house_num, hn_filled, merge_SEQ) %>%
+  mutate(hn_filled = ifelse(!is.na(house_num), NA, hn_filled),
+         merge_SEQ = as.factor(merge_SEQ)) %>%
+  gather(key = hn, value = value, -i, -merge_SEQ)
+
+mseq_list <- filled_df %>% pull(merge_SEQ) %>% unique()
+plt1 <- ggplot(filled_hn %>% filter(merge_SEQ %in% mseq_list[c(2,3)]), 
+               aes(x=i, y = value, color = hn)) + 
+  geom_point(aes(shape = merge_SEQ)) + 
+  theme(legend.position = "none")
+plt2 <- ggplot(filled_hn %>% filter(merge_SEQ %in% mseq_list[c(501, 502)]), 
+               aes(x=i, y = value, color = hn)) + 
+  geom_point(aes(shape = merge_SEQ)) + 
+  theme(legend.position = "none")
+grid.arrange(plt1, plt2, ncol = 1)
+```
+
+Missing house numbers before the filled in.
+
+```{r}
+filled_df %>% select(house_num) %>% 
+  mutate(na_cnt = ifelse(is.na(house_num), 1, 0)) %>% 
+  summarize(missing = sum(na_cnt), ttl = n()) %>% kable %>% kable_styling()
+```
+
+Missing house numbers after the filled in. Missing values are those at the end of sequences.
+
+```{r}
+filled_df %>% select(hn_filled) %>% 
+  mutate(na_cnt = ifelse(is.na(hn_filled), 1, 0)) %>% 
+  summarize(missing = sum(na_cnt), ttl = n()) %>% kable %>% kable_styling()
+```
+
+Records with filled in house numbers are flagged in column `flg_hn_filled`. Records with SEQ==`NA` will have `flg_hn_filled`==`NA`.
+
+```{r}
+filled_df %>% head(100) %>% kable %>% kable_styling() %>% 
+  kableExtra::scroll_box(width = "100%", height = "400px")
+```
+
+
+
+
+
+
+
+.
