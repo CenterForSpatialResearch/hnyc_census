@@ -1,7 +1,13 @@
 
 ## @knitr round_HN
 
-## round HN to the closest even (or odd) number
+#' roundHouseNum
+#'
+#' This function rounds a numerical value to the closest even (odd) integer.
+#' @param hn A numerical value to be rounded.
+#' @param toEven A boolean whether a number should be rounded to the closest even integer. 
+#' Set to `FALSE` if want to round to the closest odd integer. The default is `TRUE`.
+#' @return Rounded integer.
 roundHouseNum <- function(hn, toEven = TRUE){
   if(toEven){
     return(2 * round(hn/2))
