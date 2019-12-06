@@ -147,7 +147,7 @@ getSequenceHead <- function(sample_hn_seq){
 
 #' appendSeqCol
 #'
-#' This function returns a dataframe with a new column of subsequence numbers (`SEQ`), 
+#' This function returns a dataframe with new columns of subsequence numbers (`SEQ`), 
 #' unique record id (`i`), and house number parity of subsequences (`seq_par`).
 #' @param sample_df A dataframe to be appended with house number sequence column
 #' @return A dataframe with appended house number sequence (`SEQ`), unique record id (`i`), 
