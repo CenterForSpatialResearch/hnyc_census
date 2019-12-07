@@ -118,8 +118,7 @@ appendMergeSeq <- function(sdf){
 ## @knitr  create_HN7
 
 ## sample code
-# HN6 <- appendSeqCol(HN5%>%mutate(house_num = as.numeric(house_num),
-#                                  i = row_number())) %>% fill(SEQ, .direction = "down")
+# HN6 <- appendSeqCol(HN5, jump_size = 500)
 # HN7 <- appendMergeSeq(HN6)
 
 #save(HN7, file="HN7.RData")

@@ -10,9 +10,8 @@
 #' subsequences are returned.
 #' @param sample_hn_seq A string of house_num from enumeration pages. The string can (and should)
 #' contain`NA`s if records have missing house_num.
-#' @return A list of house_num indices that start new subsequences. The indices reference 
-#' the param house_num string.
-getSequenceHead <- function(sample_hn_seq){
+#' @return A vector of indices c(seq_head_index, prev_index, current_index, next_index).
+getSequenceHead <- function(sample_hn_seq, jump_size){
   
   
   ###### internal helper functions start here #############
@@ -30,6 +29,11 @@ getSequenceHead <- function(sample_hn_seq){
     }
     
     if(is.na(next_index)) return()
+    
+    #' When house_nums skip for too large, start a new sequence
+    if(!withinJumpSize(getHouseNum(prev_index), getHouseNum(curr_index), jump_size)){
+      return(c(curr_index, curr_index, curr_index+1, curr_index+2))
+    }
     
     same_parity <- sameParity(getHouseNum(prev_index), getHouseNum(curr_index))
     # diff parity --> start new seq
@@ -107,6 +111,11 @@ getSequenceHead <- function(sample_hn_seq){
     else return(FALSE)
   }
   
+  withinJumpSize <- function(prev_index, curr_index, jump_size){
+    if(abs(prev_index-curr_index) > jump_size) return(FALSE)
+    else return(TRUE)
+  }
+  
   
   ###### internal helper functions end here #############
   
@@ -155,14 +164,14 @@ getSequenceHead <- function(sample_hn_seq){
 #' @export
 #' @examples
 #' HN6 <- appendSeqCol(HN5)
-appendSeqCol <- function(sample_df){
+appendSeqCol <- function(sample_df, jump_size){
   
   ## Setup
   sample_df <- sample_df %>% mutate(house_num = as.numeric(house_num))
   x <- sample_df$house_num
   
   ## Get index of house_num that starts a new subsequence (sequence head)
-  begin <- getSequenceHead(x)
+  begin <- getSequenceHead(x, jump_size)
   
   ## Create a new vector (for a column).
   SEQ <- rep(NA, length(x))
@@ -174,7 +183,8 @@ appendSeqCol <- function(sample_df){
   ## Determine subsequence parities
   ## Fill down SEQ and seq_par for records under subsequence head
   r <- sample_df %>% 
-    mutate(seq_par = ifelse(is.na(house_num), NA, ifelse(house_num%%2==0, 1, 0))) %>% 
+    mutate(seq_par = ifelse(is.na(house_num), NA, ifelse(house_num%%2==0, 1, 0)),
+           i = row_number()) %>% 
     tidyr::fill(seq_par, .direction = "down") %>%
     tidyr::fill(SEQ, .direction = "down") 
   return(r)
