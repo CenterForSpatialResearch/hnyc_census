@@ -8,17 +8,19 @@ output:
 
 # 1. Setup
 Load required libraries
-```{r, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE, include = FALSE}
 library(kableExtra)
 library(tidyverse)
 library(fuzzyjoin)
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 Load datasets
 ```{r, message = FALSE}
 # load datasets
-sample <- read_csv(here::here("Data/us1910m_usa_sample100k.csv"))
-edict <- read_csv(here::here("Data/combined_edict_mn.csv"))
+sample <- read_csv(here::here("Data/us1910m_usa_BK_sample100k.csv"))
+edict <- read_csv(here::here("Data/full_bk_dict.csv"))
 
 # clean column names
 names(sample) <- c("hnyc_id", "record", "township", "county", "ED", "person_id",
@@ -257,7 +259,7 @@ table(n_match$sum_match) %>%
   kable(col.names = c("No. of Perfect Matches", "No. of Records", "%")) %>% 
   kable_styling(full_width = FALSE)
 ```
-242 (39.6%) records have a perfect match.
+615 (75.5%) records have a perfect match.
 
 ```{r}
 n_match_within_algo <- match_dict %>%
@@ -272,7 +274,7 @@ table(n_match_within_algo$n_diff_match) %>%
   kable(col.names = c("No. of Unique Matches Given by Algorithms", "No. of Records", "%")) %>%
   kable_styling(full_width = FALSE)
 ```
-We know that 242 records have perfect matches between all results from the string algorithms and the clean string. Additionally, 394 - 242 = 152 (24.9%) records have all string algorithms giving the same result--suggesting that this is a problem with the cleaning rather than matching. To verify this, the records that are not a perfect match, but have all the same results are shown below:
+We know that 615 records have perfect matches between all results from the string algorithms and the clean string. Additionally, 725 - 615 = 110 (13.5%) records have all string algorithms giving the same result--suggesting that this is a problem with the cleaning rather than matching. To verify this, the records that are not a perfect match, but have all the same results are shown below:
 
 ```{r}
 match_dict %>%
@@ -284,9 +286,9 @@ match_dict %>%
          match_dl == match_jw) %>%
   kable %>% kable_styling() %>% scroll_box(width = "100%", height = "500px")
 ```
-It does seem that for such records, we can confidently replace the string with the matched string. At this point, perfect matches and records with identical matches comprise 64.5% of the records, i.e. we can confidently say at least 64.5% of our records are accurately matched.
+It does seem that for such records, we can confidently replace the string with the matched string. At this point, perfect matches and records with identical matches comprise 89% of the records, i.e. we can confidently say at least 89% of our records are accurately matched.
 
-Another 217 (35.5%) records have different matches depending on string algorithm. These are shown below.
+Another 90 (11.0%) records have different matches depending on string algorithm. These are shown below.
 ```{r}
 match_dict %>%
   replace(is.na(.), 0) %>%
@@ -498,7 +500,7 @@ match_dict_imp %>%
   filter(str_detect(mode, "^[^+]+$") & mode != 0) %>%
   nrow()
 ```
-This represents 93.4% of the sample. They are again shown here:
+This represents 92.9% of the sample. They are again shown here:
 
 ```{r, echo = FALSE}
 match_dict_imp %>%
@@ -508,14 +510,7 @@ match_dict_imp %>%
 ```
 
 #### Issue 1: Situations where the less common match is identical to clean
-However, it is noted from the table earlier that there are a few records (10, 1.6%) were 2 string algorithms return a perfect match. This is important to examine because if only 2 string algorithms gave a true, correct match, the modal match would not identify this. These are shown here:
-```{r, echo = FALSE}
-n_match_imp %>%
-  filter(sum_match == 2) %>%
-  kable %>% kable_styling() %>% scroll_box(width = "100%", height = "500px")
-```
-
-Interestingly, this seems to reflect an issue with the way either cleaning or the street dictionary is made. All these records reflect issues of whether the number should be placed before or after a street. Once standardized, this should no longer pose an issue.
+In the MN sample, it was found that there are a few records (10, 1.6%) were 2 string algorithms return a perfect match. This is important to examine because if only 2 string algorithms gave a true, correct match, the modal match would not identify this. However, none exist for Brooklyn.
 
 #### Issue 2: Multiple modes
 There may be situations there are multiple modes.
@@ -526,7 +521,7 @@ match_dict_imp %>%
   select(ED, raw, clean, mode) %>%
   kable() %>% kable_styling() %>% scroll_box(height = "300px")
 ```
-There are 15 such rows, i.e. 2.5% of the sample.
+There are 10 such rows, i.e. 1.2% of the sample.
 
 To clean these, there are a few options:  
 1. Potentially use the mode that has a lower dscore--although this is problematic as the different algorithms may have different dscore ranges, hence it is hard to compare.  
@@ -542,10 +537,10 @@ match_dict_imp %>%
   select(raw, clean, match_dl, match_qgram, match_cos, match_jac, match_jw) %>%
   kable() %>% kable_styling() %>% scroll_box(height = "300px")
 ```
-There are 13 such records (2.1%). Again, there are instances where the match seems correct, and others where the mode is correct. Nonetheless, fill down cleaning is recommended instead, especially due to the small size of this issue.
+There are 25 such records (3.1%). Again, there are instances where one of the non-mode matches seems correct, and others where the mode is correct. Nonetheless, fill down cleaning is recommended instead, especially due to the small size of this issue.
 
 ### Result 4: No matches at all
-Lastly, using this method returns records (13 records, 2.1%) that have no matches at all. These are shown below:
+Lastly, using this method returns records (23 records, 2.8%) that have no matches at all. These are shown below:
 
 ```{r, echo = FALSE}
 match_dict_imp %>%
@@ -554,7 +549,6 @@ match_dict_imp %>%
   kable %>% kable_styling() %>% scroll_box(width = "100%", height = "300px")
 ```
 
-This set of records show the main usefulnessness of using a ED-based `max_dist`: nonsensical records, such as "2ND BLANK", will not be given a false positive and can be quickly identified. These records might need to be filled down using neighboring matched records or manually cleaned.
 
 # 6. Extracting Best Matches + Fill Down?
 Recap of types of result:  
@@ -628,7 +622,7 @@ na_match_3 <- na_match_in - 3
 na_1 <- na_match_in + 1
 na_2 <- na_match_in + 2
 na_3 <- na_match_in + 3
-na_match_in <- c(na_match_in, na_match_1, na_match_2, na_match_3, na_1, na_2, na_3) %>% unique() %>% sort()
+na_match_in <- c(na_match_in, na_match_1, na_match_2, na_match_3, na_1, na_2, na_3) %>% unique() %>% sort() %>% .[na_match_in >= 0]
 
 fill_down_EDA <- match_dict_imp[na_match_in, ]
 
@@ -639,15 +633,8 @@ fill_down_EDA %>%
   scroll_box(width = "100%", height = "300px")
 ```
 
-# 7. Testing on another 10k sample
-The script was quickly re-run with a separate 10k sample. The results were similar in terms of distribution: about 50% of the records had all perfect matches, and using the string cleaning method, only about 2% of the records returned no matches.
-
-# 8. Conclusion + Recommendations
-Important observations:  
-1. While `jw`, `cos`, and `jac` algorithms tend to give matches more frequently (with a lower dscore as well), there is value in keeping `dl` and `qgram` as these are very helpful in catching false positives.  
-2. The method of using a `max_dist` that depends on the ED tends to guard against false positives better than the base method of `max_dist = 5` (which increases the error rate). 
-
-Finally, to recap the types of results:
+# 7. Conclusion
+To recap the types of results:
 ```{r, warning = FALSE}
 result_freq <- match_dict_imp %>%
   transmute(result_type = factor(as.numeric(result_type), levels = 1:6,
@@ -664,20 +651,4 @@ ggplot(result_freq, aes(x = result_type, y = cumsum)) +
   theme_bw()
 ```
 
-This EDA gives a good directive of the street matching workflow. The suggested workflow is:
-
-N. | Step | Notes
----| --- | ---
-0 | Sample census data by EDs | Currently the matching script runs loops through unique number of EDs in the census data; the process can be simplified and made more efficient if there are fewer EDs in each census data (not crucial)
-1 | Extract unique sets of ED and addresses for matching | For computational efficiency
-2 | Clean streets for mispellings and arranging in correct format (e.g. 104 E St) | Using existing `str_clean()` and `rem_dup_word()` functions.
-3 | Run `stringdist_join()` on the cleaned data using max_dist = 5, using all 5 algo | Catch mean & sd of dscores for the ED
-4 | Run `stringdist_join()` on cleaned data again, using max_dist = mean * 2 sd, using all 5 algo | Stricter against false positives
-5 | Result 1: Algthms return same match, match = clean. `Match` = match | about 30% 
-6 | Result 2: Algthms return same match, match != clean. `Match` = match | about 50-60%
-7 | Result 3i: Algthms return diff matches, singular non-NA mode. `Match` = mode(match)| 93-95% 
-8 | Result 3ii: Algthms return diff matches, multiple modes. `Match` = ? | the last 5-7%
-9 | Result 3iii: Algthms return diff matches, mode is NA. `Match` = fill down/manual | the last 5-7%
-10 | Result 4: Algthms return no matches. `Match` = fill down/manual | the last 5-7%
-
-For fill down, the recommended step is take a lookaround of 3 streets in the top/bottom of the row in the same ED and match using jw. Records can then be manually cleaned.
+The script worked even better for the Brooklyn sample compared to Manhattan!
