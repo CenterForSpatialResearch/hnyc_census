@@ -119,7 +119,7 @@ sum(approach_1$yes_fill) - sum(!is.na(approach_1$hn_1))
 Using this method, 5806 additional records have been recovered (with confidence), i.e. we have 10660 confident house numbers. This number is likely to increase with cleaned street addresses.
 
 Code to actually do the fill down (above is just EDA). Chunk set to `eval = FALSE` for now. Run this code instead of chunk above.
-```{r, eval = FALSE}
+```{r}
 HN2 <- HN %>%
   
   # fix street_add
@@ -169,7 +169,7 @@ large_hn$prev_street_add <- large_hn$street_add %>% unlist() %>%
 
 large_hn$next_street_add <- large_hn$street_add %>% unlist() %>%
   append(NA_character_, after = length(.)) %>%
-  .[-length(.)]
+  .[-1]
 
 large_hn %>%
   filter(str_length(hn_1) != str_length(next_hn) 
@@ -189,3 +189,32 @@ large_hn %>%
 #  select(ED, house_num, hn_1, hn1_first_2, hn1_last_2, prev_hn, next_hn) %>%
 #  kable() %>% kable_styling()
 ```
+
+The original census manuscripts were then referred to in order to understand what the mistakes are.
+
+## Example 1: Mistranscribed
+![554](House_Num_Images/house_num_554.jpg)
+Here, 54 was clearly written in the manuscript but somehow mistranscribed into 554.
+
+## Example 2: House Number Range
+9092 was clearly a house number range, especially since it's in between 86 and 94.
+
+## Example 3: Non-sequential Visits
+![210](House_Num_Images/house_num_210.jpg)
+
+Here, the odd house numbers was due to the census taker going back to houses that he failed to  visit (e.g. if no one was home), hence the sequence of numbers is very random.
+
+## Note: Other errors found by accident
+![0](House_Num_Images/house_num_0.jpg)
+
+Here, 17 was written but mistranscribed into 0.
+
+## Next Steps
+1. Code to extract large house numbers is currently not working very well because:  
+a. There are many NA house numbers, which makes it difficult to evaluate if one number is equal to the next house number.
+b. Code currently conditions on whether the house numbers belong to the same street. Because street names are not cleaned, this leads to many false negatives.
+These errors should be fixed first before moving on to EDA.
+
+2. To incorporate these errors into code. Some ideas:
+a. To account for mistranscriptions: Check similarity of one number to another using string distance calculations/creating own algorithm that calculates distance based on ACSII codes.
+b. To account for non-sequential but correct house numbers: To check if there is a pattern. We know that these tend to occurs towards the last few pages of each book. Is there page number data in our sample? If so, we can create exception in code for large numbers that occur in the last few pages.
