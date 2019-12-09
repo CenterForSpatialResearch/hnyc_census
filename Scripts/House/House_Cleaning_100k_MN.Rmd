@@ -1,0 +1,191 @@
+---
+title: "House No. Cleaning"
+author: "Jolene Lim"
+date: "8 December 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+```
+
+# 1. Load Data
+```{r, message = FALSE}
+sample <- read_csv("data/us1910m_usa_sample100k.csv")
+
+names(sample) <- c("hnyc_id", "record", "township", "county", "ED", "person_id",
+              "dwelling_seq", "dwelling_ser", "dwelling_ser2", "hh_seq", "hh_seq_8",
+              "hh_ser2", "hh_ser_bef_split", "indiv_seq", "split",
+              "line_no", "line_no2", "microfilm",
+              "n_fam", "n_person_bef_split", "house_num", "street_add")
+```
+
+# 2. Separate House Numbers
+Note: code is the same as Bo's `in_progress_HN_html` script, look at that script for more documentation
+Preprocessing to filter household persons
+```{r}
+HN <- sample %>%
+    fill(microfilm, .direction = "up") %>%
+    filter(record=="H") %>%
+    select(microfilm, ED, 
+           dwelling_ser, house_num, street_add) %>%
+    mutate(originalHN = house_num,
+           house_num = ifelse(house_num=="", NA, as.character(house_num)),
+           street_add = ifelse(is.na(street_add), " ", street_add))
+```
+
+Extract house number
+```{r}
+HN <- HN %>% rowwise() %>%
+  mutate(flag1=ifelse(is.na(house_num)&
+                               !is.na(str_extract(street_add,"[0-9]+\\s*(-|TO)+\\s*[0-9]+")), 
+                             str_extract(street_add,"[0-9]+\\s*(-|TO)+\\s*[0-9]+"),
+                             NA),
+         house_num=ifelse(is.na(house_num), flag1, house_num),
+         flg_hn_from_strt2=ifelse((!is.na(flag1))&(house_num != flag1) , 1, 0),
+         flg_hn_from_strt=ifelse(is.na(flag1), 0, 1),
+         house_num = gsub("\\s*(TO)\\s*", "-", house_num, ignore.case = TRUE)) %>%
+  select(-flag1)
+```
+
+Cleaning
+The chunk below does:
+
+1. Copy `1/2` or `1-2` from `house_num` to `modifier.number` column
+2. Remove `1/2` or `1-2` from `house_num`
+3. Change `TO` and `/` into `-`
+4. Copy any modifier words from `house_num` to `modifier.number` column
+5. Remove excess whitespaces
+6. Remove any modifier words from `house_num`
+
+** I include `1-2` just in case this exists. The regex for this case excludes `11-20` for example.
+```{r}
+HN <- HN %>% rowwise() %>%
+  mutate(modifier.number = str_extract(house_num, "\\s1[/-]2\\b"), 
+         house_num = gsub("\\s1[/-]2\\b", " ", house_num),  
+         house_num = gsub("\\s*(TO|/|&)\\s*", "-", house_num, ignore.case = TRUE), 
+         house_num = gsub("(?<=\\d)\\s+(?=\\d)", "-", house_num, ignore.case = TRUE, perl = TRUE), 
+         modifier.word = trimws(str_extract(house_num, "[A-Za-z\\s]+")),            
+         house_num = gsub("\\s+", " ", house_num),                    
+         house_num = trimws(gsub("[A-Za-z\\s]+", "", house_num)),
+         house_num = gsub("^\\D+", "", house_num, ignore.case = TRUE), 
+         house_num = gsub("\\D+$", "", house_num, ignore.case = TRUE), 
+         flg_cleaned = ifelse(originalHN=="", 0, ifelse(house_num==originalHN, 0, 1))) 
+```
+
+Splitting house ranges
+```{r}
+splt_df <- str_split_fixed(HN$house_num, "-", 3) %>% data.frame() %>% rename(hn_1 = X1, hn_2 = X2, hn_3 = X3) %>% mutate_all(as.character) %>% mutate_all(as.numeric)
+HN <- HN  %>% cbind(splt_df) 
+```
+
+# 3. Fill Down
+Basic Principle: if the first non-NA above and first non-NA below has a difference of 0 or 2, AND the ED of those are the same, AND the street address are the same, fill down.
+
+```{r}
+approach_1 <- HN %>%
+  
+  # fix street_add
+  mutate(street_add = as.character(street_add)) %>%
+  
+  # create copy of the columns to filled up/down - these should only be filled for records with house no.s
+  mutate(above_hn = hn_1, below_hn = hn_1) %>% 
+  mutate(above_ED = ifelse(!is.na(hn_1), ED, NA), below_ED = ifelse(!is.na(hn_1), ED, NA)) %>%
+  mutate(above_add = ifelse(!is.na(hn_1), street_add, NA), 
+         below_add = ifelse(!is.na(hn_1), street_add, NA)) %>%
+  
+  # fill
+  fill(above_hn, .direction = "down") %>%
+  fill(below_hn, .direction = "up") %>%
+  fill(above_ED, .direction = "down") %>%
+  fill(below_ED, .direction = "up") %>%
+  fill(above_add, .direction = "down") %>%
+  fill(below_add, .direction = "up") %>%
+  
+  # can we confidently fill up/down?
+  mutate(yes_fill = ifelse(abs(above_hn - below_hn) %in% c(0, 2)
+                           & above_ED == below_ED & above_ED == ED
+                           & above_add == below_add & above_add == street_add
+                           & is.na(hn_2), 
+                           1, 0))
+
+# how many confident fill downs?
+sum(approach_1$yes_fill)
+sum(approach_1$yes_fill) - sum(!is.na(approach_1$hn_1))
+```
+
+Using this method, 5806 additional records have been recovered (with confidence), i.e. we have 10660 confident house numbers. This number is likely to increase with cleaned street addresses.
+
+Code to actually do the fill down (above is just EDA). Chunk set to `eval = FALSE` for now. Run this code instead of chunk above.
+```{r, eval = FALSE}
+HN2 <- HN %>%
+  
+  # fix street_add
+  mutate(street_add = as.character(street_add)) %>%
+  
+  # create copy of the columns to filled up/down - these should only be filled for records with house no.s
+  mutate(above_hn = hn_1, below_hn = hn_1) %>% 
+  mutate(above_ED = ifelse(!is.na(hn_1), ED, NA), below_ED = ifelse(!is.na(hn_1), ED, NA)) %>%
+  mutate(above_add = ifelse(!is.na(hn_1), street_add, NA), 
+         below_add = ifelse(!is.na(hn_1), street_add, NA)) %>%
+  
+  # fill
+  fill(above_hn, .direction = "down") %>%
+  fill(below_hn, .direction = "up") %>%
+  fill(above_ED, .direction = "down") %>%
+  fill(below_ED, .direction = "up") %>%
+  fill(above_add, .direction = "down") %>%
+  fill(below_add, .direction = "up") %>%
+  
+  # replace hn_1 column
+  mutate(hn_1 = ifelse(abs(above_hn - below_hn) %in% c(0, 2) 
+                       & above_ED == below_ED & above_ED == ED
+                       & above_add == below_add & above_add == street_add
+                       & is.na(hn_2), 
+                       above_hn, NA_integer_))
+```
+
+# 4. Overly Large House Numbers
+Whether a house number is considered large is dependent on the numbers above and below, e.g. if 9092 (which would actually be 90-92) is surrounded by 86 and 94, then clearly this is a large house number.
+
+```{r}
+large_hn <- HN2 %>%
+  mutate(hn1_first_2 = as.integer(str_sub(hn_1, 1, 2))) %>%
+  mutate(hn1_last_2 = as.integer(str_sub(hn_1, str_length(hn_1) - 1, str_length(hn_1))))
+
+large_hn$next_hn <- large_hn$hn_1 %>% unlist() %>%
+  append(NA_integer_, after = length(.)) %>%
+  .[-1]
+  
+large_hn$prev_hn <- large_hn$hn_1 %>% unlist() %>%
+  append(NA_integer_, after = 0) %>%
+  .[-length(.)]
+
+large_hn$prev_street_add <- large_hn$street_add %>% unlist() %>%
+  append(NA_character_, after = 0) %>%
+  .[-length(.)]
+
+large_hn$next_street_add <- large_hn$street_add %>% unlist() %>%
+  append(NA_character_, after = length(.)) %>%
+  .[-length(.)]
+
+large_hn %>%
+  filter(str_length(hn_1) != str_length(next_hn) 
+         & str_length(hn_1) != str_length(prev_hn)
+         & street_add == prev_street_add
+         & street_add == next_street_add) %>%
+  select(ED, house_num, hn_1, hn1_first_2, hn1_last_2, prev_hn, next_hn) %>%
+  kable() %>% kable_styling() %>%
+  scroll_box(height = "300px")
+
+# to only select potential house number ranges
+## not implemented; this was the original prupose of the EDA but EDA found more issues, but good to have a reference code for selecting specifically house number ranges
+#large_hn %>%
+#  filter(str_length(hn_1) != str_length(next_hn) & str_length(hn_1) != str_length(prev_hn)) %>%
+#  filter(hn1_first_2 - hn1_last_2 < 10) %>%
+#  filter(str_length(hn_1) >= 4) %>%
+#  select(ED, house_num, hn_1, hn1_first_2, hn1_last_2, prev_hn, next_hn) %>%
+#  kable() %>% kable_styling()
+```
