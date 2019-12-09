@@ -12,7 +12,7 @@
 #' This could produce unreliable merged sequences if street names are inaccurate. The 
 #' default is FALSE.
 #' @return TRUE if 2 unique `SEQ` can be merged into 1 merged sequence.
-mergeSeq <- function(sdf, check_street = FALSE){
+mergeSeq <- function(sdf, check_street){
   
   if((sdf %>% pull(SEQ) %>% unique() %>% length) != 2){
     message("must provide 2 sequences:",sdf %>% pull(SEQ) %>% unique() %>% length)
@@ -55,6 +55,7 @@ chkPar <- function(p1){
 #' @param p1 A dataframe with `street_add` column.
 #' @return TRUE if all streets in `p1` have the exact same name. Otherwise, returns FALSE.
 chkStreet <- function(p1){
+  #' ignore NA. Missing house numbers will not break sequences
   if(p1$street_add %>% unique() %>% na.omit %>% length != 1) return(FALSE)
   else return(TRUE)
 }
