@@ -93,12 +93,12 @@ appendMergeSeq <- function(sdf, check_street){
   seq_list <- seq_list[which(!is.na(seq_list))]
   
   #' Split `sdf` into small dataframes by their sequence numbers
-  df_by_SEQ <- split( sdf , f = sdf$SEQ )
+  df_by_SEQ <- split(sdf , f = sdf$SEQ )
   
   #' Calls mergeSeq() to check if SEQ i can be mergeg into SEQ i-1
   mergeable <- c()
   for(i in seq(1, length(seq_list)-1)){
-    mergeable[i]<-mergeSeq(rbind(df_by_SEQ[[i]], df_by_SEQ[[i+1]]), check_street)
+    mergeable[i]<-mergeSeq(rbind(df_by_SEQ[[i]], df_by_SEQ[[i+1]]), check_street = check_street)
   }
   
   appended_df <- sdf %>% mutate(merge_SEQ = SEQ)
@@ -124,8 +124,9 @@ appendMergeSeq <- function(sdf, check_street){
 #' other conditions, subsequncecs must have the same street names to be merged
 #' into one.
 getMergedSeq <- function(df, jump_size = 500, check_street){
-  temp <- appendSeqCol(df, jump_size = 500)
-  HN7 <- appendMergeSeq(temp, check_street)
+  temp <- appendSeqCol(df, jump_size = 500, check_street = check_street)
+  HN7 <- appendMergeSeq(temp, check_street = check_street)
+  return(HN7)
 }
 
 ## @knitr  create_HN7
@@ -134,6 +135,9 @@ getMergedSeq <- function(df, jump_size = 500, check_street){
 # HN6 <- appendSeqCol(HN5, jump_size = 500)
 # HN7 <- appendMergeSeq(HN6)
 
-#save(HN7, file="HN7.RData")
+HN7_hn <- getMergedSeq(HN5, jump_size = 500, check_street = FALSE)
+HN7_st <- getMergedSeq(HN5, jump_size = 500, check_street = TRUE)
 
+#save(HN7, file="HN7.RData")
+t <- appendSeqCol(HN5, jump_size = 500, check_street = TRUE)
 
