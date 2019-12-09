@@ -68,6 +68,10 @@ chkStreet <- function(p1){
 #' `jump_size`. Otherwise, return `FALSE`.
 chkJump <- function(p1, jump_size){
   x <- p1 %>% filter(!is.na(house_num)) %>% pull(house_num)
+  
+  #' There can be only 1 or no house_num
+  if (length(x)<2) return(TRUE)
+  
   for(i in seq(1, length(x)-1)){
     if(abs(x[i] - x[i+1]) > jump_size) return(FALSE)
   }
@@ -132,12 +136,11 @@ getMergedSeq <- function(df, jump_size = 500, check_street){
 ## @knitr  create_HN7
 
 ## sample code
-# HN6 <- appendSeqCol(HN5, jump_size = 500)
+# HN6 <- appendSeqCol(HN5, jump_size = 500, check_street = FALSE)
 # HN7 <- appendMergeSeq(HN6)
 
-HN7_hn <- getMergedSeq(HN5, jump_size = 500, check_street = FALSE)
-HN7_st <- getMergedSeq(HN5, jump_size = 500, check_street = TRUE)
+# HN7_hn <- getMergedSeq(HN5, jump_size = 500, check_street = FALSE)
+# HN7_st <- getMergedSeq(HN5, jump_size = 500, check_street = TRUE)
 
 #save(HN7, file="HN7.RData")
-t <- appendSeqCol(HN5, jump_size = 500, check_street = TRUE)
 
