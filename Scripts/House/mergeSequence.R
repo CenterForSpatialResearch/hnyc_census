@@ -83,7 +83,7 @@ chkJump <- function(p1, jump_size){
 #' @export
 #' @examples
 #' HN7 <- appendMergeSeq(HN6) 
-appendMergeSeq <- function(sdf){
+appendMergeSeq <- function(sdf, check_street){
   
   #' Convert SEQ into numeric
   sdf <- sdf %>% mutate(SEQ = as.numeric(as.character(SEQ)))
@@ -98,14 +98,14 @@ appendMergeSeq <- function(sdf){
   #' Calls mergeSeq() to check if SEQ i can be mergeg into SEQ i-1
   mergeable <- c()
   for(i in seq(1, length(seq_list)-1)){
-    mergeable[i]<-mergeSeq(rbind(df_by_SEQ[[i]], df_by_SEQ[[i+1]]))
+    mergeable[i]<-mergeSeq(rbind(df_by_SEQ[[i]], df_by_SEQ[[i+1]]), check_street)
   }
   
   appended_df <- sdf %>% mutate(merge_SEQ = SEQ)
   
   #' Set `merge_SEQ` of `SEQ` that will be merged to previous subsequence as NA
   #' Then, fill down `SEQ`.
-  meageable_seq <- which(mergeable==TRUE) + 1
+  meageable_seq <- seq_list[which(mergeable==TRUE) + 1]
   appended_df <- appended_df %>%
     mutate(merge_SEQ = ifelse(SEQ %in% meageable_seq, NA, merge_SEQ)) %>% 
     fill(merge_SEQ, .direction = "down") %>%
@@ -114,6 +114,19 @@ appendMergeSeq <- function(sdf){
   return(appended_df)
 }
 
+
+#' Wrap two step merging (subsequence and merged sequence) into 1 function
+#' It will be more efficicent to internalize subsequencne step into merged
+#' sequence step.
+#' @param jump_size Used in the subsequence step. If house_num jumps > jump_size, 
+#' break into subsequences.
+#' @param check_street Used in the merged sequence step. If TRUE, in addition to,
+#' other conditions, subsequncecs must have the same street names to be merged
+#' into one.
+getMergedSeq <- function(df, jump_size = 500, check_street){
+  temp <- appendSeqCol(df, jump_size = 500)
+  HN7 <- appendMergeSeq(temp, check_street)
+}
 
 ## @knitr  create_HN7
 
