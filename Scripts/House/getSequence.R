@@ -20,7 +20,7 @@ getSequenceHead <- function(sample_hn_seq, jump_size){
   #' Return (head_index, new_prev_index, new_current_index, new_next_index)
   #' `head_index` is added to a list of head indices
   #' The last three are used to find next head indices.
-  isHead <- function(prev_index, curr_index, next_index){
+  isHead <- function(prev_index, curr_index, next_index, check_street){
     if (next_index>list_length){
       stop()
     }
@@ -34,7 +34,7 @@ getSequenceHead <- function(sample_hn_seq, jump_size){
     if(!withinJumpSize(getHouseNum(prev_index), getHouseNum(curr_index), jump_size)){
       return(c(curr_index, curr_index, curr_index+1, curr_index+2))
     }
-    
+
     same_parity <- sameParity(getHouseNum(prev_index), getHouseNum(curr_index))
     # diff parity --> start new seq
     if(!same_parity)return(c(curr_index, curr_index, curr_index+1, curr_index+2))
@@ -119,7 +119,6 @@ getSequenceHead <- function(sample_hn_seq, jump_size){
   
   ###### internal helper functions end here #############
   
-  
   ## Get indices of param with non-NA
   not_na_index_ref_raw <- which(!is.na(sample_hn_seq))
   
@@ -142,7 +141,7 @@ getSequenceHead <- function(sample_hn_seq, jump_size){
   curr_i <- 2
   next_i <- 3
   while(next_i <= list_length){
-    result <- isHead(prev_i,curr_i,next_i)
+    result <- isHead(prev_i,curr_i,next_i, check_street = check_street)
     if (!is.na(result[1])){
       current_index_of_heads <- c(current_index_of_heads, result[1])
     }
@@ -164,7 +163,7 @@ getSequenceHead <- function(sample_hn_seq, jump_size){
 #' @export
 #' @examples
 #' HN6 <- appendSeqCol(HN5)
-appendSeqCol <- function(sample_df, jump_size){
+appendSeqCol <- function(sample_df, jump_size, check_street){
   
   ## Setup
   sample_df <- sample_df %>% mutate(house_num = as.numeric(house_num))
@@ -187,7 +186,65 @@ appendSeqCol <- function(sample_df, jump_size){
            i = row_number()) %>% 
     tidyr::fill(seq_par, .direction = "down") %>%
     tidyr::fill(SEQ, .direction = "down") 
+  
+  #' Also consider street names if check_street is TRUE
+  if(check_street){
+    r <- getSeqByStreet(r)
+  }
+  
   return(r)
+}
+
+
+#' getSeqByStreet
+#'
+#' This is an internal function, called by appendSeqCol when street names need to be checked
+#' during seq detection. It determines a joint sequences using both seq by house_nums and 
+#' seq by street names. The new joint sequence column is created in place of the old `SEQ`
+#' column.
+#' @param df A dataframe with `SEQ` that is determined by house_num string.
+#' @return A dataframe with the new `SEQ` column.
+getSeqByStreet <- function(df){
+  
+  #' Check type of Stree_add column
+  df <- df %>% mutate(street_add = as.character(street_add),
+                      street_add = ifelse(is.na(street_add), NA, 
+                                          ifelse(street_add=="", NA,street_add)))
+  
+  current_street_i <- 1
+  street_add_list <- df %>% pull(street_add)
+  seq_by_street <- c(1, rep(NA, nrow(df) -1))
+  
+  #' Compare previous and current street names.
+  #' Mark a new sequence if their names are different
+  for(i in seq(2, length(street_add_list))){
+    prev_st <- street_add_list[i-1]
+    curr_st <- street_add_list[i]
+    
+    if(is.na(prev_st) && (!is.na(curr_st))){
+      current_street_i = current_street_i + 1
+    } else if ((!is.na(prev_st)) && is.na(curr_st)){
+      current_street_i = current_street_i + 1
+    } else if (is.na(prev_st) && is.na(curr_st)) {}#do nothing
+    else if (prev_st != curr_st) {current_street_i = current_street_i + 1}
+    seq_by_street[i] <- current_street_i
+  }
+  
+  #' Append new seq by street to df
+  df["SEQ_by_st"] <- seq_by_street
+  
+  #' Determine the new seq usingboth seq by house_num and seq by street name
+  df2 <- df %>% mutate(new_seq = ifelse(is.na(SEQ), NA, paste(SEQ, SEQ_by_st, sep = "-")))
+  new_seq <- df2 %>% pull(new_seq) %>% unique() %>% na.omit()
+  seq_dict <- seq(1, length(new_seq))
+  names(seq_dict) <- new_seq
+  
+  #' Append new seq to df. Replace old SEQ column with this new column
+  df2 <- df2 %>% mutate(new_seq = as.character(new_seq),
+                        SEQ = ifelse(is.na(new_seq), NA, seq_dict[new_seq])) %>%
+    select(-SEQ_by_st, -new_seq)
+  
+  return(df2)
 }
 
 
