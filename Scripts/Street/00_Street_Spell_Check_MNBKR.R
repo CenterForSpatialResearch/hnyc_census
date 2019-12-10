@@ -4,7 +4,7 @@
 library(dplyr)
 library(hunspell)
 
-# Load Data
+# Load Raw Data
 # rawData <- read_csv("...")
 
 # Check Spelliing Function
