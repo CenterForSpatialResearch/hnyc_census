@@ -1,15 +1,15 @@
 
-#' lookAroundBP
+## @knitr  lookAroundBP
+
+#' breakPointI
 #'
 #' The function is for inspecting rows around a record where only one of `SEQ` and 
 #' `merge_SEQ` break. 
 #' @param t A dataframe with `SEQ`, `merge_SEQ`, and `i` columns.
-#' @param window_size An integer specifying how many rows around the record should 
-#' be inspected. This is just a rough number.
-#' @return A list of dataframes, each of which is with `window_size` rows around 
-#' the record of inspection.
-lookAroundBP <- function(t, window_size){
+#' @return A vector of `i` of records at which only one of the two sequence types breaks.
+breakPointI <- function(t){
   
+  #' SEQ and merge_SEQ cannot be factors
   t <- t %>%
     mutate(SEQ = as.numeric(as.factor(SEQ)),
            merge_SEQ = as.numeric(as.factor(merge_SEQ)),
@@ -18,26 +18,34 @@ lookAroundBP <- function(t, window_size){
   
   old_s <- t$SEQ
   new_s <- t$merge_SEQ
-  window_size <- window_size/2
   
+  #' A loop to detect different break points
   index_diff_seq <- c()
-  for(i in seq(1, length(old_s)-1)){
-    if(is.na(old_s[i]) || is.na(new_s[i])) next()
+  for(ind in seq(1, length(old_s)-1)){
+    if(is.na(old_s[ind]) || is.na(new_s[ind])) next()
     
     brk_old_seq <- FALSE
     brk_new_seq <- FALSE
-    if(old_s[i] != old_s[i+1]) brk_old_seq <- TRUE
-    if(new_s[i] != new_s[i+1]) brk_new_seq <- TRUE
+    if(old_s[ind] != old_s[ind+1]) brk_old_seq <- TRUE
+    if(new_s[ind] != new_s[ind+1]) brk_new_seq <- TRUE
     
-    if(brk_old_seq!=brk_new_seq) index_diff_seq <- c(index_diff_seq, i+1)
+    if(brk_old_seq!=brk_new_seq) index_diff_seq <- c(index_diff_seq, ind+1)
   }
-  row_diff_seq <- t$i[index_diff_seq]
   
-  diff_seq_list <- lapply(row_diff_seq, function(ind){
-    return(HN7_hn %>% filter(i %in% seq(ind-window_size, ind+window_size)))
-  })
+  return(t[,"i"][index_diff_seq])
   
-  return(diff_seq_list)
 }
 
-x <- lookAroundBP(HN7_hn, window_size = 6)
+#' lookAround
+#'
+#' The function returns a subset of a dataframe.
+#' @param df A dataframe to be subset. It must contain colum `i`.
+#' @param ind An index of a dataframe. This is the middle of the window.
+#' @param window_size An integer specifying how many rows around the record should 
+#' be inspected. This is just a rough number.
+#' @return A subset dataframe of size `window_size`.
+lookAround <- function(df, ind, window_size){
+  half <- window_size/2
+  return(df %>% filter(i %in% seq(ind-half, ind+half)))
+}
+

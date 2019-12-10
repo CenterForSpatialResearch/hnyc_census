@@ -1,6 +1,7 @@
 ---
-title: "12/3"
+title: "House Number Sequence"
 author: "Bo Jumrustanasan"
+date: "12/10/19"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -15,18 +16,34 @@ library(kableExtra)
 library(gridExtra)
 ```
 
-## Merge
+The long string of house numbers from enumeration pages is divided into segments, referred to as **sequences**. A sequence is expected to contain 1 street with reasonable running house numbers. The process is for that missing house numbers and street names within a sequence can be confidently recovered.
 
-* The house number string is broken into small *subsequences*
-    * odd VS even
-    * decreasing VS increasing
-    * distance to previous and after HNs
-* If *subsequences* are merged into one *merged sequence* if possible
-    * a new larger sequence contains less than 2 rows with house numbers of different parity
-    * house number does not skip larger than `jump_size`, which is currently set to 10 units.
-    * [same street name (waiting for cleaned + processed street column)]
+## Sequence Detection
+
+There are two main steps to detect sequences: breaking and merging. They are wrapped under a function called `getMergedSeq()` which return a dataframe with a column of sequence numbers.
+
+### Breaking Step
+
+The string of house number is first divided into small segments, referred to as **subsequences**, so that within each subsequence, 
+
+1. there is only one parity in house numbers
+2. house number is only increasing (decreasing)
+3. there is only one street name (only when `check_street` is set to TRUE)
+
+See `getSequence.R` for the script.
 
 
+### Merging Step
+
+In reality, an enumerator could go back and forth from house to house with in the same street. Thus, there could be both increasing and decreasing house numbers in the same sequences. Moreover, having only one parity can be too restrictive as a number can be mistranscribed into another that has different parity. 
+ƒ
+This steps merges back some subsequences into sequences so that, within a sequence,
+
+1. there is only 1 street name (only when `check_street` is set to TRUE)
+2. there are no more than 2 house numbers whose parities are different from the rest of the house numbers in the sequence
+3. Adjacent house numbers to not differ for more than 10. The number can be set by setting `jump_size`.
+
+See `mergeSequence.R` for the script.
 
 ```{r}
 #load("Scripts/House/HN5.RData")
@@ -38,25 +55,11 @@ load("HN5.RData")
 read_chunk("getSequence.R")
 read_chunk("mergeSequence.R")
 read_chunk("evenlyFill.R")
+read_chunk("lookAroundBP.R")
 ```
-
-
-### Sequence breaking function
-
-* see getSequence.R
-    * getSequenceHead(): knows which HH recordd are sequence heads
-    * appendSeqCol(): assigns unique number for each sequence (new column)
-
-### Sequence merging function
-
-* see `mergeSequence.R`
-    * `mergeSeq()`: returns a vector of TRUE/FALSE. TRUE at index i means that seq at i and seq at i+1 can be merged. Called in `appendMergeSeq()`.
-    * `appendMergeSeq()`: calls `mergeSeq()` and assigns unique numbers for each merged sequence (new column).
-
-The code below (hidden) calls processes in `getSequence.R` and `mergeSequence.R` to create a dataframe with new sequence column (`HN7`). 
-
+    
 ```{r}
-## Read specific parts of code from files
+#' Read in functions from files into Rmd
 
 ## getSequece.R
 <<getSeq_fxs>>
@@ -64,55 +67,22 @@ The code below (hidden) calls processes in `getSequence.R` and `mergeSequence.R`
 ## mergeSequence.R
 <<read_merge_fxs>>
 <<create_HN7>>
+  
+## lookAroundBP.R
+<<lookAroundBP>>
 ```
 
+```{r}
+#' Process dataframes for EDA
+HN7_hn <- getMergedSeq(HN5, jump_size = 500, check_street = FALSE) # Ignore street names
+HN7_st <- getMergedSeq(HN5, jump_size = 500, check_street = TRUE) # Consider street names
+```
 
 ## House numbers by `SEQ` and `merged_SEQ`
 
 **On us1910m_usa_sample100k.csv**
 
-Left: house number *subsequences*
-Right: house number *merged sequences*
-
-```{r, fig.width=10}
-sub_seq <- ggplot(HN7[700:1000,], aes(x = i, y = house_num, color = SEQ)) + 
-  geom_point() +
-  xlab("Record Index") + 
-  ylab("House Number") + 
-  ggtitle("Sample 1: Subsequences")
-
-seq <- ggplot(HN7[700:1000,], aes(x = i, y = house_num, color = merge_SEQ)) + 
-  geom_point() +
-  xlab("Record Index") + 
-  ylab("House Number") + 
-  ggtitle("Sample 1: Merged Sequences")
-
-grid.arrange(sub_seq, seq, ncol = 2)
-```
-
-
-```{r, fig.width=10}
-sub_seq <- ggplot(HN7[3100:3400,], aes(x = i, y = house_num, color = SEQ)) + 
-  geom_point() +
-  xlab("Record Index") + 
-  ylab("House Number") + 
-  ggtitle("Sample 2: Subsequences")
-
-seq <- ggplot(HN7[3100:3400,], aes(x = i, y = house_num, color = merge_SEQ)) + 
-  geom_point() +
-  xlab("Record Index") + 
-  ylab("House Number") + 
-  ggtitle("Sample 2: Merged Sequences")
-
-grid.arrange(sub_seq, seq, ncol = 2)
-```
-
-The total number of sequences reduces.
-
-```{r}
-HN7 %>% select(SEQ, merge_SEQ) %>%  gather(key = type, value = value) %>% unique() %>%
-  group_by(type) %>% summarize(cnt = n()) %>% kable()
-```
+### Sample census data with `check_street` off
 
 Sample rows with their subsequence number and merged sequence number.
 
@@ -123,62 +93,244 @@ Sample rows with their subsequence number and merged sequence number.
 See below.
 
 ```{r}
-x <- HN7 %>% select(house_num, street_add, SEQ, merge_SEQ)
-x[20:65,] %>% kable %>% kable_styling() %>% 
+x <- HN7_hn %>% select(house_num, street_add, SEQ, merge_SEQ)
+x[200:500,] %>% kable %>% kable_styling() %>% 
   kableExtra::scroll_box(width = "100%", height = "400px")
 ```
 
-## Linear Fill-in
+
+### Sample census data with `check_street` on
 
 ```{r}
-## evenlyFill.R
-<<evenly_fill_HN7>>
-```
-
-merge_SEQ 2 and 3 (top) and 501 and 502 (bottom). Blue dots are real house numbers. Red dots are interpolations.
-
-```{r}
-## need filled_df from evenlyFill.R
-## plot house number movement by merged sequences
-filled_hn <- filled_df %>% select(i, house_num, hn_filled, merge_SEQ) %>%
-  mutate(hn_filled = ifelse(!is.na(house_num), NA, hn_filled),
-         merge_SEQ = as.factor(merge_SEQ)) %>%
-  gather(key = hn, value = value, -i, -merge_SEQ)
-
-mseq_list <- filled_df %>% pull(merge_SEQ) %>% unique()
-plt1 <- ggplot(filled_hn %>% filter(merge_SEQ %in% mseq_list[c(2,3)]), 
-               aes(x=i, y = value, color = hn)) + 
-  geom_point(aes(shape = merge_SEQ)) + 
-  theme(legend.position = "none")
-plt2 <- ggplot(filled_hn %>% filter(merge_SEQ %in% mseq_list[c(501, 502)]), 
-               aes(x=i, y = value, color = hn)) + 
-  geom_point(aes(shape = merge_SEQ)) + 
-  theme(legend.position = "none")
-grid.arrange(plt1, plt2, ncol = 1)
-```
-
-Missing house numbers before the filled in.
-
-```{r}
-filled_df %>% select(house_num) %>% 
-  mutate(na_cnt = ifelse(is.na(house_num), 1, 0)) %>% 
-  summarize(missing = sum(na_cnt), ttl = n()) %>% kable %>% kable_styling()
-```
-
-Missing house numbers after the filled in. Missing values are those at the end of sequences.
-
-```{r}
-filled_df %>% select(hn_filled) %>% 
-  mutate(na_cnt = ifelse(is.na(hn_filled), 1, 0)) %>% 
-  summarize(missing = sum(na_cnt), ttl = n()) %>% kable %>% kable_styling()
-```
-
-Records with filled in house numbers are flagged in column `flg_hn_filled`. Records with SEQ==`NA` will have `flg_hn_filled`==`NA`.
-
-```{r}
-filled_df %>% head(100) %>% kable %>% kable_styling() %>% 
+x <- HN7_st %>% select(house_num, street_add, SEQ, merge_SEQ)
+x[200:500,] %>% kable %>% kable_styling() %>% 
   kableExtra::scroll_box(width = "100%", height = "400px")
 ```
+
+### Overview
+
+Left: house number *subsequences*
+
+Middle: house number *merged sequences* + street off
+
+Right: house number *merged sequences* + street on
+
+```{r, fig.width=15}
+sub_seq <- ggplot(HN7_hn[700:1000,], aes(x = i, y = house_num, color = SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 1: Subsequences")
+
+seq <- ggplot(HN7_hn[700:1000,], aes(x = i, y = house_num, color = merge_SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 1: Merged Sequences (street off)")
+
+seq_st <- ggplot(HN7_st[700:1000,], aes(x = i, y = house_num, color = merge_SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 1: Merged Sequences (street on)")
+
+grid.arrange(sub_seq, seq, seq_st,  ncol = 3)
+```
+
+
+```{r, fig.width=15}
+sub_seq <- ggplot(HN7_hn[3100:3400,], aes(x = i, y = house_num, color = SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 2: Subsequences")
+
+seq <- ggplot(HN7_hn[3100:3400,], aes(x = i, y = house_num, color = merge_SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 2: Merged Sequences (street off)")
+
+seq_st <- ggplot(HN7_st[3100:3400,], aes(x = i, y = house_num, color = merge_SEQ)) + 
+  geom_point() +
+  xlab("Record Index") + 
+  ylab("House Number") + 
+  ggtitle("Sample 2: Merged Sequences (street on)")
+
+grid.arrange(sub_seq, seq, seq_st,  ncol = 3)
+```
+
+
+There are more subsequences when `check_street` is on (see `on_` vs `off_`). Some subsequences are merged into ones (see `_merge_SEQ` vs `_SEQ`). `i` is the total number of records.
+
+
+```{r}
+HN7_hn %>% select(i, SEQ, merge_SEQ) %>% full_join(HN7_st %>% select(i, SEQ, merge_SEQ), by = "i") %>%
+  rename(off_merge_SEQ = merge_SEQ.x, on_merge_SEQ = merge_SEQ.y,
+         off_SEQ = SEQ.x, on_SEQ = SEQ.y) %>%
+  select(-i) %>%
+  gather(key = type, value = value) %>% unique() %>%
+  group_by(type) %>% summarize(cnt = n()) %>% kable()
+```
+
+### Sequence number progress
+
+* The top line is merged sequence numbers when street names are also considered; the bottom line is when they are not. 
+* Different colors represent different sequnce numbers
+* X axis is row numbers
+
+```{r}
+#' Column names are changed so that it works with lookAroundBP()
+join_df <- HN7_hn %>% select(microfilm, ED, house_num, street_add, merge_SEQ, i) %>%
+  full_join(HN7_st %>% select(merge_SEQ, i), by = "i") %>%
+  rename(SEQ = merge_SEQ.x,
+         merge_SEQ = merge_SEQ.y)
+
+trace <- join_df %>% rename(merge_SEQ_off = SEQ,
+                            merge_SEQ_on = merge_SEQ) %>%
+  select(i, merge_SEQ_off, merge_SEQ_on) %>% 
+  gather(key = seq_type, value = seq_num, -i) %>%
+  mutate(dummy_y = ifelse(seq_type=="merge_SEQ_off", 1, 2)) %>%
+  filter(!is.na(seq_num))
+
+trace_plot <- ggplot(trace, aes(x=i, y = dummy_y, group = seq_type, color = seq_num)) + 
+  geom_line(size = 2) + 
+  theme(legend.position = "none") + 
+  ylim(c(0, 3))
+```
+
+
+<style>
+  .superbigimage{
+      overflow-x:scroll;
+      white-space: nowrap;
+  }
+  .superbigimage img{
+     max-width: none;
+  }
+</style>
+
+
+#### Row number 1 - 1000
+<div class="superbigimage">
+```{r , echo = FALSE, fig.width=20,fig.height=3}
+trace_plot + xlim(c(1,1000))
+```
+</div>
+
+
+```{r}
+#' Number of merge sequences
+data.frame("street_off" = HN7_hn$merge_SEQ %>% unique() %>% na.omit %>% length(),
+           "street_on" = HN7_st$merge_SEQ %>% unique() %>% na.omit %>% length()) %>% kable()
+```
+
+
+## Sequences with and without check_street
+
+There are some records that start new sequences when `check_street` is TRUE, but do not when `check_street` is FALSE (and vice versa). There are 592 such records (out of ~19k). They point to 
+
+* Unstandardized street names e.g.
+    * ROOSEVELT ST vs ROOSEVELT STREET (i = 355)
+* Trivial mispelling
+    * CARL ST vs PEARL ST (i=103)
+    * JAMES vs NAMES vs SAMES
+    * OLIVER vs OLIWER (i = 1482)
+    * FRANKLIN ST vs HUIKAHI ST (i = 4217) **??**
+* mistranscribing
+    * look around i = 61
+    * look around i = 479
+    * look around i = 10648
+    * Dates as street names e.g. `ADP 18`(i = 410) and `APRL 22`
+* Missing values that can be confidently inferred
+    * lookaround i = 1198 (ROAD A -- missing -- ROAD B)
+* No mistakes
+
+```{r, eval = FALSE}
+## table too large
+join_df %>% rename(merge_SEQ_off = SEQ,
+                        merge_SEQ_on = merge_SEQ) %>%
+  select(microfilm, ED, house_num, street_add, 
+         i, merge_SEQ_off, merge_SEQ_on) %>% 
+  kable %>% kable_styling() %>% 
+  kableExtra::scroll_box(width = "100%", height = "400px")
+```
+
+
+```{r, eval = FALSE}
+
+x <- breakPointI(join_df)
+lookAround(join_df, 8280, window_size = 20) %>% View
+# LAB_list_2 <- lapply(x, function(pt){
+#   return(lookAround(join_df, pt, window_size = 20) %>%
+#            rename(merge_SEQ_off = SEQ,
+#                   merge_SEQ_on = merge_SEQ))
+# })
+# View(LAB_list_2[[300]])
+# View(LAB_list_2[[301]])
+# View(LAB_list_2[[302]])
+# View(LAB_list_2[[304]])
+# View(LAB_list_2[[307]])
+# View(LAB_list_2[[309]])
+```
+
+
+```{r, eval = FALSE, echo = FALSE}
+#### 1. `SEQ` and `merge_SEQ` do not start new sequences at the same record
+
+Becuase conditions for the merge are met. 
+
+- No more than two house numbers with a parity different from the rest. Could imply mistranscription
+- Records are still in neighboring areas (decreasing and increasing house number in the same area)
+
+
+LAB_list <- lookAroundBP(HN7_hn, window_size = 6)
+do.call(rbind, LAB_list) %>% 
+  select(ED, microfilm, house_num, street_add, SEQ, merge_SEQ, seq_par, i) %>% 
+  kable() %>% kable_styling() %>% 
+  kableExtra::scroll_box(width = "100%", height = "400px")
+```
+
+```{r, eval = FALSE}
+selectInput(inputId = "BP", label = 'Choose break point to inspect',
+            choices = seq(1,length(x)))
+message(input$BP)
+renderUI( {
+  HTML(LAB_list_2[[input$BP]] %>% kable() %>% kable_styling() %>% 
+  kableExtra::scroll_box(width = "100%", height = "400px"))
+})
+
+# renderPlot({
+#   par(mar = c(4, 4, .1, .5))
+#   hist(
+#     faithful$eruptions, as.numeric(input$breaks),
+#     col = 'gray', border = 'white',
+#     xlab = 'Duration (minutes)', main = ''
+#   )
+# })
+```
+
+
+```{r, eval = FALSE}
+LAB_list_2 <- HN7_hn %>% select(-SEQ) %>% full_join(HN7_st %>% select(merge_SEQ, i), by = "i") %>%
+  rename(SEQ = merge_SEQ.x,
+         merge_SEQ = merge_SEQ.y) %>% 
+  lookAroundBP(.,window_size = 10)
+do.call(rbind, LAB_list_2) %>% 
+  select(ED, microfilm, house_num, street_add, SEQ, merge_SEQ, seq_par, i) %>% 
+  rename(merge_SEQ_off = SEQ,
+         merge_SEQ_on = merge_SEQ) %>% 
+  kable() %>% kable_styling() %>% 
+  kableExtra::scroll_box(width = "100%", height = "400px")
+
+```
+
+
+
+
+
+
+
 
 
 

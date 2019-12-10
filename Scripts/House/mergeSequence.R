@@ -123,11 +123,17 @@ appendMergeSeq <- function(sdf, check_street){
 #' Wrap two step merging (subsequence and merged sequence) into 1 function
 #' It will be more efficicent to internalize subsequencne step into merged
 #' sequence step.
+#' @param df A dataframe with `house_num`, `street_add`, and `i` columns
 #' @param jump_size Used in the subsequence step. If house_num jumps > jump_size, 
 #' break into subsequences.
 #' @param check_street Used in the merged sequence step. If TRUE, in addition to,
 #' other conditions, subsequncecs must have the same street names to be merged
 #' into one.
+#' @return A dataframe with `SEQ` and `merge_SEQ` columns attached.
+#' @export
+#' @example 
+#' HN7_hn <- getMergedSeq(HN5, jump_size = 500, check_street = FALSE)
+#' HN7_st <- getMergedSeq(HN5, jump_size = 500, check_street = TRUE)
 getMergedSeq <- function(df, jump_size = 500, check_street){
   temp <- appendSeqCol(df, jump_size = 500, check_street = check_street)
   HN7 <- appendMergeSeq(temp, check_street = check_street)
