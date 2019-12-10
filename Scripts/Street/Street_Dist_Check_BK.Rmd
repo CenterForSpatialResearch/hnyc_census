@@ -622,7 +622,8 @@ na_match_3 <- na_match_in - 3
 na_1 <- na_match_in + 1
 na_2 <- na_match_in + 2
 na_3 <- na_match_in + 3
-na_match_in <- c(na_match_in, na_match_1, na_match_2, na_match_3, na_1, na_2, na_3) %>% unique() %>% sort() %>% .[na_match_in >= 0]
+na_match_in <- c(na_match_in, na_match_1, na_match_2, na_match_3, na_1, na_2, na_3) %>% unique() %>% sort()
+na_match_in <- na_match_in[na_match_in >= 0]
 
 fill_down_EDA <- match_dict_imp[na_match_in, ]
 
