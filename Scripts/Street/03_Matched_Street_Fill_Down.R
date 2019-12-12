@@ -1,9 +1,9 @@
 
 #' fillDownStreet
 #' 
-#' Fill down cleaned street names within the same enumeration page and ED.
+#' Fill down matched street names within the same enumeration page and ED.
 #' This function is to be run on output from `02_Street_Matching_MNBK.R`.
-#' @param df A dataframe with `microfilm` and `ED` columns.
+#' @param df A dataframe with `microfilm`, `ED`, and `best_match` columns.
 #' @return A dataframe with cleaned street filled down within an enumeration 
 #' page and ED (group_by(`microfilm`, `ED`)).
 fillDownStreet <- function(df){
