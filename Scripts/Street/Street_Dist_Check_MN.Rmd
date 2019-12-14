@@ -565,6 +565,15 @@ Recap of types of result:
 5. Result 3iii: Algthms return diff matches, mode is NA. `Match` = NA  
 6. Algthms return no matches. `Match` = NA  
 
+For example:
+```{r}
+match_dict_imp %>%
+  .[c(3, 2, 36, 156, 59, 26), ] %>%
+  bind_cols(type = c("Perfect Match", "Identical Match", "Singular Mode", "Multiple Mode", "NA Mode", "No Match")) %>%
+  select(type, raw, clean, match_dl, match_qgram, match_cos, match_jac, match_jw) %>%
+  kable() %>% kable_styling()
+```
+
 This equates to the following nested conditional for classifying:
 ```{r, eval = FALSE, echo = TRUE}
 if (match_dl == match_cos & match_dl == match_qgram & match_dl == match_jac & match_dl == match_jw) {

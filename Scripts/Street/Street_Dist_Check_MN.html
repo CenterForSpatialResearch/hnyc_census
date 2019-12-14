@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 
 <head>
 
 <meta charset="utf-8" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
@@ -86,7 +85,6 @@ code {
 }
 img {
   max-width:100%;
-  height: auto;
 }
 .tabbed-pane {
   padding-top: 12px;
@@ -148,6 +146,7 @@ summary {
   border: none;
   display: inline-block;
   border-radius: 4px;
+  background-color: transparent;
 }
 
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li {
@@ -239,12 +238,112 @@ edict &lt;- edict %&gt;%
 </div>
 <div id="cleaning-addresses" class="section level1">
 <h1>2. Cleaning Addresses</h1>
-<p>Importing functions created by Kyi, <code>rem_dup_word()</code> and <code>str_clean()</code>. Note: <code>str_clean()</code> is modified such that the output is a cleaned <code>x</code> rather than <code>x$cleaned</code>. This allows <code>x</code> to be a vector rather than strictly a dataframe. (Code not shown as it is very long.)</p>
+<p>Importing functions created by Kyi, <code>rem_dup_word()</code> and <code>str_clean()</code>. Note: <code>str_clean()</code> is modified such that the output is a cleaned <code>x</code> rather than <code>x$cleaned</code>. This allows <code>x</code> to be a vector rather than strictly a dataframe.</p>
+<pre class="r"><code># import functions
+rem_dup_word &lt;- function(x){
+x &lt;- tolower(x)
+paste(unique(trimws(unlist(strsplit(x,split=&quot; &quot;,fixed=F,perl=T)))),collapse = 
+&quot; &quot;)
+}
+
+str_clean&lt;-function(x){
+  x &lt;- gsub(&quot;\\&lt;SRT\\&gt;$|\\&lt;SR\\&gt;$\\&lt;SRT\\&gt;$|\\&lt;STR\\&gt;$|\\&lt;SST\\&gt;$|\\&lt;SEET\\&gt;$|\\&lt;TREET\\&gt;$|\\&lt;SHEER\\&gt;$|\\&lt;SHEE\\&gt;$|\\&lt;STREE\\&gt;$|\\&lt;SREET\\&gt;$|\\&lt;REET\\&gt;$|\\&lt;STEE\\&gt;$|\\&lt;ST\\&gt;$&quot;,&quot;STREET&quot;,x)
+  x &lt;-gsub(&quot;\\&lt;N\\&gt;&quot;,&quot;NORTH&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;S\\&gt;&quot;,&quot;SOUTH&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;E\\&gt;&quot;,&quot;EAST&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;W\\&gt;&quot;,&quot;WEST&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;DR\\&gt;|\\&lt;DV\\&gt;|\\&lt;DE\\&gt;$|\\&lt;DRV\\&gt;|\\&lt;DRI\\&gt;|\\&lt;DRIV\\&gt;|\\&lt;DRIE\\&gt;&quot;,&quot;DRIVE&quot;,x) 
+  x&lt;-gsub(&quot;\\&lt;CIR\\&gt;|\\&lt;CRL\\&gt;|\\&lt;CIRC\\&gt;|\\&lt;CR\\&gt;|\\&lt;CL\\&gt;|\\&lt;CIRCL\\&gt;|\\&lt;CICLE\\&gt;&quot;,&quot;CIRCLE&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;AVE\\&gt;|\\&lt;AV\\&gt;|\\&lt;AVN\\&gt;|\\&lt;AVEN\\&gt;|\\&lt;AVENU\\&gt;&quot;,&quot;AVENUE&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;CT\\&gt;|\\&lt;CRT\\&gt;|\\&lt;CTR\\&gt;|\\&lt;COUR\\&gt;|\\&lt;COT\\&gt;|\\&lt;CORT\\&gt;&quot;,&quot;COURT&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;BLVD\\&gt;|\\&lt;BVLD\\&gt;|\\&lt;BV\\&gt;|\\&lt;BLD\\&gt;|\\&lt;BD\\&gt;|\\&lt;BL\\&gt;|\\&lt;BLV\\&gt;&quot;,&quot;BOULEVARD&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;RD\\&gt;|\\&lt;RAD\\&gt;|\\&lt;ROD\\&gt;&quot;,&quot;ROAD&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;ALY\\&gt;|\\&lt;AL\\&gt;|\\&lt;ALLY\\&gt;|\\&lt;ALEY\\&gt;|\\&lt;ALLE\\&gt;|\\&lt;AY\\&gt;&quot;,&quot;ALLEY&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;PL\\&gt;|\\&lt;PLC\\&gt;|\\&lt;PLE\\&gt;|\\&lt;PC\\&gt;|\\&lt;PLAC\\&gt;|\\&lt;PLCE\\&gt;|\\&lt;PCE\\&gt;&quot;,&quot;PLACE&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;PK\\&gt;|\\&lt;PRK\\&gt;|\\&lt;PRAK\\&gt;|\\&lt;PAK\\&gt;&quot;,&quot;PARK&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;PKWY\\&gt;|\\&lt;PARKW\\&gt;|\\&lt;PWY\\&gt;|\\&lt;PKW\\&gt;|\\&lt;PRKWY\\&gt;|\\&lt;PKWY\\&gt;|\\&lt;PKW\\&gt;&quot;,&quot;PARKWAY&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;APPR\\&gt;|\\&lt;APR\\&gt;|\\&lt;APPROA\\&gt;|\\&lt;APRCH\\&gt;|\\&lt;APPRCH\\&gt;&quot;,&quot;APPROACH&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;TER\\&gt;|\\&lt;TERR\\&gt;|\\&lt;TRC\\&gt;|\\&lt;TRCE\\&gt;|\\&lt;TR\\&gt;&quot;,&quot;TERRACE&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;PLZ\\&gt;|\\&lt;PLAZ\\&gt;|\\&lt;PZ\\&gt;|\\&lt;PLZA\\&gt;&quot;,&quot;PLAZA&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;LN\\&gt;|\\&lt;LNE\\&gt;|\\&lt;LAN\\&gt;&quot;,&quot;LANE&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;BRG\\&gt;|\\&lt;BRGD\\&gt;|\\&lt;BGE\\&gt;&quot;,&quot;BRIDGE&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;HL\\&gt;|\\&lt;HLL\\&gt;|\\&lt;HIL\\&gt;&quot;,&quot;HILL&quot;,x)
+  x&lt;-gsub(&quot;\\&lt;HTS\\&gt;|\\&lt;HT\\&gt;|\\&lt;HEIGHT\\&gt;|\\&lt;HEGHTS\\&gt;|\\&lt;HHT\\&gt;|\\&lt;HEIGT\\&gt;&quot;,&quot;HEIGHTS&quot;,x) 
+  x&lt;-gsub(&quot;.*\\((.*)\\).*&quot;, &quot;\\1&quot;, x)
+  x&lt;-str_remove(x,&quot;STREET&quot;)
+  x&lt;-gsub(&quot;\\d+\\ - *\\d*|\\d+\\ TO *\\d*|\\d+\\-\\d*&quot;,&quot;&quot;,x) #remove addresses
+
+  ## dealing with numbered streets
+x&lt;-gsub(&quot;(\\d)(ST|ND|RD|TH)\\b&quot;, &quot;\\1&quot;, x)
+x&lt;-str_remove(x, &quot;(?&lt;=[0-9])(ST|ND|RD|TH)&quot;)
+x&lt;-gsub(&quot;\\&lt;ONE HUNDRED\\&gt;|\\&lt;ONEHUNDRED\\&gt;|\\&lt;HUNDRED\\&gt;|\\&lt;HUDRED\\&gt;|\\&lt;HUNDED\\&gt;&quot;,&quot;1&quot;,x) 
+x&lt;-gsub(&quot;\\&lt;TWO HUNDRED\\&gt;|\\&lt;TWOHUNDRED\\&gt;&quot;,&quot;2&quot;,x)
+x&lt;-gsub(&quot;-&quot;,&quot; &quot;,x)
+x&lt;-gsub(&quot;\\&lt;AND\\&gt;&quot;,&quot; &quot;,x)
+x&lt;-gsub(&quot;&amp;&quot;,&quot; &quot;,x)
+x&lt;-gsub(&quot;\\&lt;1ST\\&gt;|\\b1\\b&quot;,&quot;FIRST&quot;,x)
+x&lt;-gsub(&quot;\\&lt;2ND\\&gt;|\\b2\\b&quot;,&quot;SECOND&quot;,x)
+x&lt;-gsub(&quot;\\&lt;3RD\\&gt;|\\b3\\b&quot;,&quot;THIRD&quot;,x)
+x&lt;-gsub(&quot;\\&lt;4TH\\&gt;|\\b4\\b&quot;,&quot;FOURTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;5TH\\&gt;|\\b5\\b&quot;,&quot;FIFTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;6TH\\&gt;|\\b6\\b&quot;,&quot;SIXTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;7TH\\&gt;|\\b7\\b&quot;,&quot;SEVENTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;8TH\\&gt;|\\b8\\b&quot;,&quot;EIGHTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;9TH\\&gt;|\\b9\\b&quot;,&quot;NINTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;10TH\\&gt;|\\b10\\b&quot;,&quot;TENTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;11TH\\&gt;|\\b11\\b&quot;,&quot;ELEVENTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;12TH\\&gt;|\\b12\\b&quot;,&quot;TWELFTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;13TH\\&gt;|\\b13\\b&quot;,&quot;THIRTEENTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;14TH\\&gt;|\\b14\\b&quot;,&quot;FORTEENTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;15TH\\&gt;|\\b15\\b&quot;,&quot;FIFTEENTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;16TH\\&gt;|\\b16\\b&quot;,&quot;SIXTEENTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;17TH\\&gt;|\\b17\\b&quot;,&quot;SEVENTEENTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;18TH\\&gt;|\\b18\\b&quot;,&quot;EIGHTEENTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;19TH\\&gt;|\\b19\\b&quot;,&quot;NINETEENTH&quot;,x)
+x&lt;-gsub(&quot;\\&lt;TWENTY\\&gt;|\\&lt;TWENTI\\&gt;|\\&lt;TENTI\\&gt;&quot;,&quot;2&quot;,x)
+x&lt;-gsub(&quot;\\&lt;THIRTY\\&gt;|\\&lt;THIRTHY\\&gt;|\\&lt;THIRTEY\\&gt;|\\&lt;TIRTY\\&gt;|\\&lt;TRITHY\\&gt;&quot;,&quot;3&quot;,x)
+x&lt;-gsub(&quot;\\&lt;FORTY\\&gt;|\\&lt;FOURTY\\&gt;|\\&lt;FOURTHY\\&gt;|\\&lt;FRTY\\&gt;&quot;,&quot;4&quot;,x)
+x&lt;-gsub(&quot;\\&lt;FIFTY\\&gt;|\\&lt;FIFTEY\\&gt;|\\&lt;FIFT\\&gt;|\\&lt;FITY\\&gt;|\\&lt;FIFTHY\\&gt;&quot;,&quot;5&quot;,x)
+x&lt;-gsub(&quot;\\&lt;SIXTY\\&gt;|\\&lt;SXTY\\&gt;|\\&lt;SIXY\\&gt;|\\&lt;SXTY\\&gt;|\\&lt;SIXTHY\\&gt;|\\&lt;SIXTEY\\&gt;&quot;,&quot;6&quot;,x)
+x&lt;-gsub(&quot;\\&lt;SEVENT\\&gt;|\\&lt;SEVENTY\\&gt;|\\&lt;SEVENTEY\\&gt;|\\&lt;SVENTY\\&gt;|\\&lt;SEVENTI\\&gt;&quot;,&quot;7&quot;,x)
+x&lt;-gsub(&quot;\\&lt;EIGHTY\\&gt;|\\&lt;EIGHTEY\\&gt;|\\&lt;EIGHTE\\&gt;&quot;,&quot;8&quot;,x)
+x&lt;-gsub(&quot;\\&lt;UNITY\\&gt;|\\&lt;NINTH\\&gt;|\\&lt;NINETY\\&gt;|\\&lt;NINETEY\\&gt;|\\&lt;NINETIETH\\&gt;|\\&lt;NINTY\\&gt;&quot;,&quot;9&quot;,x)
+x&lt;-gsub(&quot;\\&lt;FRIST\\&gt;|\\&lt;FIST\\&gt;|\\&lt;FRST\\&gt;|\\&lt;FIRST\\&gt;|\\&lt;ONE\\&gt;&quot;,&quot;1&quot;,x)
+x&lt;-gsub(&quot;\\&lt;SECOND\\&gt;|\\&lt;SECORD\\&gt;|\\&lt;SCOND\\&gt;|\\&lt;SECOND\\&gt;|\\&lt;TWO\\&gt;&quot;,&quot;2&quot;,x)
+x&lt;-gsub(&quot;\\&lt;THRID\\&gt;|\\&lt;THIRD\\&gt;|\\&lt;TIRD\\&gt;|\\&lt;TRIHD\\&gt;|\\&lt;THREE\\&gt;&quot;,&quot;3&quot;,x)
+x&lt;-gsub(&quot;\\&lt;FORTH\\&gt;|\\&lt;FOURTH\\&gt;|\\&lt;FROTH\\&gt;|\\&lt;FROUTH\\&gt;|\\&lt;FOUR\\&gt;&quot;,&quot;4&quot;,x)
+x&lt;-gsub(&quot;\\&lt;FIFETH\\&gt;|\\&lt;FIFTH\\&gt;|\\&lt;FIFFTH\\&gt;|\\&lt;FIFTHE\\&gt;|\\&lt;FIVE\\&gt;&quot;,&quot;5&quot;,x)
+x&lt;-gsub(&quot;\\&lt;SIXTH\\&gt;|\\&lt;SXTH\\&gt;|\\&lt;SITH\\&gt;|\\&lt;SIHXT\\&gt;|\\&lt;SIX\\&gt;&quot;,&quot;6&quot;,x)
+x&lt;-gsub(&quot;\\&lt;SEVENTH\\&gt;|\\&lt;SVEN\\&gt;|\\&lt;SVENTH\\&gt;|\\&lt;SEVENH\\&gt;|\\&lt;SEVENT\\&gt;|\\&lt;SEVEN\\&gt;&quot;,&quot;7&quot;,x)
+x&lt;-gsub(&quot;\\&lt;EIGHTH\\&gt;|\\&lt;EIGHTEH\\&gt;|\\&lt;EITH\\&gt;|\\&lt;EIGHT\\&gt;&quot;,&quot;8&quot;,x)
+x&lt;-gsub(&quot;\\&lt;NINETH\\&gt;|\\&lt;NINTH\\&gt;|\\&lt;NINT\\&gt;|\\&lt;NINETH\\&gt;|\\&lt;NINE\\&gt;|\\&lt;NIN\\&gt;&quot;,&quot;9&quot;,x)
+x&lt;-gsub(&quot;\\&lt;TWENTIETH\\&gt;|\\&lt;TWENTIEFTH\\&gt;&quot;,&quot;20&quot;,x) #NEW
+x&lt;-gsub(&quot;\\&lt;THIRTIETH\\&gt;|\\&lt;THIRTIEFTH\\&gt;&quot;,&quot;30&quot;,x)
+x&lt;-gsub(&quot;\\&lt;FORTIETH\\&gt;|\\&lt;FOURTIETH\\&gt;&quot;,&quot;40&quot;,x)
+x&lt;-gsub(&quot;\\&lt;FIFTIETH\\&gt;&quot;,&quot;50&quot;,x)
+x&lt;-gsub(&quot;\\&lt;SIXTIETH\\&gt;&quot;,&quot;60&quot;,x)
+x&lt;-gsub(&quot;\\&lt;SEVENTIETH\\&gt;&quot;,&quot;70&quot;,x)
+x&lt;-gsub(&quot;\\&lt;EIGHTIETH\\&gt;&quot;,&quot;80&quot;,x)
+x&lt;-gsub(&quot;\\&lt;NINETIETH\\&gt;|\\&lt;NINTIETH\\&gt;&quot;,&quot;90&quot;,x)
+x&lt;-gsub(&quot;(?&lt;=\\d) (?=\\d)&quot;,&quot;&quot;,x,perl = T) #new close gaps between all numbers
+## place names
+  ##x&lt;-gsub(&quot;\\bSTR\\b&quot;,&quot;&quot;, x)
+  x&lt;-gsub(&quot;^\\bST\\b&quot;,&quot;SAINT&quot;, x) 
+  x&lt;-gsub(&quot;\\bHOUSE\\b&quot;,&quot;&quot;, x)
+  x&lt;-gsub(&quot;\\bHOSTEL\\b&quot;,&quot;&quot;, x)
+  x&lt;-gsub(&quot;\\bHOTEL\\b&quot;,&quot;&quot;, x)
+  x&lt;-gsub(&quot;\\bLODGE\\b&quot;,&quot;&quot;, x)
+  x&lt;-gsub(&quot;\\bLODGING\\b&quot;,&quot;&quot;, x)
+  x&lt;-trimws(x, &quot;both&quot;)
+  x&lt;-gsub(&quot;\\&lt;N\\&gt;&quot;,&quot;NORTH&quot;,x)
+  ##x&lt;-gsub(&quot;\\&lt;ST\\&gt;&quot;,&quot;&quot;,x)
+  ##x&lt;-gsub(&quot;\\&lt;STREET\\&gt;&quot;,&quot;&quot;,x)
+} </code></pre>
 <p>Applying the functions onto <code>unique_addresses</code></p>
 <pre class="r"><code># preallocate memory for cleaned column
 cleaned &lt;- rep(&quot;&quot;, nrow(unique_addresses))
 
-# apply rem_dup_word()
+# apply rem_dup_word() and str_clean()
 for (i in 1:nrow(unique_addresses)) {
 cleaned[i] &lt;- toupper(rem_dup_word(unique_addresses[i, 2]))
 cleaned[i] &lt;- str_clean(cleaned[i])
@@ -279,6 +378,7 @@ algo_list &lt;- list()
 ed_list &lt;- list()</code></pre>
 <pre class="r"><code>for (i in unique(add_matches$ED)) {
   # create subset of edict and add_matches for a particular ED
+  # TO ACCEPT BK: ED_dict &lt;- filter(edict, ED == i &amp; MNBK == &quot;BK&quot;) %&gt;%
   ED_dict &lt;- filter(edict, ED == i) %&gt;% 
     select(- &quot;ED&quot;) %&gt;%
     unlist() 
@@ -16130,6 +16230,7 @@ for (i in names(summ_dscores_list)) {
 <p>Run again, this time max_dist is dependent on mean and sd dscore of ED, output is <code>match_dict_imp</code>.</p>
 <pre class="r"><code>for (i in unique(add_matches$ED)) {
   # create subset of edict and add_matches for a particular ED
+  # TO ACCEPT BK: ED_dict &lt;- filter(edict, ED == i &amp; MNBK == &quot;BK&quot;) %&gt;%
   ED_dict &lt;- filter(edict, ED == i) %&gt;% 
     select(- &quot;ED&quot;) %&gt;%
     unlist() 
@@ -40889,6 +40990,200 @@ NA
 4. Algthms return diff matches, multiple modes. <code>Match</code> = NA<br />
 5. Result 3iii: Algthms return diff matches, mode is NA. <code>Match</code> = NA<br />
 6. Algthms return no matches. <code>Match</code> = NA</p>
+<p>For example:</p>
+<pre class="r"><code>match_dict_imp %&gt;%
+  .[c(3, 2, 352, 147, 52, 26), ] %&gt;%
+  bind_cols(type = c(&quot;Perfect Match&quot;, &quot;Identical Match&quot;, &quot;Singular Mode&quot;, &quot;Multiple Mode&quot;, &quot;NA Mode&quot;, &quot;No Match&quot;)) %&gt;%
+  select(type, raw, clean, match_dl, match_qgram, match_cos, match_jac, match_jw) %&gt;%
+  kable() %&gt;% kable_styling()</code></pre>
+<table class="table" style="margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+type
+</th>
+<th style="text-align:left;">
+raw
+</th>
+<th style="text-align:left;">
+clean
+</th>
+<th style="text-align:left;">
+match_dl
+</th>
+<th style="text-align:left;">
+match_qgram
+</th>
+<th style="text-align:left;">
+match_cos
+</th>
+<th style="text-align:left;">
+match_jac
+</th>
+<th style="text-align:left;">
+match_jw
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Perfect Match
+</td>
+<td style="text-align:left;">
+MADISON SST
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Identical Match
+</td>
+<td style="text-align:left;">
+HARDISON STREET
+</td>
+<td style="text-align:left;">
+HARDISON
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+<td style="text-align:left;">
+MADISON
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Singular Mode
+</td>
+<td style="text-align:left;">
+CLARKSON STREET
+</td>
+<td style="text-align:left;">
+CLARKSON
+</td>
+<td style="text-align:left;">
+CLARKSON
+</td>
+<td style="text-align:left;">
+CLARKSON
+</td>
+<td style="text-align:left;">
+CLARKSON
+</td>
+<td style="text-align:left;">
+CLARKSON
+</td>
+<td style="text-align:left;">
+CLARKSON
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Multiple Mode
+</td>
+<td style="text-align:left;">
+FRANKLIN ST
+</td>
+<td style="text-align:left;">
+FRANKLIN
+</td>
+<td style="text-align:left;">
+FRANKLIN
+</td>
+<td style="text-align:left;">
+FRANKLIN
+</td>
+<td style="text-align:left;">
+FRANKLIN
+</td>
+<td style="text-align:left;">
+FRANKLIN
+</td>
+<td style="text-align:left;">
+FRANKLIN
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+NA Mode
+</td>
+<td style="text-align:left;">
+OAK SHEER
+</td>
+<td style="text-align:left;">
+OAK
+</td>
+<td style="text-align:left;">
+OAK
+</td>
+<td style="text-align:left;">
+OAK
+</td>
+<td style="text-align:left;">
+OAK
+</td>
+<td style="text-align:left;">
+OAK
+</td>
+<td style="text-align:left;">
+OAK
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+No Match
+</td>
+<td style="text-align:left;">
+2ND BLANK
+</td>
+<td style="text-align:left;">
+2 BLANK
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+</tbody>
+</table>
 <p>This equates to the following nested conditional for classifying:</p>
 <pre class="r"><code>if (match_dl == match_cos &amp; match_dl == match_qgram &amp; match_dl == match_jac &amp; match_dl == match_jw) {
     if (clean == match_dl) {1} else if (mode == 0) {6} else {2}
@@ -43722,6 +44017,7 @@ ggplot(result_freq, aes(x = result_type, y = cumsum)) +
 </tr>
 </tbody>
 </table>
+<p>For fill down, the recommended step is take a lookaround of 3 streets in the top/bottom of the row in the same ED and match using jw. Records can then be manually cleaned.</p>
 </div>
 
 
