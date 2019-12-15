@@ -5,7 +5,9 @@
 #' This function is to be run on output from `04_____`.
 #' @param df A dataframe with `best_match` and `house_num` columns. `house_num` 
 #' column must be cleaned. 
-#' @return A dataframe with filled down house numbers (group_by(`ED`, `best_match`)).
+#' @return A dataframe with filled down house numbers (group_by(`ED`, `best_match`))
+#' and `flg_filled_hn` column. The value of `flg_filled_hn` is 1 if `house_num` of
+#' a record is filled down. 0 otherwise. 
 fillDownHouseNum <- function(df){
   
   #' This line can be removed if df has only H record.
@@ -22,7 +24,7 @@ fillDownHouseNum <- function(df){
   return(x)
 }
 
-#' Input to the function is an output from `04___`
+#` ############ IMPORTANT !! change input to this function call to output from 04_.R
 sample_hn_filled <- fillDownHouseNum(sample_st_filled)
 
 #' One test for fillDownHouseNum(). Should not get error message from
