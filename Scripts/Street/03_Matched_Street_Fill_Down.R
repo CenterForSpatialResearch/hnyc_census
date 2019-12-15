@@ -4,18 +4,29 @@
 #' Fill down matched street names within the same enumeration page and ED.
 #' This function is to be run on output from `02_Street_Matching_MNBK.R`.
 #' @param df A dataframe with `microfilm`, `ED`, and `best_match` columns.
-#' @return A dataframe with cleaned street filled down within an enumeration 
-#' page and ED (group_by(`microfilm`, `ED`)).
+#' @return A dataframe with cleaned street filled down (in the same column
+#'  `best_match`) within an enumeration page and ED 
+#'  (group_by(`microfilm`, `ED`)). A new flag column (`flg_filled_st`) is 
+#'  also appended. The value is 1 if a `best_match` in that record is 
+#'  filled down.
 fillDownStreet <- function(df){
   
   #' This line can be removed if df has only H record.
   df <- df %>% filter(record == "H")
   
-  x <- df %>% group_by(microfilm, ED) %>%
+  #' Fill down best_match and create a flag if record is filled.
+  x <- df %>% mutate(best_match_temp = best_match) %>% 
+    group_by(microfilm, ED) %>%
     fill(best_match, .direction="down") %>%
+    rowwise() %>% 
+    mutate(flg_filled_st = ifelse(!is.na(best_match)  && is.na(best_match_temp), 1, 0)) %>% 
+    #select(-best_match_temp) %>% 
     ungroup()
   return(x)
 }
 
 #' sample_cleaned is an output from `02_Street_Matching_MNBK.R`
 sample_st_filled <- fillDownStreet(sample_cleaned)
+
+#' One test for fillDownStreet(). Should not get error running this line after the line above. 
+assertthat::assert_that(nrow(sample_st_filled %>% filter(is.na(best_match) && flg_filled_st==0)) == 0)
