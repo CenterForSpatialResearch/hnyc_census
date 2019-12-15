@@ -142,7 +142,7 @@ getMergedSeq <- function(df, jump_size = 500, check_street){
 
 ## @knitr  create_HN7
 
-## sample code
+## old sample code. Run getMergedSeq() instead.
 # HN6 <- appendSeqCol(HN5, jump_size = 500, check_street = FALSE)
 # HN7 <- appendMergeSeq(HN6)
 

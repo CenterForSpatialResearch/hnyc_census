@@ -1,0 +1,65 @@
+---
+title: "linear_filldown"
+author: "Bo Jumrustanasan"
+date: "12/9/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Linear Fill-in
+
+```{r}
+## evenlyFill.R
+<<evenly_fill_HN7>>
+```
+
+merge_SEQ 2 and 3 (top) and 501 and 502 (bottom). Blue dots are real house numbers. Red dots are interpolations.
+
+```{r}
+## need filled_df from evenlyFill.R
+## plot house number movement by merged sequences
+filled_hn <- filled_df %>% select(i, house_num, hn_filled, merge_SEQ) %>%
+  mutate(hn_filled = ifelse(!is.na(house_num), NA, hn_filled),
+         merge_SEQ = as.factor(merge_SEQ)) %>%
+  gather(key = hn, value = value, -i, -merge_SEQ)
+
+mseq_list <- filled_df %>% pull(merge_SEQ) %>% unique()
+plt1 <- ggplot(filled_hn %>% filter(merge_SEQ %in% mseq_list[c(2,3)]), 
+               aes(x=i, y = value, color = hn)) + 
+  geom_point(aes(shape = merge_SEQ)) + 
+  theme(legend.position = "none")
+plt2 <- ggplot(filled_hn %>% filter(merge_SEQ %in% mseq_list[c(501, 502)]), 
+               aes(x=i, y = value, color = hn)) + 
+  geom_point(aes(shape = merge_SEQ)) + 
+  theme(legend.position = "none")
+grid.arrange(plt1, plt2, ncol = 1)
+```
+
+Missing house numbers before the filled in.
+
+```{r}
+filled_df %>% select(house_num) %>% 
+  mutate(na_cnt = ifelse(is.na(house_num), 1, 0)) %>% 
+  summarize(missing = sum(na_cnt), ttl = n()) %>% kable %>% kable_styling()
+```
+
+Missing house numbers after the filled in. Missing values are those at the end of sequences.
+
+```{r}
+filled_df %>% select(hn_filled) %>% 
+  mutate(na_cnt = ifelse(is.na(hn_filled), 1, 0)) %>% 
+  summarize(missing = sum(na_cnt), ttl = n()) %>% kable %>% kable_styling()
+```
+
+Records with filled in house numbers are flagged in column `flg_hn_filled`. Records with SEQ==`NA` will have `flg_hn_filled`==`NA`.
+
+```{r}
+filled_df %>% head(100) %>% kable %>% kable_styling() %>% 
+  kableExtra::scroll_box(width = "100%", height = "400px")
+```
+
+
