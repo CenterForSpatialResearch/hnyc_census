@@ -88,11 +88,11 @@ One notable problem is that some number ranges are incomplete, e.g. 177-72. To f
 
 An example of how this works on actual numbers observed above:
 
-14-16 > split > 14-16 > detect length > 2, 2 > No further action!
-177-72 > split > 177, 72 > detect length > 3, 2 > append front 1 (3 - 2) chr > 177, 172
-1775-3-10 > split > 1775, 3, 10 > detect length > 4, 1, 12 >
-  for 3: append front 3 (4 - 1) chr > 1773
-  for 10: no appending because if append resulting string = 17710 > 10
+14-16 > split > 14-16 > detect length > 2, 2 > No further action!  
+177-72 > split > 177, 72 > detect length > 3, 2 > append front 1 (3 - 2) chr > 177, 172  
+1775-3-10 > split > 1775, 3, 10 > detect length > 4, 1, 12 >  
+  for 3: append front 3 (4 - 1) chr > 1773  
+  for 10: no appending because if append resulting string = 17710 > 10  
 
 ```{r}
 hn_range_clean <- function(hn_range) {
@@ -152,6 +152,7 @@ HN <- HN  %>% cbind(splt_df)
 ```
 
 # 3. Fill Down
+NOTE: this is currently not done in the final script, will be done after cleaning instead.
 Basic Principle: if the first non-NA above and first non-NA below has a difference of 0 or 2, AND the ED of those are the same, AND the street address are the same, fill down.
 
 ```{r, eval = FALSE}
@@ -268,7 +269,7 @@ large_HN %>%
 
 There are 139 records out of the bounds of the house number range.
 
-Tailor the code to specifically look for large house numbers. The conditions for this:  
+Tailor the code to specifically look for house number ranges. The conditions for this:  
 - Length of house number is larger than 4  
 - Length of house number is not the same as low and high house number range from `hn_dict` (as large numbers may exist for certain streets)  
 - However, the separated house number would be within the house number range from `hn_dict`
@@ -363,11 +364,9 @@ Here, the odd house numbers was due to the census taker going back to houses tha
 Here, 17 was written but mistranscribed into 0.
 
 # 6. Next Steps
-1. Some 'large' house numbers are improperly cleaned house ranges. For example, 177-72 probably means 177-172, but the code would instead separate the range into 177-72.
+1. Further EDA on errors detected by house number ranges, nothing that these may instead reflect bad matches derived from the address cleaning process. This likely involves further diving into the original manuscripts and coming up with a typology of errors and actions.
 
-2. Further EDA on errors detected by house number ranges, nothing that these may instead reflect bad matches derived from the address cleaning process.
-
-3. To incorporate various errors into code. Some ideas for known errors (found in Section 5):
+2. To incorporate various errors into code. Some ideas for known errors (found in Section 5):
 a. To account for mistranscriptions: Check similarity of one number to another using string distance calculations/creating own algorithm that calculates distance based on ACSII codes.
 b. To account for non-sequential but correct house numbers: To check if there is a pattern. We know that these tend to occurs towards the last few pages of each book. Is there page number data in our sample? If so, we can create exception in code for large numbers that occur in the last few pages.
 
