@@ -20,7 +20,7 @@ fillDownStreet <- function(df){
     fill(best_match, .direction="down") %>%
     rowwise() %>% 
     mutate(flg_filled_st = ifelse(!is.na(best_match)  && is.na(best_match_temp), 1, 0)) %>% 
-    #select(-best_match_temp) %>% 
+    select(-best_match_temp) %>% 
     ungroup()
   return(x)
 }
@@ -28,5 +28,7 @@ fillDownStreet <- function(df){
 #' sample_cleaned is an output from `02_Street_Matching_MNBK.R`
 sample_st_filled <- fillDownStreet(sample_cleaned)
 
-#' One test for fillDownStreet(). Should not get error running this line after the line above. 
-assertthat::assert_that(nrow(sample_st_filled %>% filter(is.na(best_match) && flg_filled_st==0)) == 0)
+#' One test for fillDownStreet(). Should not get error message from
+#' running this line after if the function works properly. This checks
+#' if best_match is not filled down but the flag says it is.
+assertthat::assert_that(nrow(sample_st_filled %>% filter(is.na(best_match) && flg_filled_st==1)) == 0)
