@@ -52,11 +52,11 @@ chkPar <- function(p1){
 #'
 #' This is an internal function, called by mergeSeq(). It checks whether street in `p1`
 #' have the same names. 
-#' @param p1 A dataframe with `street_add` column.
+#' @param p1 A dataframe with `best_match` column.
 #' @return TRUE if all streets in `p1` have the exact same name. Otherwise, returns FALSE.
 chkStreet <- function(p1){
   #' ignore NA. Missing house numbers will not break sequences
-  if(p1$street_add %>% unique() %>% na.omit %>% length != 1) return(FALSE)
+  if(p1$best_match %>% unique() %>% na.omit %>% length != 1) return(FALSE)
   else return(TRUE)
 }
 
@@ -123,7 +123,7 @@ appendMergeSeq <- function(sdf, check_street){
 #' Wrap two step merging (subsequence and merged sequence) into 1 function
 #' It will be more efficicent to internalize subsequencne step into merged
 #' sequence step.
-#' @param df A dataframe with `house_num`, `street_add`, and `i` columns
+#' @param df A dataframe with `house_num`, `best_match`, and `i` columns
 #' @param jump_size Used in the subsequence step. If house_num jumps > jump_size, 
 #' break into subsequences.
 #' @param check_street Used in the merged sequence step. If TRUE, in addition to,

@@ -207,12 +207,12 @@ appendSeqCol <- function(sample_df, jump_size, check_street){
 getSeqByStreet <- function(df){
   
   #' Check type of Stree_add column
-  df <- df %>% mutate(street_add = as.character(street_add),
-                      street_add = ifelse(is.na(street_add), NA, 
-                                          ifelse(street_add=="", NA,street_add)))
+  df <- df %>% mutate(best_match = as.character(best_match),
+                      best_match = ifelse(is.na(best_match), NA, 
+                                          ifelse(best_match=="", NA,best_match)))
   
   current_street_i <- 1
-  street_add_list <- df %>% pull(street_add)
+  street_add_list <- df %>% pull(best_match)
   seq_by_street <- c(1, rep(NA, nrow(df) -1))
   
   #' Compare previous and current street names.

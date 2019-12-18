@@ -1,7 +1,7 @@
 ---
 title: "House Number Sequence"
 author: "Bo Jumrustanasan"
-date: "12/10/19"
+date: "12/18/19"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -15,47 +15,47 @@ library(ggplot2)
 library(kableExtra)
 library(gridExtra)
 ```
-
-The long string of house numbers from enumeration pages is divided into segments, referred to as **sequences**. A sequence is expected to contain 1 street with reasonable running house numbers. The process is for that missing house numbers and street names within a sequence can be confidently recovered.
-
 ## Sequence Detection
 
-There are two main steps to detect sequences: breaking and merging. They are wrapped under a function called `getMergedSeq()` which return a dataframe with a column of sequence numbers.
+The report explores an approach to house number fill down using house number sequences. The idea is that we can be confident in filling down house numbers of records that are in the same sequence. The string of house numbers extracted from enumeration pages is divided into segments, referred to as **sequences**. 
+
+There are two main steps to detect sequences: breaking and merging. The two subprocesses are wrapped under a function called `getMergedSeq()` which returns a dataframe with a column of sequence numbers.
 
 ### Breaking Step
 
 The string of house number is first divided into small segments, referred to as **subsequences**, so that within each subsequence, 
 
-1. there is only one parity in house numbers
+1. there is only one parity in house numbers (either odd or even)
 2. house number is only increasing (decreasing)
 3. there is only one street name (only when `check_street` is set to TRUE)
 
-See `getSequence.R` for the script.
-
+See `05_00_getSequence.R` for the script.
 
 ### Merging Step
 
-In reality, an enumerator could go back and forth from house to house with in the same street. Thus, there could be both increasing and decreasing house numbers in the same sequences. Moreover, having only one parity can be too restrictive as a number can be mistranscribed into another that has different parity. 
-ƒ
-This steps merges back some subsequences into sequences so that, within a sequence,
+In reality, an enumerator could go back and forth from house to house within the same street. Thus, there could be both increasing and decreasing house numbers in the same sequences. Moreover, having only one parity can be too restrictive as a number can be mistranscribed into another number of different parity. 
+
+This steps merges back some subsequences into a sequence so that, within a sequence,
 
 1. there is only 1 street name (only when `check_street` is set to TRUE)
 2. there are no more than 2 house numbers whose parities are different from the rest of the house numbers in the sequence
 3. Adjacent house numbers to not differ for more than 10. The number can be set by setting `jump_size`.
 
-See `mergeSequence.R` for the script.
+See `05_00_mergeSequence.R` for the script.
 
 ```{r}
-#load("Scripts/House/HN5.RData")
-load("HN5.RData")
+#' HN5 is a dataframe after step 04_house_clean.R
+#load(file="data/temp.Rdata")
+HN5 <- sample_st_filled
 ```
 
 ```{r}
+## !!!! These files must be present in the same directory to render this report.
+
 ## Tell R we will read in codes from these files.
-read_chunk("getSequence.R")
-read_chunk("mergeSequence.R")
-read_chunk("evenlyFill.R")
-read_chunk("lookAroundBP.R")
+read_chunk("05_00_getSequence.R")
+read_chunk("05_00_mergeSequence.R")
+read_chunk("05_00_lookAround.R")
 ```
     
 ```{r}
@@ -66,10 +66,9 @@ read_chunk("lookAroundBP.R")
   
 ## mergeSequence.R
 <<read_merge_fxs>>
-<<create_HN7>>
   
 ## lookAroundBP.R
-<<lookAroundBP>>
+<<lookAround>>
 ```
 
 ```{r}
@@ -93,7 +92,7 @@ Sample rows with their subsequence number and merged sequence number.
 See below.
 
 ```{r}
-x <- HN7_hn %>% select(house_num, street_add, SEQ, merge_SEQ)
+x <- HN7_hn %>% select(house_num, best_match, SEQ, merge_SEQ)
 x[200:500,] %>% kable %>% kable_styling() %>% 
   kableExtra::scroll_box(width = "100%", height = "400px")
 ```
@@ -102,7 +101,7 @@ x[200:500,] %>% kable %>% kable_styling() %>%
 ### Sample census data with `check_street` on
 
 ```{r}
-x <- HN7_st %>% select(house_num, street_add, SEQ, merge_SEQ)
+x <- HN7_st %>% select(house_num, best_match, SEQ, merge_SEQ)
 x[200:500,] %>% kable %>% kable_styling() %>% 
   kableExtra::scroll_box(width = "100%", height = "400px")
 ```
@@ -161,7 +160,7 @@ grid.arrange(sub_seq, seq, seq_st,  ncol = 3)
 ```
 
 
-There are more subsequences when `check_street` is on (see `on_` vs `off_`). Some subsequences are merged into ones (see `_merge_SEQ` vs `_SEQ`). `i` is the total number of records.
+There are more subsequences when `check_street` is on (see `on_` vs `off_`). Some subsequences are merged into ones (see `_SEQ` vs `_merge_SEQ`). `i` is the total number of records.
 
 
 ```{r}
@@ -181,7 +180,7 @@ HN7_hn %>% select(i, SEQ, merge_SEQ) %>% full_join(HN7_st %>% select(i, SEQ, mer
 
 ```{r}
 #' Column names are changed so that it works with lookAroundBP()
-join_df <- HN7_hn %>% select(microfilm, ED, house_num, street_add, merge_SEQ, i) %>%
+join_df <- HN7_hn %>% select(microfilm, ED, house_num, best_match, merge_SEQ, i) %>%
   full_join(HN7_st %>% select(merge_SEQ, i), by = "i") %>%
   rename(SEQ = merge_SEQ.x,
          merge_SEQ = merge_SEQ.y)
@@ -246,87 +245,10 @@ There are some records that start new sequences when `check_street` is TRUE, but
     * lookaround i = 1198 (ROAD A -- missing -- ROAD B)
 * No mistakes
 
-```{r, eval = FALSE}
-## table too large
-join_df %>% rename(merge_SEQ_off = SEQ,
-                        merge_SEQ_on = merge_SEQ) %>%
-  select(microfilm, ED, house_num, street_add, 
-         i, merge_SEQ_off, merge_SEQ_on) %>% 
-  kable %>% kable_styling() %>% 
-  kableExtra::scroll_box(width = "100%", height = "400px")
-```
+## Next Steps
 
-
-```{r, eval = FALSE}
-
-x <- breakPointI(join_df)
-lookAround(join_df, 8280, window_size = 20) %>% View
-# LAB_list_2 <- lapply(x, function(pt){
-#   return(lookAround(join_df, pt, window_size = 20) %>%
-#            rename(merge_SEQ_off = SEQ,
-#                   merge_SEQ_on = merge_SEQ))
-# })
-# View(LAB_list_2[[300]])
-# View(LAB_list_2[[301]])
-# View(LAB_list_2[[302]])
-# View(LAB_list_2[[304]])
-# View(LAB_list_2[[307]])
-# View(LAB_list_2[[309]])
-```
-
-
-```{r, eval = FALSE, echo = FALSE}
-#### 1. `SEQ` and `merge_SEQ` do not start new sequences at the same record
-
-Becuase conditions for the merge are met. 
-
-- No more than two house numbers with a parity different from the rest. Could imply mistranscription
-- Records are still in neighboring areas (decreasing and increasing house number in the same area)
-
-
-LAB_list <- lookAroundBP(HN7_hn, window_size = 6)
-do.call(rbind, LAB_list) %>% 
-  select(ED, microfilm, house_num, street_add, SEQ, merge_SEQ, seq_par, i) %>% 
-  kable() %>% kable_styling() %>% 
-  kableExtra::scroll_box(width = "100%", height = "400px")
-```
-
-```{r, eval = FALSE}
-selectInput(inputId = "BP", label = 'Choose break point to inspect',
-            choices = seq(1,length(x)))
-message(input$BP)
-renderUI( {
-  HTML(LAB_list_2[[input$BP]] %>% kable() %>% kable_styling() %>% 
-  kableExtra::scroll_box(width = "100%", height = "400px"))
-})
-
-# renderPlot({
-#   par(mar = c(4, 4, .1, .5))
-#   hist(
-#     faithful$eruptions, as.numeric(input$breaks),
-#     col = 'gray', border = 'white',
-#     xlab = 'Duration (minutes)', main = ''
-#   )
-# })
-```
-
-
-```{r, eval = FALSE}
-LAB_list_2 <- HN7_hn %>% select(-SEQ) %>% full_join(HN7_st %>% select(merge_SEQ, i), by = "i") %>%
-  rename(SEQ = merge_SEQ.x,
-         merge_SEQ = merge_SEQ.y) %>% 
-  lookAroundBP(.,window_size = 10)
-do.call(rbind, LAB_list_2) %>% 
-  select(ED, microfilm, house_num, street_add, SEQ, merge_SEQ, seq_par, i) %>% 
-  rename(merge_SEQ_off = SEQ,
-         merge_SEQ_on = merge_SEQ) %>% 
-  kable() %>% kable_styling() %>% 
-  kableExtra::scroll_box(width = "100%", height = "400px")
-
-```
-
-
-
+* EDA on fill down in segments where subsequences and sequences agree.
+* EDA on records around points where subsequences and sequences do not agree.
 
 
 
