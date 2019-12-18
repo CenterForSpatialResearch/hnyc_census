@@ -1,3 +1,6 @@
+#' Extracting house ranges from ED dict
+#' Not in use.
+
 mn_nest <- readRDS("Scripts/House/data/mn_nest.rds")
 
 ## * use only column Name

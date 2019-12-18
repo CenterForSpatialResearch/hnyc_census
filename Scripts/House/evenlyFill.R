@@ -1,3 +1,5 @@
+#' For EDA on linear fill in
+#' Not in use
 
 ## @knitr  evenly_fill_HN7
 
