@@ -45,7 +45,8 @@ See `05_00_mergeSequence.R` for the script.
 
 ```{r}
 #' HN5 is a dataframe after step 04_house_clean.R
-#load(file="data/temp.Rdata")
+#load(file="Scripts/House/data/temp.Rdata")
+load(file="data/temp.Rdata")
 HN5 <- sample_st_filled
 ```
 
@@ -225,39 +226,37 @@ data.frame("street_off" = HN7_hn$merge_SEQ %>% unique() %>% na.omit %>% length()
 ```
 
 
-## Sequences with and without check_street
+## Sample rows where sequences do not agree.
 
-There are some records that start new sequences when `check_street` is TRUE, but do not when `check_street` is FALSE (and vice versa). There are 592 such records (out of ~19k). They point to 
+### Sequences that are detected using `best_match` can generate more reliable sequences.
 
-* Unstandardized street names e.g.
-    * ROOSEVELT ST vs ROOSEVELT STREET (i = 355)
-* Trivial mispelling
-    * CARL ST vs PEARL ST (i=103)
-    * JAMES vs NAMES vs SAMES
-    * OLIVER vs OLIWER (i = 1482)
-    * FRANKLIN ST vs HUIKAHI ST (i = 4217) **??**
-* mistranscribing
-    * look around i = 61
-    * look around i = 479
-    * look around i = 10648
-    * Dates as street names e.g. `ADP 18`(i = 410) and `APRL 22`
-* Missing values that can be confidently inferred
-    * lookaround i = 1198 (ROAD A -- missing -- ROAD B)
-* No mistakes
+```{r}
+disgree_index <- breakPointI(join_df)
+lookAround(join_df, disgree_index[2], window_size = 10) %>% kable %>% kable_styling()
+lookAround(join_df, disgree_index[50], window_size = 10) %>% kable %>% kable_styling()
+lookAround(join_df, disgree_index[100], window_size = 10) %>% kable %>% kable_styling()
+```
+
+### Mistranscription detected.
+
+1. `SEQ` and `merged_SEQ` do not agree at record *3 PEARL*. This is a mistranscription.  Records where i = 59 and 60 should have been 3 MADISON and NA MADISON.
+
+```{r}
+lookAround(join_df, disgree_index[1], window_size = 10) %>% kable %>% kable_styling() ## see i = 59-60
+```
+
+2. Row i = 1143 should be *52 MADISON*.
+
+```{r}
+lookAround(join_df, disgree_index[20], window_size = 10) %>% kable %>% kable_styling() ## see i = 1142-1145
+```
+
 
 ## Next Steps
 
+* More rigorous way to detect the *3 PEARL* and *52 MADISON* case.
 * EDA on fill down in segments where subsequences and sequences agree.
 * EDA on records around points where subsequences and sequences do not agree.
-
-
-
-
-
-
-
-
-
 
 
 .
