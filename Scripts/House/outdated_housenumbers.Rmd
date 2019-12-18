@@ -1,6 +1,6 @@
 ---
 title: "House Number Cleaning (1910 Census Data)"
-author: "temp"
+author: "Jolene and Bo"
 date: '`r format(Sys.Date(), "%Y-%B-%d")`'
 output: html_document
 editor_options: 
@@ -13,6 +13,8 @@ library(tidyverse)
 library(knitr)
 library(kableExtra)
 ```
+
+# Outdated. See Jolene's version.
 
 # Flow:
 

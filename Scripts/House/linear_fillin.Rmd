@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Approach not fully explored. May be dropped. 
 
 ## Linear Fill-in
 
