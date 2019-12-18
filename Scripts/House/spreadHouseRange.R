@@ -1,3 +1,6 @@
+#' Extract house range from enumeration form
+#' Not in use
+
 ## handle house ranges
 
 sample_df <- HN5 %>% filter(dwelling_ser %in% c(22184, 22199, 22228))
