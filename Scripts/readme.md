@@ -20,3 +20,4 @@ Quick links to preview Documentation HTML files in the repo:
 * [Street Matching MN 100k sample](http://htmlpreview.github.io/?https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/Scripts/Street/Street_Dist_Check_MN.html)
 * [Street Matching BK 100k sample](https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/Scripts/Street/Street_Dist_Check_BK.html)
 * [House Number Cleaning](https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/Scripts/House/House_Cleaning_100k_MN.html)
+* [House Number Sequence Detection Report](https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/Scripts/House/merge_sequence_report.html)
