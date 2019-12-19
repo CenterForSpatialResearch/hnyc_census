@@ -1,7 +1,7 @@
 ## Final Scripts
 ### Order of Functions
-* **00_Street_Spell_Check_MNBKR.R**: [function] 
-* **01_Street_Clean_Function_MNBK.R**: [function] creates function that cleans street names
+* **00_Street_Spell_Check_MNBKR.R**: [function] runs a spell check for the street names on the raw data and prints out a list and count of possible misspellings. 
+* **01_Street_Clean_Function_MNBK.R**: [function] creates function that cleans street names.
 * **02_Street_Matching_MNBK.R**: [function] does address matching using Street Dictionary and filling down.
 * **03_Matched_Street_Fill_Down.R**: [function + script] fills down `best_match` within an enuneration page and an ED. Note: in `\archive` folder there is an unoptimized version. The unoptimized version does all the same things, but runs matching twice, the 2nd time with adjusted ED scores. As this process takes longer with few differences in results, it is not used for now.
 * **04_1_hn_dict_clean.R** [function] wrangles `combined_MN_dict.csv` to format needed by 04_house_clean.
