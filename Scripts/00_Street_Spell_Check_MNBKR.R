@@ -7,6 +7,8 @@ library(hunspell)
 # Load Raw Data
 # rawData <- read_csv("...")
 
+# `Street address 2` is the column for the Raw Street Address
+
 # Check Spelliing Function
 checkSpelling <- function(rawData) {
   distinctStreetNames <- unique(rawData$`Street address 2`)
