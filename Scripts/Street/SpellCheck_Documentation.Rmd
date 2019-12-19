@@ -1,0 +1,194 @@
+---
+title: "Spell Check"
+subtitle: "HNYC Street CLeaning Process"
+author: "Gerald Lee"
+date: "12/19/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#install.packages("pacman")
+library(pacman)
+p_load(dplyr, 
+       ggplot2,
+       fuzzyjoin,
+       hunspell,
+       readxl,
+       reshape2,
+       spelling,
+       stringi,
+       stringr,
+       tidyverse,
+       tm,
+       zoo)
+```
+
+### Set Up 
+
+```{r}
+# Load Data
+df2 <- suppressMessages(read_csv("us1910m_usa_sample100k.csv"))
+for (i in 1:ncol(df2)){
+if (is.na(df2[1,i]) == FALSE ){
+  df2[,i]=na.locf(df2[,i])}
+  else {
+  df2[,i]=df2[,i]
+    }
+}
+```
+
+```{r}
+# Household profiles
+not_all_na <- function(x) any(!is.na(x))
+hhprofiles<-df2%>%
+  dplyr::filter(is.na(df2$`Dwelling sequence number`)==TRUE)%>% 
+  select_if(not_all_na)
+```
+
+```{r}
+# Removing the household and then joining it with persons
+personprofile<-df2%>%
+  dplyr::filter(is.na(df2$`Consistent historical data person identifier`)==FALSE)
+```
+
+***
+
+### Evaluate Street Address
+
+```{r}
+### Address problems
+df2$`Street address 2` <- na.locf(df2$`Street address 2`)
+
+### Inconsistent streetnames
+distinct_streets2 <- personprofile %>%
+  dplyr::select(`Enumeration district 2`,`House number`,`Street address 2`,`Dwelling serial number`,`Dwelling serial number 2`,`Line Number`,`Line number 2`,`Microfilm page number 3`) %>%
+  distinct(`Street address 2`,.keep_all=TRUE)
+
+distinct_streets2$`Enumeration district 2`<-as.numeric(as.character(distinct_streets2$`Enumeration district 2`))
+colnames(distinct_streets2)[3]<-"streets"
+```
+
+#### Hunspell Function
+```{r}
+# Print Number of Unique Street Names before applying Hunspell Corrections
+df2$`Street address 2` %>% 
+  unique() %>% 
+  length()
+```
+
+#### Check Number of Misspelt Street Names
+There are 117 mispelt words caught by the `hunspell` function.
+```{r}
+uniqueStreets <- df2$`Street address 2`
+hunspellMisspeltStreets <- unlist(hunspell(uniqueStreets)) %>%
+  unique()
+
+# How many Misspelt Streets are there (According to Hunspell)?
+length(hunspellMisspeltStreets) 
+```
+
+```{r}
+# What are the Misspelt Streets according to Hunspell?
+hunspellMisspeltStreets %>% 
+  sort()
+```
+
+<br/>
+
+However, one problem is that there are some road names like **Bleecker Street**, which we know are legitimate NYC street names but they get flagged out as misspelling because the word "Bleecker" is not in the Hunspell English dictionary GB and US. 
+
+One way to address this issue is to load our own street dictionary into the library of the `Spelling` package.
+
+***
+
+### Spelling Package
+
+Spelling package allows you to carry out `hunspell` spellcheck function whilst **whitelisting** a pre-defined dictionary of words.
+
+```{r}
+# Get full Manhattan Street Dictionary (from Chang)
+street_dict <- read.csv("full_mn_dict.csv")
+streetDStreetNames <- street_dict %>%
+  select(-ED) %>%
+  unite("fullStreetNames", sep = " ", remove = TRUE, na.rm = FALSE)
+
+streetDStreetNamesTidy <- str_split(streetDStreetNames, " ")[[1]]
+
+# Clean the Manhattan Street Dictionary
+streetDStreetNamesClean <- unique(removePunctuation(streetDStreetNamesTidy))
+streetDStreetNamesClean <- unique(gsub("\\d", "", streetDStreetNamesClean))
+streetDStreetNamesClean <- unique(gsub("^\n","", streetDStreetNamesClean))
+streetDStreetNamesClean <- unique(gsub("^.$", "", streetDStreetNamesClean))
+streetDStreetNamesClean <- unique(gsub("^NA$", "", streetDStreetNamesClean))
+streetDStreetNamesClean <- unique(gsub("^NULL$", "", streetDStreetNamesClean))
+streetDStreetNamesClean <- unique(gsub("^cBATTERY$", "BATTERY", streetDStreetNamesClean))
+```
+
+<br/>
+
+There are 578 unique street names in the Full Manhattan Street Dictionary. Add these White List street names to the Hunspell Dictionary.
+
+```{r}
+# Add whitelist street names to Hunspell Dictionary
+StreetDict <- dictionary(lang = "en_US", affix = NULL, add_words = streetDStreetNamesClean, cache = TRUE)
+```
+
+<br/>
+
+After implementing the White List, we were able to cut down the Number of Misspelt Street Names from 117 to 107.
+
+```{r}
+# Run spell check with White List
+spellingMisspeltStreets <- spell_check_text(df2$`Street address 2`, ignore = streetDStreetNamesClean)
+```
+
+```{r}
+toReplace <- spellingMisspeltStreets %>%
+  unlist() %>% 
+  as.character() 
+toReplace <- toReplace[1:107]
+toReplace
+```
+
+***
+
+### Find Suggestions for Misspelt Words and Replace Them
+Even after incorporating our own Street Dictionary into the Hunspell Dictionary, the Suggestion and Replacement function is still inaccurate because the Misspellings made were grossly off. The Replacement function in Hunspell is also not very effective because it provides a list of suggestions without giving extra weight to certain words.
+
+```{r}
+# Find suggestions for Misspelt Words
+suggestedCorrections <- hunspell_suggest(toReplace, dict = StreetDict) # Using the White List Street Dictionary
+suggestedCorrections %>% head()
+```
+
+```{r}
+# Take 1st suggested word (from Hunspell) and match it to the Misspelt Word
+suggestedCorrections1 <- unlist(lapply(suggestedCorrections, function(x) {x[1]}))
+suggestedCorrections2 <- unlist(lapply(suggestedCorrections, function(x) {x[2]}))
+wordList <- as.data.frame(cbind(toReplace, suggestedCorrections1, suggestedCorrections2))
+wordList %>% head()
+```
+
+```{r}
+# Replace the misspelt streets
+df3 <- df2
+target <- paste0("\\b", toReplace, "\\b")
+replacement <- suggestedCorrections1
+df3$`Street address 2` <- stri_replace_all_regex(df3$`Street address 2`, target, replacement, vectorize_all =  FALSE)
+```
+
+```{r}
+# Check After Corrections
+df3$`Street address 2` %>% unique() %>% head()
+```
+
+```{r}
+# Error Testing
+testBad1 <- hunspell(df3$`Street address 2`, dict = StreetDict)
+testBad2 <- unique(unlist(testBad1))
+length(testBad2)
+testBad2
+```
+
+***
