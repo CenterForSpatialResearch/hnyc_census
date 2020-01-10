@@ -6,7 +6,7 @@ library(fuzzyjoin)
 # Import data
 edict <- read_csv("full_mn_dict.csv")
 sample <- read_csv("census_sample.csv")
-hn_dict <- read_csv("combined_edict_mn.csv") %>%
+hn_dict <- read_csv("combine_mn.csv") %>%
   clean_hn_dict(.) # from 04_1_clean_hn_dict
 
 # Load all functions
