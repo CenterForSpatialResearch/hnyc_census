@@ -1,0 +1,136 @@
+---
+title: "Street Address Checking"
+subtitle: "Using DScores & Hunspell"
+author: "Gerald Lee"
+date: "11/18/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+For the Data Visualisation on Tableau, click [here](https://public.tableau.com/profile/gerald.lee5897#!/vizhome/HNYC/Story1).
+
+```{r setup, echo = FALSE}
+install.packages("pacman")
+library(pacman)
+p_load(dplyr, 
+       ggplot2,
+       hunspell,
+       stringr,
+       tidyverse)
+```
+
+```{r}
+# Load Cleaned Up Data
+Data <- suppressMessages(read_csv("100ksample_MN_matched.csv"))
+```
+
+***
+
+```{r}
+# Overall Data
+cleanData <- Data
+overallData <- cleanData
+
+# mean D Score per Enumeration District
+meanDscore <- overallData %>%
+  group_by(`Enumeration district 2`) %>%
+  summarise(mean(dscore))
+meanDscore
+
+write.table(meanDscore, file = "meanDscore.csv", sep = ",", row.names = F)
+```
+
+For the Manhattan Sample,
+
+* 71,193 Streets were corrected / changed by the script
+* 28,807 Streets did not have to be corrected
+
+```{r}
+# Check how many entries in `streets` column match `corrected_str` column
+matchCheck <- cleanData$streets == cleanData$corrected_str
+table(matchCheck)
+
+# Which streets have been corrected?
+didNotMatch <- cleanData %>%
+  filter(streets != corrected_str) %>%
+  group_by(streets) %>%
+  select('Enumeration district 2', HNYC_ID, streets, corrected_str, dscore)
+
+correctedStreets <- didNotMatch %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+correctedStreets
+```
+
+As seen from the chunk below, the numeric streets, e.g. "100", "100 ST" have the highest DScores. This is probably due to the nature of how the jarowinkler method penalizes numerical string changes.
+
+```{r}
+# Check D Score
+meanD <- cleanData %>%
+  select('Enumeration district 2', HNYC_ID, streets, corrected_str, dscore) %>%
+  group_by(streets) %>%
+  summarize(MeanDScore = mean(dscore)) %>%
+  arrange(desc(MeanDScore))
+
+meanD
+```
+
+```{r}
+left_join(meanD, correctedStreets) %>%
+  arrange(desc(MeanDScore))
+```
+
+```{r}
+# Just look at Non-Numeric Streets
+nnStreet <- left_join(meanD, correctedStreets) %>%
+  arrange(desc(MeanDScore)) %>%
+  filter(str_detect(streets, "\\d+") == FALSE)
+
+nnStreet
+```
+
+```{r}
+cleanData2 <- cleanData %>%
+  mutate(changedOrNot = (streets == corrected_str)) %>%
+  select('Enumeration district 2', streets, ED_streetname, corrected_str, dscore, changedOrNot)
+
+view(cleanData2)
+write.table(cleanData2, file = "cleanData2.csv", sep = ",", row.names = F)
+```
+
+```{r}
+# Find out Average D Score for each Enumeration District
+enumerationDscore <- cleanData2 %>%
+  group_by(`Enumeration district 2`) %>%
+  summarize(meanDscore = mean(dscore)) %>%
+  arrange(desc(meanDscore))
+
+enumerationDscore 
+```
+
+```{r}
+# Find out count of Correction for each Enumeration District
+enumerationTransformation <- cleanData2 %>%
+  group_by(`Enumeration district 2`) %>%
+  summarize(corrected_str = n()) %>%
+  arrange(desc(corrected_str))
+
+enumerationTransformation
+```
+
+```{r}
+# Join the two data.frames together
+jointData <- enumerationDscore %>%
+  left_join(enumerationTransformation)
+
+jointData$`Enumeration district 2` <- as.numeric(jointData$`Enumeration district 2`)
+
+jointData
+
+write.table(jointData, file = "jointData.csv", sep = ",", row.names = F)
+```
+
