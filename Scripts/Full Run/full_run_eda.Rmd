@@ -1,0 +1,90 @@
+---
+title: "HNYC Full Run EDA"
+output:
+  html_document:
+    df_print: paged
+---
+
+### Load Files
+```{r setup files}
+mn_output <- readRDS("mn_output.rds")
+bk_output <- readRDS("bk_output.rds")
+```
+
+### Load Necessary Libraries
+```{r setup libraries}
+#install.packages("pacman")
+library(pacman)
+p_load(dplyr,
+       ggplot2,
+       psych)
+```
+
+***
+### Key Output Metrics
+
+#### Manhattan
+```{r}
+mn_output
+```
+
+```{r}
+# How many EDs in Manhattan
+mn_output$ED %>% unique() %>% length()
+
+# How many Microfilms in Manhattan
+mn_output$microfilm %>% unique() %>% length()
+
+# How many unique Street Names in Manhattan
+mn_output$street_add %>% unique() %>% length()
+
+# Total number of entries from sample dataset in Manhattan
+nrow(mn_output)
+
+# Tabulate Result Type in Manhattan
+table(mn_output$result_type)
+
+# Tabulate Flagged Streets in Manhattan
+table(mn_output$flag_st)
+
+# Tabulate Flagged House Number Cleaned in Manhattan
+table(mn_output$flag_hn_cleaned)
+
+# Tabulate Flagged Filled House Numbers in Manhattan
+table(mn_output$flg_filled_hn)
+```
+
+***
+
+#### Brooklyn
+```{r}
+bk_output
+```
+
+```{r}
+# How many EDs in Brooklyn
+bk_output$ED %>% unique() %>% length()
+
+# How many Microfilms in Brooklyn
+bk_output$microfilm %>% unique() %>% length()
+
+# How many unique Street Names in Brooklyn
+bk_output$street_add %>% unique() %>% length()
+
+# Total number of entries from sample dataset in Brooklyn
+nrow(bk_output)
+
+# Tabulate Result Type in Brooklyn
+table(bk_output$result_type)
+
+# Tabulate Flagged Streets in Brooklyn
+table(bk_output$flag_st)
+
+# Tabulate Flagged House Number Cleaned in Brooklyn
+table(bk_output$flag_hn_cleaned)
+
+# Tabulate Flagged Filled House Numbers in Brooklyn
+table(bk_output$flg_filled_hn)
+```
+
+
