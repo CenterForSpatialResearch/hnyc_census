@@ -31,25 +31,64 @@ mn_output
 ```{r}
 # How many EDs in Manhattan
 mn_output$ED %>% unique() %>% length()
+```
 
+```{r}
 # How many Microfilms in Manhattan
 mn_output$microfilm %>% unique() %>% length()
+```
 
+```{r}
 # How many unique Street Names in Manhattan
 mn_output$street_add %>% unique() %>% length()
 
+# Street Names
+mn_output$best_match %>% unique() %>% head(200)
+```
+
+```{r}
 # Total number of entries from sample dataset in Manhattan
 nrow(mn_output)
+```
 
+```{r}
 # Tabulate Result Type in Manhattan
+# 1 of 6 possible match types: (1) Perfect Match, (2) Identical Match, (3) Singular Mode, (4) Multiple Modes, (5) NA mode, (6) No match. Refer to documentation for more details.
 table(mn_output$result_type)
+```
 
+- 28% Perfect Match
+- 12% Identical Match
+- 47.5% Singular Mode
+- 3% Multiple Modes
+- 1.2% NAs
+- 0.5% No Match
+
+```{r}
+# NAs
+mn_output %>% filter(result_type == 5) %>% 
+  select(ED, street_add, best_match, result_type) %>%
+  head(200)
+```
+
+```{r}
+# No Outputs -- the best match comes out as "0"
+mn_output %>% filter(result_type == 6) %>% 
+  select(ED, street_add, best_match, result_type) %>%
+  head(200)
+```
+
+```{r}
 # Tabulate Flagged Streets in Manhattan
 table(mn_output$flag_st)
+```
 
+```{r}
 # Tabulate Flagged House Number Cleaned in Manhattan
 table(mn_output$flag_hn_cleaned)
+```
 
+```{r}
 # Tabulate Flagged Filled House Numbers in Manhattan
 table(mn_output$flg_filled_hn)
 ```
@@ -64,27 +103,50 @@ bk_output
 ```{r}
 # How many EDs in Brooklyn
 bk_output$ED %>% unique() %>% length()
+```
 
+```{r}
 # How many Microfilms in Brooklyn
 bk_output$microfilm %>% unique() %>% length()
+```
 
+```{r}
 # How many unique Street Names in Brooklyn
 bk_output$street_add %>% unique() %>% length()
 
+# Street Names Brooklyn
+bk_output$best_match %>% unique() %>% head(200)
+```
+
+```{r}
 # Total number of entries from sample dataset in Brooklyn
 nrow(bk_output)
+```
 
+```{r}
 # Tabulate Result Type in Brooklyn
+# 1 of 6 possible match types: (1) Perfect Match, (2) Identical Match, (3) Singular Mode, (4) Multiple Modes, (5) NA mode, (6) No match. Refer to documentation for more details.
 table(bk_output$result_type)
+```
 
+- 76.5% Perfect Match
+- 7.9% Identical Match
+- 9.5% Singular Mode
+- 1.5% Multiple Modes
+- 1.3% NAs
+- 0.8% No Match
+
+```{r}
 # Tabulate Flagged Streets in Brooklyn
 table(bk_output$flag_st)
+```
 
+```{r}
 # Tabulate Flagged House Number Cleaned in Brooklyn
 table(bk_output$flag_hn_cleaned)
+```
 
+```{r}
 # Tabulate Flagged Filled House Numbers in Brooklyn
 table(bk_output$flg_filled_hn)
 ```
-
-
