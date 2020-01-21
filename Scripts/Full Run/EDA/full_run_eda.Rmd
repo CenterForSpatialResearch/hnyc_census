@@ -1,18 +1,56 @@
 ---
 title: "HNYC Full Run EDA"
+author: "Gerald"
 output:
   html_document:
     df_print: paged
 ---
 
-### Load Files
-```{r setup files}
+***
+
+### EDA for Street Cleaning Function & Strict Dictionary
+
+**Follow Up Action Required: Check if this is appropriate**  
+
+The Street Cleaning Function has 3 lines of codes that were set to be ignored. 
+
+The combined Street Dictionary has several issues regarding "STR", "ST" and "STREET". This might be a possible cause of those issues. 
+
+```{r}
+# Lines of codes that had "##" in the Street Cleaning Function
+##x<-gsub("\\bSTR\\b","", x)
+##x<-gsub("\\<ST\\>","",x)
+##x<-gsub("\\<STREET\\>","",x)
+```
+
+The Street Dictionary (combined and full) for Manhattan have **several abnormalities**. From manual checking the issues that were identified include:
+
+- NA
+- Inconsistent String Pattern
+  - e.g. "4 W", "W 4", "E    97" (Abnormal spacing)
+- "ST" seems to have been unintentionally removed from several street names
+  - e.g. "CHENUT", "CHENUT ST", "HOUON E", " W HOUON ST", "FIR AVE", "EA END AVE", "CHRIIE", "UYVESANT ST", "CHRISOPHER"
+- Possible Misspellings
+  - e.g. "WILLET", "WILLETT", "GOERICK", "GOERCK", "EDGECOMBE", "EDGECOMB"
+- Inconsistent Street Naming
+  - e.g. "LEXINGTON AVE", "LEX AVE"
+- Random Street Names
+  - e.g. "B", "C", "WE ST", "NYC HOME AGED  AMP; INFIRM", "NY ASYLUM SIERS ST DOMINIC", "MANHATTAN ATE HOSPITAL WARDS ISLAND", "HOME AGED LITTLE SIERS POOR"
+- Apostrophe S issues
+  - e.g."MARK\\'S PL", "RANDALL\\'S ISLAND PARK", "BEDLOE\\'S ISLAND"
+
+***
+
+### EDA of output from Manhattan cleaning script
+
+```{r setup files, include = FALSE}
+# Load Files
 mn_output <- readRDS("mn_output.rds")
 bk_output <- readRDS("bk_output.rds")
 ```
 
-### Load Necessary Libraries
-```{r setup libraries}
+```{r setup libraries, include = FALSE}
+# Load Necessary Libraries
 #install.packages("pacman")
 library(pacman)
 p_load(dplyr,
@@ -20,42 +58,45 @@ p_load(dplyr,
        psych)
 ```
 
-***
-### Key Output Metrics
+```{r Mn EDA script, include = FALSE}
+# Manhattan EDA
 
-#### Manhattan
-```{r}
 mn_output
-```
 
-```{r}
 # How many EDs in Manhattan
 mn_output$ED %>% unique() %>% length()
-```
 
-```{r}
 # How many Microfilms in Manhattan
 mn_output$microfilm %>% unique() %>% length()
-```
 
-```{r}
 # How many unique Street Names in Manhattan
 mn_output$street_add %>% unique() %>% length()
 
 # Street Names
-mn_output$best_match %>% unique() %>% head(200)
-```
+mn_output$best_match %>% unique()
 
-```{r}
 # Total number of entries from sample dataset in Manhattan
 nrow(mn_output)
-```
 
-```{r}
 # Tabulate Result Type in Manhattan
 # 1 of 6 possible match types: (1) Perfect Match, (2) Identical Match, (3) Singular Mode, (4) Multiple Modes, (5) NA mode, (6) No match. Refer to documentation for more details.
 table(mn_output$result_type)
+
+# Tabulate Flagged Filled Streets in Manhattan
+table(mn_output$flg_filled_st)
+
+# Tabulate Flagged House Number Cleaned in Manhattan
+table(mn_output$flag_hn_cleaned)
+
+# Tabulate Flagged Filled House Numbers in Manhattan
+table(mn_output$flg_filled_hn)
 ```
+
+#### Manhattan
+
+From the sample dataset, an output of 557,357 rows by 33 columns was derived. There are 1,478 Enumeration Districts, 1,276 microfilms and 8,557 unique street names within the dataset.
+
+The results from the Street Matching function are as follow:
 
 - 28% Perfect Match
 - 12% Identical Match
@@ -64,70 +105,77 @@ table(mn_output$result_type)
 - 1.2% NAs
 - 0.5% No Match
 
+Out of the 28% of Perfect Matches (156k entries) 1,717 entries were matched via the Fill Down function `03_Matched_Street_Fill_Down` - 1.1%.
+
+Out of the problematic Street Matches (result type 5 and type 6), there is a trend of some EDs being more problematic than others, i.e. more entries of 5 or 6 within certain Enumeration Districts.
+
 ```{r}
-# NAs
+# Problematic EDs for Result Type 5
+# Treshold set to 50 (arbitrarily decided)
 mn_output %>% filter(result_type == 5) %>% 
-  select(ED, street_add, best_match, result_type) %>%
-  head(200)
+  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(29)
 ```
 
 ```{r}
-# No Outputs -- the best match comes out as "0"
+# Problematic EDs for Result Type 6
+# Treshold set to 50 (arbitrarily decided)
 mn_output %>% filter(result_type == 6) %>% 
-  select(ED, street_add, best_match, result_type) %>%
-  head(200)
+  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(6)
 ```
 
-```{r}
-# Tabulate Flagged Streets in Manhattan
-table(mn_output$flag_st)
-```
+Out of 557,357 entries, 159,669 entries were flagged for house number changes (i.e. 0 or 1) - 28.6%.
+
+7,350 entries were flagged with "1" meaning the house number was editted by the function. E.g. The initial household number might have been "195-7", "34 TO 36" or "112 114". There would be a split between the house numbers and `hn_1` will be 195 and `hn_2` will be 197 as in the first example.
 
 ```{r}
-# Tabulate Flagged House Number Cleaned in Manhattan
-table(mn_output$flag_hn_cleaned)
+# Problematic Enumeration Districts for House Number Cleaning
+mn_output %>% filter(flag_hn_cleaned == 1) %>% 
+  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(24)
 ```
 
-```{r}
-# Tabulate Flagged Filled House Numbers in Manhattan
-table(mn_output$flg_filled_hn)
-```
+Out of all the house hold number entries, 364,730 entries were filled in via the Fill Down function `05_House_Number_Fill_Down` - 65.4%.
 
 ***
 
-#### Brooklyn
-```{r}
-bk_output
-```
+```{r Bk EDA script, include = FALSE}
+# Brooklyn EDA
 
-```{r}
+bk_output
+
 # How many EDs in Brooklyn
 bk_output$ED %>% unique() %>% length()
-```
 
-```{r}
 # How many Microfilms in Brooklyn
 bk_output$microfilm %>% unique() %>% length()
-```
 
-```{r}
 # How many unique Street Names in Brooklyn
 bk_output$street_add %>% unique() %>% length()
 
 # Street Names Brooklyn
 bk_output$best_match %>% unique() %>% head(200)
-```
 
-```{r}
 # Total number of entries from sample dataset in Brooklyn
 nrow(bk_output)
-```
 
-```{r}
 # Tabulate Result Type in Brooklyn
 # 1 of 6 possible match types: (1) Perfect Match, (2) Identical Match, (3) Singular Mode, (4) Multiple Modes, (5) NA mode, (6) No match. Refer to documentation for more details.
 table(bk_output$result_type)
+
+# Tabulate Flagged Filled Streets in Brooklyn
+table(bk_output$flg_filled_st)
+
+# Tabulate Flagged House Number Cleaned in Brooklyn
+table(bk_output$flag_hn_cleaned)
+
+# Tabulate Flagged Filled House Numbers in Brooklyn
+table(bk_output$flg_filled_hn)
 ```
+
+#### Brooklyn
+
+From the sample dataset, an output of 371,833 rows by 33 columns was derived. There are 1,106 Enumeration Districts, 1,527 microfilms and 7,076 unique street names within the dataset.
+
+The results from the Street Matching function are as follow:
 
 - 76.5% Perfect Match
 - 7.9% Identical Match
@@ -136,17 +184,37 @@ table(bk_output$result_type)
 - 1.3% NAs
 - 0.8% No Match
 
+In contrast to Manhattan, there is a larger proportion of Perfect Matches.
+
+Out of the 76.5% of Perfect Matches (284k entries) 1,005 entries were matched via the Fill Down function `03_Matched_Street_Fill_Down` - A much smaller percentage than Manhattan. This suggests that the recording of entries might be more accurate in Brooklynn or that the street directory is more well-developed. Nevertheless, errors are still present.
+
+Out of the problematic Street Matches (result type 5 and type 6), there is a trend of some EDs being more problematic than others, i.e. more entries of 5 or 6 within certain Enumeration Districts.
+
 ```{r}
-# Tabulate Flagged Streets in Brooklyn
-table(bk_output$flag_st)
+# Problematic EDs for Result Type 5
+# Treshold set to 50 (arbitrarily decided)
+bk_output %>% filter(result_type == 5) %>% 
+  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(27)
 ```
 
 ```{r}
-# Tabulate Flagged House Number Cleaned in Brooklyn
-table(bk_output$flag_hn_cleaned)
+# Problematic EDs for Result Type 6
+# Treshold set to 50 (arbitrarily decided)
+bk_output %>% filter(result_type == 6) %>% 
+  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(14)
 ```
 
+Out of 371,833 entries, 179,303 entries were flagged for house number changes (i.e. 0 or 1) - 48.2%.
+
+2,567 entries were flagged with "1" meaning the house number was editted by the function. Brooklyn also has several abnormal initial house numbers. E.g. "222 1/2", "192 3TH". Otherwise, the issues are similar to Manhattan.
+
 ```{r}
-# Tabulate Flagged Filled House Numbers in Brooklyn
-table(bk_output$flg_filled_hn)
+# Problematic Enumeration Districts for House Number Cleaning
+bk_output %>% filter(flag_hn_cleaned == 1) %>% 
+  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(11)
 ```
+
+Out of all the house hold number entries, 182,935 entries were filled in via the Fill Down function `05_House_Number_Fill_Down` - 49.1%.
+
+
+
