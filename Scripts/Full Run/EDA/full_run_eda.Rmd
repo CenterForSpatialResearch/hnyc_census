@@ -271,6 +271,8 @@ tmap_mode("view")
 tm_shape(bk_map) + tm_polygons("result_type")
 ```
 
-
-
+```{r}
+# Highlight 2 examples in Brooklyn
+bk_output %>% filter(ED == 1034 | ED == 1039)
+```
 
