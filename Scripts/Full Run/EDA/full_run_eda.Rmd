@@ -216,5 +216,61 @@ bk_output %>% filter(flag_hn_cleaned == 1) %>%
 
 Out of all the house hold number entries, 182,935 entries were filled in via the Fill Down function `05_House_Number_Fill_Down` - 49.1%.
 
+***
+
+#### Visualizing the Outputs
+
+```{r load GIS libraries, include = FALSE}
+p_load(ggmap,
+       rgdal,
+       rgeos,
+       maptools,
+       tmap)
+```
+
+```{r prepare shapefiles, include = FALSE}
+mn_map <- readOGR(dsn = "mn_shapefiles", layer = "Manhattan_1910")
+bk_map <- readOGR(dsn = "bk_shapefiles", layer = "Brooklyn_1910")
+```
+
+```{r prepare data for MN}
+# Aggregate the mean of result type, i.e. street matching success rate
+# The lower the better
+mn_output_result_type <- aggregate(result_type ~ ED, FUN = mean, data = mn_output)
+mn_output_result_type$ED <- as.numeric(mn_output_result_type$ED)
+
+# Change Manhattan Shapefile ED variable to numeric format
+mn_map@data$ED <- as.numeric(mn_map@data$ED)
+
+# Left join the 2 datasets
+mn_map@data <- left_join(mn_map@data, mn_output_result_type, by = c('ED' = 'ED'))
+```
+
+```{r}
+# Map for Result Type in Manhattan
+tmap_mode("view")
+tm_shape(mn_map) + tm_polygons("result_type")
+```
+
+```{r prepare data for BK}
+# Aggregate the mean of result type, i.e. street matching success rate
+# The lower the better
+bk_output_result_type <- aggregate(result_type ~ ED, FUN = mean, data = bk_output)
+bk_output_result_type$ED <- as.numeric(bk_output_result_type$ED)
+
+# Change Brooklyn Shapefile ED variable to numeric format
+bk_map@data$ED <- as.numeric(bk_map@data$ED)
+
+# Left join the 2 datasets
+bk_map@data <- left_join(bk_map@data, bk_output_result_type, by = c('ED' = 'ED'))
+```
+
+```{r}
+# Map for Result Type in Brooklyn
+tmap_mode("view")
+tm_shape(bk_map) + tm_polygons("result_type")
+```
+
+
 
 
