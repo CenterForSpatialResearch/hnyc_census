@@ -272,7 +272,58 @@ tm_shape(bk_map) + tm_polygons("result_type")
 ```
 
 ```{r}
-# Highlight 2 examples in Brooklyn
+# Highlight 2 examples in Brooklyn with poor street name matches
 bk_output %>% filter(ED == 1034 | ED == 1039)
 ```
 
+# Problems to Look into
+
+- Missing EDs in the entire Dataset
+    - There are missing EDs in the entire dataset
+    - The EDs could be names wrongly
+        - In the Shapefile, the max ED is 1480 but the max ED in the output runs till 1941
+
+```{r}
+# Missing EDs in Manhattan
+
+# Manhattan ED list
+mn_ed_list <- mn_map@data$ED %>% sort()
+
+mn_output_ed <- mn_output$ED %>% unique() %>% as.numeric() %>% sort()
+```
+
+```{r}
+# Which EDs are in the Shapefile but missing from the Manhattan dataset
+mn_ed_list[!(mn_output_ed %in% mn_ed_list)]
+length(mn_ed_list[!(mn_output_ed %in% mn_ed_list)])
+```
+
+```{r}
+# Which EDs are in the dataset but missing from the Manhattan shapefile
+mn_output_ed[!(mn_ed_list %in% mn_output_ed)]
+length(mn_output_ed[!(mn_ed_list %in% mn_output_ed)])
+```
+
+```{r}
+# Missing EDs in Brooklyn
+
+# Brooklyn ED list
+bk_ed_list <- bk_map@data$ED %>% sort()
+
+# Brooklyn Output EDs
+bk_output_ed <- bk_output$ED %>% unique() %>% as.numeric() %>% sort()
+```
+
+```{r}
+# Which EDs are in the Shapefile but missing from the Brooklyn dataset
+bk_ed_list[!(bk_output_ed %in% bk_ed_list)]
+length(bk_ed_list[!(bk_output_ed %in% bk_ed_list)])
+```
+
+```{r}
+# Which EDs are in the dataset but missing from the Manhattan shapefile
+bk_output_ed[!(bk_ed_list %in% bk_output_ed)]
+length(bk_output_ed[!(bk_ed_list %in% bk_output_ed)])
+```
+
+- Why are there missing House Numbers despite the filldown
