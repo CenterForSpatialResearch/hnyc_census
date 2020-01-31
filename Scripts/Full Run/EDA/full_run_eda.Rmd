@@ -1,6 +1,7 @@
 ---
 title: "HNYC Full Run EDA"
 author: "Gerald"
+date: "01/30/2020"
 output:
   html_document:
     df_print: paged
@@ -12,9 +13,7 @@ output:
 
 **Follow Up Action Required: Check if this is appropriate**  
 
-The Street Cleaning Function has 3 lines of codes that were set to be ignored. 
-
-The combined Street Dictionary has several issues regarding "STR", "ST" and "STREET". This might be a possible cause of those issues. 
+The Street Cleaning Function has 3 lines of codes that were set to be ignored. The code were:
 
 ```{r}
 # Lines of codes that had "##" in the Street Cleaning Function
@@ -23,7 +22,9 @@ The combined Street Dictionary has several issues regarding "STR", "ST" and "STR
 ##x<-gsub("\\<STREET\\>","",x)
 ```
 
-The Street Dictionary (combined and full) for Manhattan have **several abnormalities**. From manual checking the issues that were identified include:
+The combined Street Dictionary had several issues regarding "STR", "ST" and "STREET". This might have been the cause of those issues.
+
+The Street Dictionary (combined and full) for Manhattan and Brooklyn had **several abnormalities**. From manual checking the issues that were identified included:
 
 - NA
 - Inconsistent String Pattern
@@ -41,7 +42,7 @@ The Street Dictionary (combined and full) for Manhattan have **several abnormali
 
 ***
 
-### EDA of output from Manhattan cleaning script
+### EDA of output from the Manhattan cleaning script
 
 ```{r setup files, include = FALSE}
 # Load Files
@@ -55,6 +56,7 @@ bk_output <- readRDS("bk_output.rds")
 library(pacman)
 p_load(dplyr,
        ggplot2,
+       plotly,
        psych)
 ```
 
@@ -94,9 +96,11 @@ table(mn_output$flg_filled_hn)
 
 #### Manhattan
 
-From the sample dataset, an output of 557,357 rows by 33 columns was derived. There are 1,478 Enumeration Districts, 1,276 microfilms and 8,557 unique street names within the dataset.
+From the sample dataset, an output of 557,357 rows by 33 columns was derived. 
 
-The results from the Street Matching function are as follow:
+There were 1,478 Enumeration Districts, 1,276 microfilms and 8,557 unique street names within the dataset.
+
+The results from the Street Matching function were as follow:
 
 - 28% Perfect Match
 - 12% Identical Match
@@ -106,15 +110,55 @@ The results from the Street Matching function are as follow:
 - 0.5% No Match
 
 ```{r}
+# Distribution of Result Type in Manhattan
 plot(table(mn_output$result_type), 
      type = "h", 
-     col = "red", 
+     col = c("blue", "red", "orange", "purple", "green", "pink"), 
      lwd = 10,
-     main = "Result Type for Manhattan")
+     main = "Result Type for Manhattan",
+     ylab = "Count",
+     xlab = "Result Type")
 ```
 
-Out of the 28% of Perfect Matches (156k entries) 1,717 entries were matched via the Fill Down function `03_Matched_Street_Fill_Down` - 1.1%.
+#### For Reference, these are examples of the different result types:
 
+##### Perfect Match:
+```{r}
+# Sample of Result Type 1 (Perfect Match)
+mn_output %>% filter(result_type == 1) %>% select(ED, street_add, best_match, result_type) %>% head(1)
+```
+
+##### Identical Match:
+```{r}
+# Sample of Result Type 2 (Identical Match)
+mn_output %>% filter(result_type == 2) %>% select(ED, street_add, best_match, result_type) %>% head(1)
+```
+
+##### Singular Mode Match:
+```{r}
+# Sample of Result Type 3 (Singular Mode)
+mn_output %>% filter(result_type == 3) %>% select(ED, street_add, best_match, result_type) %>% head(1)
+```
+
+##### Multiple Modes Match:
+```{r}
+# Sample of Result Type 4 (Multiple Modes)
+mn_output %>% filter(result_type == 4) %>% select(ED, street_add, best_match, result_type) %>% head(1)
+```
+
+##### "NA" Match:
+```{r}
+# Sample of Result Type 1 (NA)
+mn_output %>% filter(result_type == 5) %>% select(ED, street_add, best_match, result_type) %>% head(3)
+```
+
+##### No Match:
+```{r}
+# Sample of Result Type 6 (no match)
+mn_output %>% filter(result_type == 6) %>% select(ED, street_add, best_match, result_type) %>% head(4)
+```
+
+#### Problematic EDs
 Out of the problematic Street Matches (result type 5 and type 6), there is a trend of some EDs being more problematic than others, i.e. more entries of 5 or 6 within certain Enumeration Districts.
 
 ```{r}
@@ -130,6 +174,50 @@ mn_output %>% filter(result_type == 5) %>%
 mn_output %>% filter(result_type == 6) %>% 
   select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(6)
 ```
+
+```{r}
+# Average result_type by ED
+average_result_type_mn <- mn_output %>% 
+  select(ED, result_type) %>%
+  group_by(ED) %>%
+  summarise(mean_result_type = mean(result_type))
+
+average_result_type_mn$ED <- as.numeric(average_result_type_mn$ED)
+
+mn_result_type_plot <- ggplot(average_result_type_mn, 
+                              aes(x = ED, y = mean_result_type)) +
+  theme_classic() +
+  geom_point() + 
+  labs(x = "ED", y = "Average Result Type", title = "Mean Result Type by ED (MN)"
+  )
+
+ggplotly(mn_result_type_plot)
+```
+
+```{r}
+# Standard Deviation of result_type by ED
+sd_result_type_mn <- mn_output %>% 
+  select(ED, result_type) %>%
+  group_by(ED) %>%
+  summarise(sd_result_type = sd(result_type))
+
+sd_result_type_mn$ED <- as.numeric(sd_result_type_mn$ED)
+
+mn_sd_result_type_plot <- ggplot(sd_result_type_mn, 
+                              aes(x = ED, y = sd_result_type)) +
+  theme_classic() +
+  geom_point() + 
+  labs(x = "ED", y = "Standard Deviation of Result Type", title = "Standard Deviation of Result Type by ED (MN)"
+  )
+
+ggplotly(mn_sd_result_type_plot)
+```
+
+#### Fill Down Function - Manhattan
+
+Out of the 28% of Perfect Matches (156k entries) 1,717 entries were matched via the Fill Down function `03_Matched_Street_Fill_Down` - 1.1%.
+
+#### Flagged House Numbers - Manhattan
 
 Out of 557,357 entries, 159,669 entries were flagged for house number changes (i.e. 0 or 1) - 28.6%.
 
@@ -181,7 +269,9 @@ table(bk_output$flg_filled_hn)
 
 #### Brooklyn
 
-From the sample dataset, an output of 371,833 rows by 33 columns was derived. There are 1,106 Enumeration Districts, 1,527 microfilms and 7,076 unique street names within the dataset.
+From the sample dataset, an output of 371,833 rows by 33 columns was derived. 
+
+There were 1,106 Enumeration Districts, 1,527 microfilms and 7,076 unique street names within the dataset.
 
 The results from the Street Matching function are as follow:
 
@@ -195,14 +285,17 @@ The results from the Street Matching function are as follow:
 In contrast to Manhattan, there is a larger proportion of Perfect Matches.
 
 ```{r}
+# Distribution of Result type in Brooklyn
 plot(table(bk_output$result_type), 
      type = "h", 
-     col = "red", 
+     col = c("blue", "red", "orange", "purple", "green", "pink"), 
      lwd = 10,
-     main = "Result Type for Brooklyn")
+     main = "Result Type for Brooklyn",
+     ylab = "Count",
+     xlab = "Result Type")
 ```
 
-Out of the 76.5% of Perfect Matches (284k entries) 1,005 entries were matched via the Fill Down function `03_Matched_Street_Fill_Down` - A much smaller percentage than Manhattan. This suggests that the recording of entries might be more accurate in Brooklynn or that the street directory is more well-developed. Nevertheless, errors are still present.
+#### Problematic EDs - Brooklyn
 
 Out of the problematic Street Matches (result type 5 and type 6), there is a trend of some EDs being more problematic than others, i.e. more entries of 5 or 6 within certain Enumeration Districts.
 
@@ -220,6 +313,50 @@ bk_output %>% filter(result_type == 6) %>%
   select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(14)
 ```
 
+```{r}
+# Average result_type by ED
+average_result_type_bk <- bk_output %>% 
+  select(ED, result_type) %>%
+  group_by(ED) %>%
+  summarise(mean_result_type = mean(result_type))
+
+average_result_type_bk$ED <- as.numeric(average_result_type_bk$ED)
+
+bk_result_type_plot <- ggplot(average_result_type_bk, 
+                              aes(x = ED, y = mean_result_type)) +
+  theme_classic() +
+  geom_point() + 
+  labs(x = "ED", y = "Average Result Type", title = "Mean Result Type by ED (BK)"
+  )
+
+ggplotly(bk_result_type_plot)
+```
+
+```{r}
+# Standard Deviation of result_type by ED
+sd_result_type_bk <- bk_output %>% 
+  select(ED, result_type) %>%
+  group_by(ED) %>%
+  summarise(sd_result_type = sd(result_type))
+
+sd_result_type_bk$ED <- as.numeric(sd_result_type_bk$ED)
+
+bk_sd_result_type_plot <- ggplot(sd_result_type_bk, 
+                              aes(x = ED, y = sd_result_type)) +
+  theme_classic() +
+  geom_point() + 
+  labs(x = "ED", y = "Standard Deviation of Result Type", title = "Standard Deviation of Result Type by ED (BK)"
+  )
+
+ggplotly(bk_sd_result_type_plot)
+```
+
+#### Fill Down Function - Brooklyn
+
+Out of the 76.5% of Perfect Matches (284k entries) 1,005 entries were matched via the Fill Down function `03_Matched_Street_Fill_Down` - A much smaller percentage than Manhattan. This suggests that the recording of entries might be more accurate in Brooklynn or that the street directory is more well-developed. Nevertheless, errors are still present.
+
+#### Flagged House Numbers - Brooklyn
+
 Out of 371,833 entries, 179,303 entries were flagged for house number changes (i.e. 0 or 1) - 48.2%.
 
 2,567 entries were flagged with "1" meaning the house number was editted by the function. Brooklyn also has several abnormal initial house numbers. E.g. "222 1/2", "192 3TH". Otherwise, the issues are similar to Manhattan.
@@ -234,7 +371,7 @@ Out of all the house hold number entries, 182,935 entries were filled in via the
 
 ***
 
-#### Visualizing the Outputs
+#### Visualizing the Outputs spatially
 
 ```{r load GIS libraries, include = FALSE}
 p_load(ggmap,
@@ -292,7 +429,9 @@ tm_shape(bk_map) + tm_polygons("result_type")
 bk_output %>% filter(ED == 1034 | ED == 1039)
 ```
 
-#### Problems to Look into
+***
+
+#### Other Problems to Look into
 
 - Missing EDs in the entire Dataset
     - There are missing EDs in the entire dataset
@@ -366,7 +505,6 @@ tm_shape(na_mn_map) + tm_polygons("NA best match")
 # Another problematic best match is "0"
 mn_output %>% filter(best_match == 0) %>% select(street_add) %>% unique()
 ```
-
 
 #### Problematic Best Matches - Brooklyn
 
