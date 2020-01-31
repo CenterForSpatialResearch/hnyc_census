@@ -105,6 +105,14 @@ The results from the Street Matching function are as follow:
 - 1.2% NAs
 - 0.5% No Match
 
+```{r}
+plot(table(mn_output$result_type), 
+     type = "h", 
+     col = "red", 
+     lwd = 10,
+     main = "Result Type for Manhattan")
+```
+
 Out of the 28% of Perfect Matches (156k entries) 1,717 entries were matched via the Fill Down function `03_Matched_Street_Fill_Down` - 1.1%.
 
 Out of the problematic Street Matches (result type 5 and type 6), there is a trend of some EDs being more problematic than others, i.e. more entries of 5 or 6 within certain Enumeration Districts.
@@ -185,6 +193,14 @@ The results from the Street Matching function are as follow:
 - 0.8% No Match
 
 In contrast to Manhattan, there is a larger proportion of Perfect Matches.
+
+```{r}
+plot(table(bk_output$result_type), 
+     type = "h", 
+     col = "red", 
+     lwd = 10,
+     main = "Result Type for Brooklyn")
+```
 
 Out of the 76.5% of Perfect Matches (284k entries) 1,005 entries were matched via the Fill Down function `03_Matched_Street_Fill_Down` - A much smaller percentage than Manhattan. This suggests that the recording of entries might be more accurate in Brooklynn or that the street directory is more well-developed. Nevertheless, errors are still present.
 
@@ -276,7 +292,7 @@ tm_shape(bk_map) + tm_polygons("result_type")
 bk_output %>% filter(ED == 1034 | ED == 1039)
 ```
 
-# Problems to Look into
+#### Problems to Look into
 
 - Missing EDs in the entire Dataset
     - There are missing EDs in the entire dataset
@@ -326,4 +342,48 @@ bk_output_ed[!(bk_ed_list %in% bk_output_ed)]
 length(bk_output_ed[!(bk_ed_list %in% bk_output_ed)])
 ```
 
-- Why are there missing House Numbers despite the filldown
+#### Problematic Best Matches - Manhattan
+
+There are 38,174 entries with NA `best_match`. Their `street_add` entries are also NA. There are 792 EDs with these problems.
+
+```{r}
+na_mn_output <- mn_output %>% filter(is.na(best_match)) %>% select(ED) %>% unique()
+
+na_mn_output <- na_mn_output %>% mutate('NA best match' = 1)
+```
+
+```{r}
+na_mn_map <- merge(mn_map, na_mn_output, 'ED', 'ED')
+```
+
+```{r}
+# Map for NA Street Address / Best Match in Manhattan
+tmap_mode("view")
+tm_shape(na_mn_map) + tm_polygons("NA best match")
+```
+
+```{r}
+# Another problematic best match is "0"
+mn_output %>% filter(best_match == 0) %>% select(street_add) %>% unique()
+```
+
+
+#### Problematic Best Matches - Brooklyn
+
+There are 9,264 entries with NA `best_match`. Their `street_add` entries are also NA. There are 427 EDs with these problems.
+
+```{r}
+na_bk_output <- bk_output %>% filter(is.na(best_match)) %>% select(ED) %>% unique()
+
+na_bk_output <- na_bk_output %>% mutate('NA best match' = 1)
+```
+
+```{r}
+na_bk_map <- merge(bk_map, na_bk_output, 'ED', 'ED')
+```
+
+```{r}
+# Map for NA Street Address / Best Match in Brooklyn
+tmap_mode("view")
+tm_shape(na_bk_map) + tm_polygons("NA best match")
+```
