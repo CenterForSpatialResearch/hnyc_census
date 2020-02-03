@@ -1,7 +1,7 @@
 ---
 title: "House No. Cleaning"
 author: "Jolene Lim"
-date: "8 December 2019"
+date: "3 Feb 2020"
 output: html_document
 ---
 
@@ -9,7 +9,19 @@ output: html_document
 library(tidyverse)
 library(knitr)
 library(kableExtra)
+source("../01_Street_Clean_Function_MNBK.R")
+source("../02_Street_Matching_MNBK.R")
+source("../03_Matched_Street_Fill_Down.R")
+
+opts_chunk$set(echo = F, warning = F, messages = F)
 ```
+
+# SUMMARY
+This documentation shows the how various steps in the house number cleaning process works. Currently, the following steps are taken:
+- Extract house number from street address field, e.g. street_add = "15 Roosevelt" wil become street_add = Roosevelt, house number = 15  
+- Extract modifiers into a separate column, e.g. rear or 1/2  
+- Split house number ranges e.g. 177-72 into 177-172 or 38040 to 38-40  
+- Flags house numbers that are out of the range in the street dictionary
 
 # 1. Load Data
 ```{r, message = FALSE}
@@ -29,7 +41,7 @@ HN <- sample %>%
     fill(microfilm, .direction = "up") %>%
     filter(!is.na(house_num)) %>%
     select(microfilm, ED, 
-           dwelling_ser, house_num, street_add, best_match) %>%
+           dwelling_ser, house_num, street_add, best_match, result_type) %>%
     mutate(originalHN = house_num,
            house_num = ifelse(house_num=="", NA, as.character(house_num)),
            street_add = ifelse(is.na(street_add), " ", street_add))
@@ -151,7 +163,177 @@ splt_df <- str_split_fixed(HN$hn_range, pattern = "-", n = 3) %>% data.frame() %
 HN <- HN  %>% cbind(splt_df)
 ```
 
-# 3. Fill Down
+# 3. Out of Range House Numbers EDA
+We use the street dictionary with house numbers (`hn_dict`) to verify which house numbers are completely not within the range indicated by the street dictionary.
+
+Import and wrangle `hn_dict` to be appropriate for our use.
+```{r, message = FALSE, warning = FALSE}
+hn_dict <- read_csv("data/combine_mn.csv") 
+
+# some of the highs are lower than low; define function below to fix this
+fix_order <- function(str) {
+  if (str == "NA?NA") {return (NA_character_)}
+  
+  str_split(str, "\\?") %>% 
+    unlist() %>% 
+    as.integer() %>%
+    sort() %>% 
+    str_c(collapse = "?")
+}
+
+hn_dict <- hn_dict %>%
+  mutate(ED = str_pad(ED, 4, "left", pad = "0")) %>%
+  select(ED, Name, Left_Low, Left_High, Right_Low, Right_High) %>%
+  unite(col = "Left", Left_Low, Left_High, sep = "?") %>% 
+  unite(col = "Right", Right_Low, Right_High, sep = "?") %>%
+  rowwise() %>%
+  mutate(Left = fix_order(Left), Right = fix_order(Right)) %>%
+  ungroup() %>%
+  gather(key = "column", value = "value", -c(ED, Name)) %>% 
+  separate(col = value, into = c("Low", "High"), sep = "\\?") %>%
+  mutate(Low = as.integer(Low), High = as.integer(High))
+```
+
+EDA of house numbers beyond range dictated by `hn_dict`
+```{r}
+large_HN <- HN %>%
+  left_join(hn_dict, by = c("ED" = "ED", "best_match" = "Name")) 
+```
+
+## 3.1. Splitting House Number Ranges
+Some of the out-of-range house numbers are actually house number ranges.
+
+Tailor the code to specifically look for house number ranges. The conditions for this:  
+- Length of house number is larger than 4  
+- Length of house number is not the same as low and high house number range from `hn_dict` (as large numbers may exist for certain streets)  
+- However, the separated house number would be within the house number range from `hn_dict`
+
+```{r}
+large_HN %>%
+  filter(str_length(hn_1) >= 4) %>%
+  filter(str_length(hn_1) != str_length(Low) & str_length(hn_1) != str_length(High)) %>%
+  mutate(hn1_first_2 = as.integer(str_sub(hn_1, 1, 2))) %>%
+  mutate(hn1_last_2 = as.integer(str_sub(hn_1, str_length(hn_1) - 1, str_length(hn_1)))) %>%
+  filter(hn1_first_2 >= Low & hn1_first_2 <= High & hn1_last_2 >= Low & hn1_last_2 <= High) %>%
+  select(house_num, hn_1, hn_2, hn_3, Low, High) %>%
+  kable() %>% kable_styling()
+```
+
+Code to actually split the house num:
+```{r}
+hn_ranges <- large_HN %>%
+  filter(str_length(hn_1) >= 4) %>%
+  filter(str_length(hn_1) != str_length(Low) & str_length(hn_1) != str_length(High)) %>%
+  mutate(hn1_first_2 = as.integer(str_sub(hn_1, 1, 2))) %>%
+  mutate(hn1_last_2 = as.integer(str_sub(hn_1, str_length(hn_1) - 1, str_length(hn_1)))) %>%
+  filter(hn1_first_2 >= Low & hn1_first_2 <= High & hn1_last_2 >= Low & hn1_last_2 <= High) %>%
+  distinct(house_num) %>% unlist()
+
+
+HN <- HN %>%
+  mutate(hn1_first_2 = as.integer(str_sub(house_num, 1, 2)),
+         hn1_last_2 = as.integer(str_sub(house_num, str_length(house_num) - 1, str_length(house_num)))) %>%
+  mutate(hn_1 = ifelse(house_num %in% hn_ranges, hn1_first_2, hn_1),
+         hn_2 = ifelse(house_num %in% hn_ranges, hn1_last_2, hn_2)) %>%
+  distinct(ED, dwelling_ser, originalHN, best_match, .keep_all = TRUE)
+
+```
+
+## 3.2 Other sources of error
+First, add a flag for being outside of the house number range.
+
+```{r}
+out_bound <- large_HN %>%
+  ungroup() %>%
+  mutate(hn_1 = as.integer(hn_1)) %>%
+  mutate(within = ifelse(hn_1 >= Low & hn_1 <= High, TRUE, FALSE)) %>%
+  mutate(range = paste0(Low, "-", High)) %>%
+  group_by(ED, best_match, hn_1) %>%
+  summarize(n_out = sum(within), indicative_range = first(range)) %>%
+  filter(n_out == 0) %>%
+  select(- n_out) %>%
+  mutate(flg_out_bound = 1)
+```
+
+```{r}
+HN <- left_join(HN, out_bound, by = c("ED", "best_match", "hn_1"))
+```
+
+This shows all unique house numbers, and the highlighted rows are out of the ranges indicated by the street dictionary. **NOTE** -- although it seems likely that a large number of these are due to errors in the street matching process (i.e. a wrong street was matched and hence, wrong house number range), this seems not to be the case here. Most of the result types are 1 or 2 (i.e. perfect matches, not filled down).
+
+```{r}
+HN %>%
+  select(ED, street_add, best_match, result_type, originalHN, 
+         hn_1, hn_2, indicative_range) %>%
+  kable() %>% kable_styling() %>%
+  row_spec(which(HN$flg_out_bound == 1), background = "#ff8080") %>% 
+  scroll_box(height = "500px")
+```
+
+```{r}
+nrow(filter(HN, flg_out_bound == 1) %>% distinct(ED, best_match, hn_1))
+```
+There are 447 unique house numbers that are still out of range. 
+
+## 3.3 House Numbers close to range
+Many of these house numbers are not drastically out of bounds, and are in a sequence with the records above/below. This could suggest that the range indicated by the dictionary may be incomplete.
+
+There are 191 (out of 447) such house numbers.
+
+They are:
+
+```{r}
+HN %>%
+  mutate(low = as.integer(str_extract(indicative_range, "[0-9]+(?=-)")),
+         high = as.integer(str_extract(indicative_range, "(?<=-)[0-9]+"))) %>%
+  select(ED, street_add, best_match, result_type, originalHN, 
+         hn_1, hn_2, low, high) %>%
+  filter(hn_1 >= low - 10 & hn_1 <= high + 10) %>%
+  kable() %>% kable_styling() %>%
+  scroll_box(height = "300px")
+```
+
+## 3.4 House Numbers drastically different
+```{r}
+HN %>%
+   mutate(low = str_extract(indicative_range, "[0-9]+(?=-)"),
+          high = str_extract(indicative_range, "(?<=-)[0-9]+")) %>%
+   select(ED, street_add, best_match, result_type, originalHN, 
+          hn_1, hn_2, low, high) %>%
+   filter(str_length(hn_1) > str_length(low) &
+          str_length(hn_1) > str_length(high)) %>%
+   kable() %>% kable_styling() %>%
+   scroll_box(height = "300px")
+```
+
+# 5. Other sources of error
+- Easily fixed: 229 as 29, 554 as 54  
+- Known handwriting issues, e.g. 17 to 0, 1 and 7 being mixed, 0 and 8, etc. (harder to fix, might need to refer to past studies)  
+
+The original census manuscripts were then referred to in order to understand what the mistakes are.
+
+## Example 1: Mistranscribed
+![554](House_Num_Images/house_num_554.jpg)
+Here, 54 was clearly written in the manuscript but somehow mistranscribed into 554.
+
+Here, the odd house numbers was due to the census taker going back to houses that he failed to  visit (e.g. if no one was home), hence the sequence of numbers is very random.
+
+## Note: Other errors found by accident
+![0](House_Num_Images/house_num_0.jpg)
+
+Here, 17 was written but mistranscribed into 0.
+
+# 6. Next Steps
+To incorporate various errors into code. Some ideas for known errors (found in Section 5):
+a. Handwriting - research for past studies that can inform this  
+b. Incorporate seqeuence analysis work as feedback step. Some ideas:  
+- To use it to clean street names, relax sequencing algorithm to only the same ED, and check that sequences agree on street names  
+- To help with house numbers: use interpolation instead of fill down, check for overlaps with house number ranges (to resolve problems where the house number is close to acceptable range)
+
+
+# ARCHIVED CODE
+
+## Fill Down
 NOTE: this is currently not done in the final script, will be done after cleaning instead.
 Basic Principle: if the first non-NA above and first non-NA below has a difference of 0 or 2, AND the ED of those are the same, AND the street address are the same, fill down.
 
@@ -218,90 +400,6 @@ HN2 <- HN %>%
   select(- c(above_hn, below_hn, above_ED, below_ED, above_add, below_add))
 ```
 
-# 4. Out of Range House Numbers EDA
-We use the street dictionary with house numbers (`hn_dict`) to verify which house numbers are completely not within the range indicated by the street dictionary.
-
-Import and wrangle `hn_dict` to be appropriate for our use.
-```{r, message = FALSE, warning = FALSE}
-hn_dict <- read_csv("data/combine_mn.csv") 
-
-# some of the highs are lower than low; define function below to fix this
-fix_order <- function(str) {
-  if (str == "NA?NA") {return (NA_character_)}
-  
-  str_split(str, "\\?") %>% 
-    unlist() %>% 
-    as.integer() %>%
-    sort() %>% 
-    str_c(collapse = "?")
-}
-
-hn_dict <- hn_dict %>%
-  mutate(ED = str_pad(ED, 4, "left", pad = "0")) %>%
-  select(ED, Name, Left_Low, Left_High, Right_Low, Right_High) %>%
-  unite(col = "Left", Left_Low, Left_High, sep = "?") %>% 
-  unite(col = "Right", Right_Low, Right_High, sep = "?") %>%
-  rowwise() %>%
-  mutate(Left = fix_order(Left), Right = fix_order(Right)) %>%
-  ungroup() %>%
-  gather(key = "column", value = "value", -c(ED, Name)) %>% 
-  separate(col = value, into = c("Low", "High"), sep = "\\?") %>%
-  mutate(Low = as.integer(Low), High = as.integer(High))
-```
-
-EDA of house numbers beyond range dictated by `hn_dict`
-```{r}
-large_HN <- HN %>%
-  left_join(hn_dict, by = c("ED" = "ED", "best_match" = "Name")) 
-```
-
-```{r}
-large_HN %>%
-  ungroup() %>%
-  mutate(within = ifelse(hn_1 < Low | hn_1 > High, FALSE, TRUE)) %>%
-  mutate(range = paste0(Low, "-", High)) %>%
-  group_by(ED, best_match, hn_1) %>%
-  summarize(n_out = sum(within), indicative_range = first(range)) %>%
-  filter(n_out == 0) %>%
-  select(- n_out) %>%
-  kable() %>% kable_styling() %>% scroll_box(height = "300px")
-```
-
-There are 139 records out of the bounds of the house number range.
-
-Tailor the code to specifically look for house number ranges. The conditions for this:  
-- Length of house number is larger than 4  
-- Length of house number is not the same as low and high house number range from `hn_dict` (as large numbers may exist for certain streets)  
-- However, the separated house number would be within the house number range from `hn_dict`
-```{r}
-large_HN %>%
-  filter(str_length(hn_1) >= 4) %>%
-  filter(str_length(hn_1) != str_length(Low) & str_length(hn_1) != str_length(High)) %>%
-  mutate(hn1_first_2 = as.integer(str_sub(hn_1, 1, 2))) %>%
-  mutate(hn1_last_2 = as.integer(str_sub(hn_1, str_length(hn_1) - 1, str_length(hn_1)))) %>%
-  filter(hn1_first_2 >= Low & hn1_first_2 <= High & hn1_last_2 >= Low & hn1_last_2 <= High) %>%
-  select(house_num, hn_1, hn_2, hn_3, Low, High) %>%
-  kable() %>% kable_styling()
-```
-
-Code to actually split the house num:
-```{r}
-large_HN <- large_HN %>%
-  mutate(hn1_first_2 = as.integer(str_sub(house_num, 1, 2)),
-         hn1_last_2 = as.integer(str_sub(house_num, str_length(house_num) - 1, str_length(house_num)))) %>%
-  mutate(hn_1 = ifelse(str_length(house_num) != str_length(Low) 
-                & str_length(house_num) != str_length(High)
-                & hn1_first_2 >= Low & hn1_first_2 <= High
-                & hn1_last_2 >= Low & hn1_last_2 <= High,
-                hn1_first_2, hn_1),
-         hn_2 = ifelse(str_length(house_num) != str_length(Low) 
-                & str_length(house_num) != str_length(High)
-                & hn1_first_2 >= Low & hn1_first_2 <= High
-                & hn1_last_2 >= Low & hn1_last_2 <= High,
-                hn1_last_2, hn_2)) %>%
-  mutate(hn_1 = ifelse(is.na(hn_1), house_num, hn_1))
-```
-
 
 ```{r, eval = FALSE, echo = FALSE}
 # archived code used to match numbers without use of `hn_dict`. not necessary anymore except for reference.
@@ -342,32 +440,3 @@ large_hn %>%
   select(ED, house_num, hn_1, hn1_first_2, hn1_last_2, prev_hn, next_hn) %>%
   kable() %>% kable_styling()
 ```
-
-# 5. EDA on sources of potential error
-The original census manuscripts were then referred to in order to understand what the mistakes are.
-
-## Example 1: Mistranscribed
-![554](House_Num_Images/house_num_554.jpg)
-Here, 54 was clearly written in the manuscript but somehow mistranscribed into 554.
-
-## Example 2: House Number Range
-9092 was clearly a house number range, especially since it's in between 86 and 94.
-
-## Example 3: Non-sequential Visits
-![210](House_Num_Images/house_num_210.jpg)
-
-Here, the odd house numbers was due to the census taker going back to houses that he failed to  visit (e.g. if no one was home), hence the sequence of numbers is very random.
-
-## Note: Other errors found by accident
-![0](House_Num_Images/house_num_0.jpg)
-
-Here, 17 was written but mistranscribed into 0.
-
-# 6. Next Steps
-1. Further EDA on errors detected by house number ranges, nothing that these may instead reflect bad matches derived from the address cleaning process. This likely involves further diving into the original manuscripts and coming up with a typology of errors and actions.
-
-2. To incorporate various errors into code. Some ideas for known errors (found in Section 5):
-a. To account for mistranscriptions: Check similarity of one number to another using string distance calculations/creating own algorithm that calculates distance based on ACSII codes.
-b. To account for non-sequential but correct house numbers: To check if there is a pattern. We know that these tend to occurs towards the last few pages of each book. Is there page number data in our sample? If so, we can create exception in code for large numbers that occur in the last few pages.
-
-

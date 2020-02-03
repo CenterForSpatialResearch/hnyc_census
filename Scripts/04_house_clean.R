@@ -103,36 +103,21 @@ house_clean <- function(sample, edict, hn_dict) {
   HN <- HN %>%
     left_join(hn_dict, by = c("ED" = "ED", "best_match" = "Name"))
   
-  large_HN <- HN %>%
-    ungroup() %>%
-    mutate(within = ifelse(hn_1 < Low | hn_1 > High, FALSE, TRUE)) %>%
-    mutate(range = paste0(Low, "-", High)) %>%
-    group_by(ED, best_match, hn_1) %>%
-    summarize(n_out = sum(within), out_range = TRUE) %>%
-    filter(n_out == 0) %>%
-    select(- n_out)
-    
+  hn_ranges <- HN %>%
+    filter(str_length(hn_1) >= 4) %>%
+    filter(str_length(hn_1) != str_length(Low) & str_length(hn_1) != str_length(High)) %>%
+    mutate(hn1_first_2 = as.integer(str_sub(hn_1, 1, 2))) %>%
+    mutate(hn1_last_2 = as.integer(str_sub(hn_1, str_length(hn_1) - 1, str_length(hn_1)))) %>%
+    filter(hn1_first_2 >= Low & hn1_first_2 <= High & hn1_last_2 >= Low & hn1_last_2 <= High) %>%
+    distinct(house_num) %>% unlist()
+
   HN <- HN %>%
-    left_join(large_HN, by = c("ED", "best_match", "hn_1")) %>%
-    mutate(out_range = ifelse(is.na(out_range), FALSE, out_range),
-           Low = ifelse(is.na(Low), 0, Low),
-           High = ifelse(is.na(High), 0, High)) %>%
     mutate(hn1_first_2 = as.integer(str_sub(house_num, 1, 2)),
            hn1_last_2 = as.integer(str_sub(house_num, str_length(house_num) - 1, str_length(house_num)))) %>%
-    mutate(hn_1 = ifelse(out_range
-                         & str_length(house_num) != str_length(Low) 
-                         & str_length(house_num) != str_length(High)
-                         & hn1_first_2 >= Low & hn1_first_2 <= High
-                         & hn1_last_2 >= Low & hn1_last_2 <= High,
-                         hn1_first_2, hn_1),
-           hn_2 = ifelse(out_range
-                         & str_length(house_num) != str_length(Low)
-                         & str_length(house_num) != str_length(High)
-                         & hn1_first_2 >= Low & hn1_first_2 <= High
-                         & hn1_last_2 >= Low & hn1_last_2 <= High,
-                         hn1_last_2, hn_2),
-           flg_cleaned = ifelse(!is.na(hn_2), 1, 0))
-
+    mutate(hn_1 = ifelse(house_num %in% hn_ranges, hn1_first_2, hn_1),
+           hn_2 = ifelse(house_num %in% hn_ranges, hn1_last_2, hn_2)) %>%
+    mutate(flg_cleaned = ifelse(originalHN != hn_1, 1, 0))
+  
   # ---- Output ----
   # [FLAG]: choose variables
   HN <- HN %>%
