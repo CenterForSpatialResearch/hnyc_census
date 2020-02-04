@@ -386,14 +386,19 @@ mn_map <- readOGR(dsn = "mn_shapefiles", layer = "Manhattan_1910")
 bk_map <- readOGR(dsn = "bk_shapefiles", layer = "Brooklyn_1910")
 ```
 
+```{r}
+# Dan's function - Change ED's factor format to numeric
+as.numeric.factor <- function(x) {as.numeric(levels(x))[x]}
+```
+
 ```{r prepare data for MN}
 # Aggregate the mean of result type, i.e. street matching success rate
 # The lower the better
 mn_output_result_type <- aggregate(result_type ~ ED, FUN = mean, data = mn_output)
 mn_output_result_type$ED <- as.numeric(mn_output_result_type$ED)
 
-# Change Manhattan Shapefile ED variable to numeric format
-mn_map@data$ED <- as.numeric(mn_map@data$ED)
+# Change Manhattan Shapefile ED variable to numeric format (Dan's function)
+mn_map@data$ED <- as.numeric.factor(mn_map@data$ED)
 
 # Left join the 2 datasets
 mn_map@data <- left_join(mn_map@data, mn_output_result_type, by = c('ED' = 'ED'))
@@ -412,7 +417,7 @@ bk_output_result_type <- aggregate(result_type ~ ED, FUN = mean, data = bk_outpu
 bk_output_result_type$ED <- as.numeric(bk_output_result_type$ED)
 
 # Change Brooklyn Shapefile ED variable to numeric format
-bk_map@data$ED <- as.numeric(bk_map@data$ED)
+bk_map@data$ED <- as.numeric.factor(bk_map@data$ED)
 
 # Left join the 2 datasets
 bk_map@data <- left_join(bk_map@data, bk_output_result_type, by = c('ED' = 'ED'))
@@ -476,7 +481,7 @@ length(bk_ed_list[!(bk_output_ed %in% bk_ed_list)])
 ```
 
 ```{r}
-# Which EDs are in the dataset but missing from the Manhattan shapefile
+# Which EDs are in the dataset but missing from the Brooklyn shapefile
 bk_output_ed[!(bk_ed_list %in% bk_output_ed)]
 length(bk_output_ed[!(bk_ed_list %in% bk_output_ed)])
 ```
