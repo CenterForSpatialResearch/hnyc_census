@@ -525,3 +525,8 @@ na_bk_map <- merge(bk_map, na_bk_output, 'ED', 'ED')
 tmap_mode("view")
 tm_shape(na_bk_map) + tm_polygons("NA best match")
 ```
+
+```{r}
+# Another problematic best match is "0"
+bk_output %>% filter(best_match == 0) %>% select(street_add) %>% unique()
+```
