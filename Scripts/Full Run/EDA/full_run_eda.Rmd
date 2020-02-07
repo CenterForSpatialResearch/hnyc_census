@@ -1,7 +1,7 @@
 ---
-title: "HNYC Full Run EDA"
+title: "HNYC Full Run EDA - Version 2"
 author: "Gerald"
-date: "01/30/2020"
+date: "02/07/2020"
 output:
   html_document:
     df_print: paged
@@ -11,22 +11,15 @@ output:
 
 ### EDA for Street Cleaning Function & Strict Dictionary
 
-**Follow Up Action Required: Check if this is appropriate**  
+**Street Cleaning Function editted by Chang**  
+Editted on 7th Feburary 2020
 
-The Street Cleaning Function has 3 lines of codes that were set to be ignored. The code were:
+Following Changes were made:
 
-```{r}
-# Lines of codes that had "##" in the Street Cleaning Function
-##x<-gsub("\\bSTR\\b","", x)
-##x<-gsub("\\<ST\\>","",x)
-##x<-gsub("\\<STREET\\>","",x)
-```
-
-The combined Street Dictionary had several issues regarding "STR", "ST" and "STREET". This might have been the cause of those issues.
+The combined Street Dictionary had several issues regarding "STR", "ST" and "STREET". They have been resolved.
 
 The Street Dictionary (combined and full) for Manhattan and Brooklyn had **several abnormalities**. From manual checking the issues that were identified included:
 
-- NA
 - Inconsistent String Pattern
   - e.g. "4 W", "W 4", "E    97" (Abnormal spacing)
 - "ST" seems to have been unintentionally removed from several street names
@@ -38,7 +31,11 @@ The Street Dictionary (combined and full) for Manhattan and Brooklyn had **sever
 - Random Street Names
   - e.g. "B", "C", "WE ST", "NYC HOME AGED  AMP; INFIRM", "NY ASYLUM SIERS ST DOMINIC", "MANHATTAN ATE HOSPITAL WARDS ISLAND", "HOME AGED LITTLE SIERS POOR"
 - Apostrophe S issues
-  - e.g."MARK\\'S PL", "RANDALL\\'S ISLAND PARK", "BEDLOE\\'S ISLAND"
+  - e.g."MARK\\'S PL", "RANDALL\\'S ISLAND PARK", "BEDLOE\\'S ISLAND" (Apostrophe S)
+
+The following issues have not been resolved:
+
+- NA or NULL
 
 ***
 
@@ -100,6 +97,8 @@ From the sample dataset, an output of 557,357 rows by 33 columns was derived.
 
 There were 1,478 Enumeration Districts, 1,276 microfilms and 8,557 unique street names within the dataset.
 
+##### Pre-Street-Cleaning Function Edit
+
 The results from the Street Matching function were as follow:
 
 - 28% Perfect Match
@@ -108,6 +107,22 @@ The results from the Street Matching function were as follow:
 - 3% Multiple Modes
 - 1.2% NAs
 - 0.5% No Match
+
+##### Post-Street-Cleaning Function Edit
+
+The results from the Street Matching function were as follow:
+
+- 34.7% Perfect Match
+- 25.4% Identical Match
+- 29.8% Singular Mode
+- 2% Multiple Modes
+- 0.8% NAs
+- 0.3% No Match
+
+**Significant improvements observed** in `result types` 1 and 2 after improving the Street Cleaning Function.
+
+- 5% increase in perfect matches
+- 12% increase in identical matches
 
 ```{r}
 # Distribution of Result Type in Manhattan
@@ -165,14 +180,14 @@ Out of the problematic Street Matches (result type 5 and type 6), there is a tre
 # Problematic EDs for Result Type 5
 # Treshold set to 50 (arbitrarily decided)
 mn_output %>% filter(result_type == 5) %>% 
-  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(29)
+  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(19)
 ```
 
 ```{r}
 # Problematic EDs for Result Type 6
 # Treshold set to 50 (arbitrarily decided)
 mn_output %>% filter(result_type == 6) %>% 
-  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(6)
+  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(8)
 ```
 
 ```{r}
@@ -189,7 +204,9 @@ mn_result_type_plot <- ggplot(average_result_type_mn,
   theme_classic() +
   geom_point() + 
   labs(x = "ED", y = "Average Result Type", title = "Mean Result Type by ED (MN)"
-  )
+  ) +
+  geom_vline(xintercept = 1471, color = "red", linetype = "dotted") +
+  geom_vline(xintercept = 1652, color = "red", linetype = "dotted")
 
 ggplotly(mn_result_type_plot)
 ```
@@ -208,7 +225,9 @@ mn_sd_result_type_plot <- ggplot(sd_result_type_mn,
   theme_classic() +
   geom_point() + 
   labs(x = "ED", y = "Standard Deviation of Result Type", title = "Standard Deviation of Result Type by ED (MN)"
-  )
+  ) +
+  geom_vline(xintercept = 1394, color = "red", linetype = "dotted") +
+  geom_vline(xintercept = 1652, color = "red", linetype = "dotted")
 
 ggplotly(mn_sd_result_type_plot)
 ```
@@ -221,7 +240,9 @@ Out of the 28% of Perfect Matches (156k entries) 1,717 entries were matched via 
 
 Out of 557,357 entries, 159,669 entries were flagged for house number changes (i.e. 0 or 1) - 28.6%.
 
-7,350 entries were flagged with "1" meaning the house number was editted by the function. E.g. The initial household number might have been "195-7", "34 TO 36" or "112 114". There would be a split between the house numbers and `hn_1` will be 195 and `hn_2` will be 197 as in the first example.
+Previously, 7,350 entries were flagged with "1" meaning the house number was editted by the function. That has now grown to 7,520 (post street cleaning function edits).
+
+**This flag refers to:** The initial household number might have been "195-7", "34 TO 36" or "112 114". There would be a split between the house numbers and `hn_1` will be 195 and `hn_2` will be 197 as in the first example.
 
 ```{r}
 # Problematic Enumeration Districts for House Number Cleaning
@@ -230,6 +251,8 @@ mn_output %>% filter(flag_hn_cleaned == 1) %>%
 ```
 
 Out of all the house hold number entries, 364,730 entries were filled in via the Fill Down function `05_House_Number_Fill_Down` - 65.4%.
+
+That has increased to 368,948 - 66.1% after the street cleaning function was editted.
 
 ***
 
@@ -273,6 +296,8 @@ From the sample dataset, an output of 371,833 rows by 33 columns was derived.
 
 There were 1,106 Enumeration Districts, 1,527 microfilms and 7,076 unique street names within the dataset.
 
+##### Pre-Street-Cleaning Function Edit
+
 The results from the Street Matching function are as follow:
 
 - 76.5% Perfect Match
@@ -281,6 +306,15 @@ The results from the Street Matching function are as follow:
 - 1.5% Multiple Modes
 - 1.3% NAs
 - 0.8% No Match
+
+##### Post-Street-Cleaning Function Edit
+
+- 78.7% Perfect Match
+- 8.3% Identical Match
+- 7.3% Singular Mode
+- 1.5% Multiple Modes
+- 1.0% NAs
+- 0.7% No Match
 
 In contrast to Manhattan, there is a larger proportion of Perfect Matches.
 
@@ -303,14 +337,14 @@ Out of the problematic Street Matches (result type 5 and type 6), there is a tre
 # Problematic EDs for Result Type 5
 # Treshold set to 50 (arbitrarily decided)
 bk_output %>% filter(result_type == 5) %>% 
-  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(27)
+  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(18)
 ```
 
 ```{r}
 # Problematic EDs for Result Type 6
 # Treshold set to 50 (arbitrarily decided)
 bk_output %>% filter(result_type == 6) %>% 
-  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(14)
+  select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(10)
 ```
 
 ```{r}
@@ -327,7 +361,9 @@ bk_result_type_plot <- ggplot(average_result_type_bk,
   theme_classic() +
   geom_point() + 
   labs(x = "ED", y = "Average Result Type", title = "Mean Result Type by ED (BK)"
-  )
+  ) +
+  geom_vline(xintercept = 1103, color = "red", linetype = "dotted") +
+  geom_vline(xintercept = 1406, color = "red", linetype = "dotted")
 
 ggplotly(bk_result_type_plot)
 ```
@@ -346,7 +382,9 @@ bk_sd_result_type_plot <- ggplot(sd_result_type_bk,
   theme_classic() +
   geom_point() + 
   labs(x = "ED", y = "Standard Deviation of Result Type", title = "Standard Deviation of Result Type by ED (BK)"
-  )
+  ) +
+  geom_vline(xintercept = 1103, color = "red", linetype = "dotted") +
+  geom_vline(xintercept = 1406, color = "red", linetype = "dotted")
 
 ggplotly(bk_sd_result_type_plot)
 ```
@@ -359,7 +397,7 @@ Out of the 76.5% of Perfect Matches (284k entries) 1,005 entries were matched vi
 
 Out of 371,833 entries, 179,303 entries were flagged for house number changes (i.e. 0 or 1) - 48.2%.
 
-2,567 entries were flagged with "1" meaning the house number was editted by the function. Brooklyn also has several abnormal initial house numbers. E.g. "222 1/2", "192 3TH". Otherwise, the issues are similar to Manhattan.
+2,563 entries were flagged with "1" meaning the house number was editted by the function. Brooklyn also has several abnormal initial house numbers. E.g. "222 1/2", "192 3TH". Otherwise, the issues are similar to Manhattan.
 
 ```{r}
 # Problematic Enumeration Districts for House Number Cleaning
@@ -367,7 +405,7 @@ bk_output %>% filter(flag_hn_cleaned == 1) %>%
   select(ED) %>% table() %>% sort(decreasing = TRUE) %>% head(11)
 ```
 
-Out of all the house hold number entries, 182,935 entries were filled in via the Fill Down function `05_House_Number_Fill_Down` - 49.1%.
+Out of all the house hold number entries, 182,950 entries were filled in via the Fill Down function `05_House_Number_Fill_Down` - 49.1%.
 
 ***
 
