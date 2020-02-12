@@ -10,7 +10,12 @@
 * Bo's House No. Sequence Detection
 
 ### Run Full Script
+* Consolidated Scripts can be found in the `Full Run` folder
+  * Separate scripts were made for Manhattan and Brooklyn
 An example of how to run all the scripts together is in **99_Full_Census_Cleaning**
+
+### Exploratory Data Analysis
+* EDA can be found in the `EDA` folder within the `Full Run` folder
 
 ## Documentation
 Quick links to preview Documentation HTML files in the repo:
