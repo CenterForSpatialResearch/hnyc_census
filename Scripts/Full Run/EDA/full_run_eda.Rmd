@@ -135,6 +135,12 @@ plot(table(mn_output$result_type),
      xlab = "Result Type")
 ```
 
+```{r}
+# Get a list of NA and no matches
+mn_56_result_list <- mn_output %>% filter(result_type == 5 | result_type == 6) %>% select(township, ED, street_add, best_match, result_type) %>% arrange(ED) %>% dplyr::distinct()
+mn_56_result_list
+```
+
 #### For Reference, these are examples of the different result types:
 
 ##### Perfect Match:
@@ -327,6 +333,12 @@ plot(table(bk_output$result_type),
      main = "Result Type for Brooklyn",
      ylab = "Count",
      xlab = "Result Type")
+```
+
+```{r}
+# Get a list of NA and no matches
+bk_56_result_list <- bk_output %>% filter(result_type == 5 | result_type == 6) %>% select(township, ED, street_add, best_match, result_type) %>% arrange(ED) %>% dplyr::distinct()
+bk_56_result_list
 ```
 
 #### Problematic EDs - Brooklyn
@@ -573,3 +585,14 @@ tm_shape(na_bk_map) + tm_polygons("NA best match")
 # Another problematic best match is "0"
 bk_output %>% filter(best_match == 0) %>% select(street_add) %>% unique()
 ```
+
+```{r}
+# Create a list for manual checking
+combine_56_result_list <- rbind(mn_56_result_list, bk_56_result_list)
+#write.csv(combine_56_result_list, "manual_check.csv")
+```
+
+```{r}
+combine_56_result_list
+```
+
