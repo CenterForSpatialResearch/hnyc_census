@@ -63,6 +63,7 @@ getSequenceHead <- function(sample_hn_seq, jump_size){
   #' Return 1 if the current is increasing from the prev house_num
   #' Return -11 if the current is decreasing from the prev house_num
   #' Return 0 if the current = the prev
+  #' returns a vector of directions 
   getDirections <- function(){
     dir_list <- c()
     dir <- diff(nona_sample_hn_seq)
@@ -112,7 +113,7 @@ getSequenceHead <- function(sample_hn_seq, jump_size){
   }
   
   withinJumpSize <- function(prev_index, curr_index, jump_size){
-    if(abs(prev_index-curr_index) > jump_size) return(FALSE)
+    if(abs(prev_index-curr_index) > jump_size) return(FALSE) # why is jumpsize applied on index instead of housenum
     else return(TRUE)
   }
   
@@ -166,7 +167,7 @@ getSequenceHead <- function(sample_hn_seq, jump_size){
 appendSeqCol <- function(sample_df, jump_size, check_street){
   
   ## Setup
-  sample_df <- sample_df %>% mutate(house_num = as.numeric(house_num))
+  sample_df <- sample_df %>% mutate(house_num = as.numeric(house_num)) #! uses house_num, which is not cleaned.
   x <- sample_df$house_num
   
   ## Get index of house_num that starts a new subsequence (sequence head)

@@ -12,14 +12,14 @@
 #' This could produce unreliable merged sequences if street names are inaccurate. The 
 #' default is FALSE.
 #' @return TRUE if 2 unique `SEQ` can be merged into 1 merged sequence.
-mergeSeq <- function(sdf, check_street){
+mergeSeq <- function(sdf, jump_size = 10, check_street){
   
   if((sdf %>% pull(SEQ) %>% unique() %>% length) != 2){
     message("must provide 2 sequences:",sdf %>% pull(SEQ) %>% unique() %>% length)
     stop()
   }
   par <- chkPar(sdf)
-  jump <- chkJump(sdf, 10)
+  jump <- chkJump(sdf, jump_size) #! size 10 jump size currently hardcoded. need to change it to be updated with params.
   
   #' Check street if turned on
   if(check_street) str <- chkStreet(sdf)
@@ -88,7 +88,7 @@ chkJump <- function(p1, jump_size){
 #' @export
 #' @examples
 #' HN7 <- appendMergeSeq(HN6) 
-appendMergeSeq <- function(sdf, check_street){
+appendMergeSeq <- function(sdf, jump_size = 10, check_street){
   
   #' Convert SEQ into numeric
   sdf <- sdf %>% mutate(SEQ = as.numeric(as.character(SEQ)))
@@ -103,7 +103,7 @@ appendMergeSeq <- function(sdf, check_street){
   #' Calls mergeSeq() to check if SEQ i can be mergeg into SEQ i-1
   mergeable <- c()
   for(i in seq(1, length(seq_list)-1)){
-    mergeable[i]<-mergeSeq(rbind(df_by_SEQ[[i]], df_by_SEQ[[i+1]]), check_street = check_street)
+    mergeable[i]<-mergeSeq(rbind(df_by_SEQ[[i]], df_by_SEQ[[i+1]]), jump_size = jump_size, check_street = check_street)
   }
   
   appended_df <- sdf %>% mutate(merge_SEQ = SEQ)
@@ -135,7 +135,7 @@ appendMergeSeq <- function(sdf, check_street){
 #' HN7_hn <- getMergedSeq(HN5, jump_size = 500, check_street = FALSE)
 #' HN7_st <- getMergedSeq(HN5, jump_size = 500, check_street = TRUE)
 getMergedSeq <- function(df, jump_size = 500, check_street){
-  temp <- appendSeqCol(df, jump_size = 500, check_street = check_street)
+  temp <- appendSeqCol(df, jump_size = jump_size, check_street = check_street)
   HN7 <- appendMergeSeq(temp, check_street = check_street)
   return(HN7)
 }
