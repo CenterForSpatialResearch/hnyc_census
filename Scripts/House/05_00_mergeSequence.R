@@ -68,7 +68,7 @@ chkStreet <- function(p1){
 #' @return TRUE if the skips between consecutive house_nums in `p` are not greater than 
 #' `jump_size`. Otherwise, return `FALSE`.
 chkJump <- function(p1, jump_size){
-  x <- p1 %>% filter(!is.na(house_num)) %>% pull(house_num)
+  x <- p1 %>% filter(!is.na(hn_1)) %>% pull(hn_1) # change house_num to hn_1
   
   #' There can be only 1 or no house_num
   if (length(x)<2) return(TRUE)

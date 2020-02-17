@@ -113,7 +113,7 @@ getSequenceHead <- function(sample_hn_seq, jump_size){
   }
   
   withinJumpSize <- function(prev_index, curr_index, jump_size){
-    if(abs(prev_index-curr_index) > jump_size) return(FALSE) # why is jumpsize applied on index instead of housenum
+    if(abs(prev_index-curr_index) > jump_size) return(FALSE)
     else return(TRUE)
   }
   
@@ -167,8 +167,8 @@ getSequenceHead <- function(sample_hn_seq, jump_size){
 appendSeqCol <- function(sample_df, jump_size, check_street){
   
   ## Setup
-  sample_df <- sample_df %>% mutate(house_num = as.numeric(house_num)) #! uses house_num, which is not cleaned.
-  x <- sample_df$house_num
+  sample_df <- sample_df %>% mutate(hn_1 = as.numeric(hn_1)) #! uses house_num, which is not cleaned. change to hn_1
+  x <- sample_df$hn_1
   
   ## Get index of house_num that starts a new subsequence (sequence head)
   begin <- getSequenceHead(x, jump_size)
@@ -183,7 +183,7 @@ appendSeqCol <- function(sample_df, jump_size, check_street){
   ## Determine subsequence parities
   ## Fill down SEQ and seq_par for records under subsequence head
   r <- sample_df %>% 
-    mutate(seq_par = ifelse(is.na(house_num), NA, ifelse(house_num%%2==0, 1, 0)),
+    mutate(seq_par = ifelse(is.na(hn_1), NA, ifelse(hn_1%%2==0, 1, 0)), # change to hn_1
            i = row_number()) %>% 
     tidyr::fill(seq_par, .direction = "down") %>%
     tidyr::fill(SEQ, .direction = "down") 
