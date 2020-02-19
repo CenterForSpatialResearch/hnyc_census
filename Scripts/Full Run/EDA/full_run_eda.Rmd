@@ -58,6 +58,9 @@ as.numeric.factor <- function(x) {as.numeric(levels(x))[x]}
 * Section 2 - EDA of output from the Manhattan cleaning script
 * Section 3 - EDA of output from the Brooklyn cleaning Script
 * Section 4 - Other Issues
+  * Missing EDs in Shapefile and `sample` dataset
+  * NA street_add and Best matches
+  * Best match to "0"
 * Appendix
   * Examples of Different Result Types
   * Manual Matching
@@ -512,6 +515,8 @@ bk_output_ed[!(bk_ed_list %in% bk_output_ed)]
 length(bk_output_ed[!(bk_ed_list %in% bk_output_ed)])
 ```
 
+<br/>
+
 #### Problematic Matches - Manhattan
 
 There are 39,311 entries with NA `best_match`. Their `street_add` entries are also NA. There are 795 EDs with these problems.
@@ -536,6 +541,13 @@ na_mn_map <- merge(mn_map, na_mn_output, 'ED', 'ED')
 ```
 
 ```{r}
+# Highlight Example
+example <- mn_output %>% filter(ED == '0227')
+example[41:60,]
+```
+
+
+```{r}
 # Map for NA Street Address / Best Match in Manhattan
 tmap_mode("view")
 tm_shape(na_mn_map) + tm_polygons("NA best match")
@@ -548,6 +560,8 @@ tm_shape(na_mn_map) + tm_polygons("NA best match")
 # Another problematic best match is "0"
 mn_output %>% filter(best_match == 0) %>% sample_n(10)
 ```
+
+<br/>
 
 #### Problematic Matches - Brooklyn
 
