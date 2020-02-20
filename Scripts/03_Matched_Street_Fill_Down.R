@@ -11,18 +11,19 @@
 #'  filled down.
 fillDownStreet <- function(df){
   
-  #' This line can be removed if df has only H record.
-  df <- df %>% filter(record == "H")
-  
-  #' Fill down best_match and create a flag if record is filled.
-  x <- df %>% mutate(best_match_temp = best_match) %>% 
+  df <- df %>%
+    fill(microfilm, .direction = "up") %>%
+    filter(record == "H") %>%
+    mutate(best_match_temp = best_match) %>% 
     group_by(microfilm, ED) %>%
-    fill(best_match, .direction="down") %>%
+    fill(street_add, best_match, result_type, .direction="down") %>%
+    fill(street_add, best_match, result_type, .direction = "up") %>%
     rowwise() %>% 
     mutate(flg_filled_st = ifelse(!is.na(best_match)  && is.na(best_match_temp), 1, 0)) %>% 
     select(-best_match_temp) %>% 
     ungroup()
-  return(x)
+  
+  return(df)
 }
 
 #' sample_cleaned is an output from `02_Street_Matching_MNBK.R`

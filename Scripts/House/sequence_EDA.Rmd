@@ -1,0 +1,102 @@
+---
+title: "Sequence analysis"
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(kableExtra)
+
+opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+sample <- readRDS("../Data/100k_post_clean.RDS")
+
+source("05_00_getSequence.R")
+source("05_00_mergeSequence.R")
+source("05_00_lookAround.R")
+
+sample2 <- sample %>%
+  filter(record == "H")
+```
+
+## Review
+Subsequence:
+1. there is only one parity in house numbers (either odd or even)
+2. house number is only increasing (decreasing)
+3. there is only one street name (only when `check_street` is set to TRUE)
+
+Merged sequence:
+1. there is only 1 street name (only when `check_street` is set to TRUE)
+2. there are no more than 2 house numbers whose parities are different from the rest of the house numbers in the sequence
+3. Adjacent house numbers to not differ for more than 10. The number can be set by setting `jump_size`.
+
+```{r}
+# apply sequence functions
+
+seq_hn <- getMergedSeq(sample2, jump_size = 500, check_street = FALSE) # Ignore street names
+seq_st <- getMergedSeq(sample2, jump_size = 500, check_street = TRUE) # Consider street names
+```
+
+## EDA of sequence 'breakpoints'
+It might be interesting to look at which house number sequences could have gotten merged if not for a single house number breaking the sequence. These 'breakpoints' could indicate errant house numbers.
+
+```{r}
+seq_hn_grp <- seq_hn %>%
+  group_by(merge_SEQ) %>%
+  summarize(count = n(), start = first(hn_1), end = last(hn_1),min = min(hn_1, na.rm = T), max = max(hn_1, na.rm = T)) %>%
+  arrange(as.numeric(merge_SEQ))
+
+above <- c(NA, flatten(seq_hn_grp[1:nrow(seq_hn_grp)-1, "end"])) %>%
+  unlist()
+
+below <- c(flatten(seq_hn_grp[2:nrow(seq_hn_grp), "start"]), NA) %>%
+  unlist()
+
+seq_hn_grp$above_end <- above
+seq_hn_grp$below_start <- below
+```
+
+Current criteria to check for these 'breakpoints':
+1. The sequence only contains one house number  
+2. The ending of the sequence above and start of the sequence below have a difference of less than 10   
+
+Data here does not take into account street names
+```{r}
+filter(seq_hn_grp,
+       count == 1
+       & abs(above_end - below_start) <= 10) %>%
+  mutate(hn = min) %>%
+  select(merge_SEQ, hn, above_end, below_start) %>%
+  kable() %>% kable_styling() %>%
+  scroll_box(height = "300px")
+```
+
+##### **COUNT: 44**
+**WHY are there some sequences e.g. 23-22-23 that are not merged?**
+Next steps: check if these numbers also fall out of the street dictionary range. They might need to be manually cleaned.
+
+## EDA of sequences for further street address cleaning
+When creating merged sequences, we can decide if sequences should have the same street name or if this rule can be relaxed. We know that if this rule is specified, more sequences are generated- which suggests that without taking into account street name, some sequences have more than 1 street name. It could be useful to check if these sequences can identify errors in the street name cleaning process.
+
+```{r}
+multi_st_seq <- seq_hn %>%
+  group_by(merge_SEQ) %>%
+  summarize(count = n_distinct(best_match)) %>%
+  filter(count > 1)
+```
+
+```{r}
+multi_streets <- seq_hn %>%
+  distinct(merge_SEQ, best_match) # how to extract result type, what format
+
+multi_st_seq <- left_join(multi_st_seq, multi_streets, by = c(merge_SEQ = "merge_SEQ"))
+```
+
+# ALSO should find other reasons why it might be broken

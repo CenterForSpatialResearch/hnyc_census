@@ -10,18 +10,17 @@
 #' a record is filled down. 0 otherwise. 
 fillDownHouseNum <- function(df){
   
-  #' This line can be removed if df has only H record.
-  df <- df %>% filter(record == "H")
-  
-  #' Fill down house_num and create a flag if record's house num is filled.
-  x <- df %>% mutate(house_num_temp = house_num) %>% 
+  df <- df %>% 
+    filter(record == "H") %>%
+    mutate(house_num_temp = house_num) %>% 
     group_by(ED, best_match) %>%
-    fill(house_num, .direction="down") %>%
+    fill(modifier.number, modifier.word, house_num, hn_1, hn_2, hn_3, .direction="down") %>%
+    fill(modifier.number, modifier.word, house_num, hn_1, hn_2, hn_3, .direction="up") %>%
     rowwise() %>% 
     mutate(flg_filled_hn = ifelse(!is.na(house_num)  && is.na(house_num_temp), 1, 0)) %>% 
-    #select(-best_match_temp) %>% 
+    select(- house_num_temp) %>%
     ungroup()
-  return(x)
+  return(df)
 }
 
 #` ############ IMPORTANT !! change input to this function call to output from 04_.R
