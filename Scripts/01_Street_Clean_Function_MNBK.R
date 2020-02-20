@@ -25,6 +25,7 @@ clean<-function(x){
   x<-gsub("\\<HEIGHTS\\>|\\<HTS\\>|\\<HT\\>|\\<HEIGHT\\>|\\<HEGHTS\\>|\\<HHT\\>|\\<HEIGT\\>","HTS",x) 
   x<-gsub("\\<SLP\\>|\\<SLEP\\>|\\<SLIIP\\>|\\<SLI\\>","SLIP",x)
   x<-gsub("\\<RON\\>|\\<RW\\>|\\<ROE\\>|\\<ROOW\\>","ROW",x)
+  x <- gsub("\\<SQUARE\\>", "SQ", x) # new 
   x<-gsub(".*\\((.*)\\).*", "\\1", x)
   x<-gsub("\\<ST\\>","",x) # new remove streets
   x<-gsub("\\d+\\ - *\\d*|\\d+\\ TO *\\d*|\\d+\\-\\d*","",x) #remove addresses
@@ -38,8 +39,6 @@ clean<-function(x){
   x<-gsub("-"," ",x)
   x <- gsub("\\\\", "", x) ##new
   x <- gsub("\\'", "", x) ## remove apostrophe
-  #x<-gsub("\\<AND\\>"," ",x) keep AND
-  # no "AMP" in the dataset
   x<-gsub("&","AND",x)
   x<-gsub("\\<1ST\\>|\\b1\\b","1",x)
   x<-gsub("\\<2ND\\>|\\b2\\b","2",x)
@@ -98,16 +97,12 @@ clean<-function(x){
   x<-gsub("\\bLODGING\\b","", x)
   x<-trimws(x, "both")
   
-  
   ## overall spacing problem extra white space
   x <- gsub("((\\w+|\\d+)\\s\\s(\\w+|\\d+))", "\\2 \\3", x)
+  x <- gsub("((\\w+|\\d+)\\s\\s\\s(\\w+|\\d+))", "\\2 \\3", x)
   
   ## 4 W to W 4
   x <- gsub("(\\w+|\\d+)\\s(\\bN\\b|\\bW\\b|\\bS\\b|\\bE\\b)", "\\3\\2 \\1", x)
-  #x <- gsub("(\\w+|\\d+)\\s(N|W|S|E)", "\\3\\2 \\1", x) ##new
-  
-  ## W  4 to W 4
-  #x <- gsub("(N|W|S|E)\\s\\s(\\w+|\\d+)", "\\1 \\2 \\3", x)
   
   
   ## AVE D
