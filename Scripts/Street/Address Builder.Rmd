@@ -1,7 +1,7 @@
 ---
 title: "Address Builder"
 author: "Clinton"
-date: "18 February 2020"
+date: "26 February 2020"
 output: html_document
 ---
 
@@ -18,27 +18,78 @@ library(kableExtra)
 mn_output <- readRDS("../../Data/mn_output.rds")
 ```
 
+### 2. Street Builder
+
+```{r}
+# Street type builder
+street_type_builder = function(df) {
+  df$street_type = case_when(
+    str_detect(df$street_add, pattern = " ST") ~ "ST",
+    str_detect(df$street_add, pattern = " DR") ~ "DR",
+    str_detect(df$street_add, pattern = " CIR") ~ "CIR",
+    str_detect(df$street_add, pattern = " AVE") ~ "AVE",
+    str_detect(df$street_add, pattern = " PL") ~ "PL",
+    str_detect(df$street_add, pattern = " CT") ~ "CT",
+    str_detect(df$street_add, pattern = " PARK") ~ "PARK",
+    str_detect(df$street_add, pattern = " PLZ") ~ "PLZ",
+    str_detect(df$street_add, pattern = " PKWY") ~ "PKWY",
+    str_detect(df$street_add, pattern = " WAY") ~ "WAY",
+    str_detect(df$street_add, pattern = " ALY") ~ "ALY",
+    str_detect(df$street_add, pattern = " PIER") ~ "PIER",
+    str_detect(df$street_add, pattern = "PIER") ~ "PIER",
+    str_detect(df$street_add, pattern = " SLIP") ~ "SLIP",
+    str_detect(df$street_add, pattern = " ROW") ~ "ROW",
+    str_detect(df$street_add, pattern = " APPROACH") ~ "APPROACH",
+    str_detect(df$street_add, pattern = " LN") ~ "LN",
+    str_detect(df$street_add, pattern = " TER") ~ "TER",
+    str_detect(df$street_add, pattern = " HTS") ~ "HTS",
+    str_detect(df$street_add, pattern = " BLVD") ~ "BLVD",
+    str_detect(df$street_add, pattern = " BRG") ~ "BRG",
+    str_detect(df$street_add, pattern = " HL") ~ "HL",
+    str_detect(df$street_add, pattern = "AVE") ~ "AVE",
+    str_detect(df$street_add, pattern = "BROADWAY") ~ "AVE")
+  
+  return(df)
+}
+```
+
+
+```{r}
+# Inspecting results
+mn_output = street_type_builder(mn_output)
+```
+
+There are `r mn_output$street_type %>% is.na() %>% sum()` that have `NA` values for their street type after processing, shown below.
+
+```{r}
+mn_output %>%
+  filter(is.na(street_type)) %>%
+  select(street_add) %>%
+  unique()
+```
+
 <br>
 
-### 2. Function
+### 3. Address Builder
 
 The function takes three variables `hn_1`, `best_match` and `street_type`, and concatenates an address suitable for geocoding. Two parameters are available for customising the output address. 
 
 * The first parameter `spell_ave` defaults to FALSE, and converts numerics to words for streets where `street_type` is avenue. For example, "3 AVE" will be transformed to "THIRD AVE".
 
-* The second parameter `suffix` defaults to FALSE, and adds ordinal indicators (e.g. st, nd, rd) for all streets. It is noted that this parameter takes places after `spell_ave` if both parameters are specified to be TRUE. For example, "3 AVE" will be transformed to "3RD AVE".
+* The second parameter `suffix` defaults to FALSE, and adds ordinal indicators (e.g. st, nd, rd) for all streets. For example, "108 ST" will be transformed to "108TH ST".
 
 ```{r}
-# Helper function
-string_Address = function(df, spell_ave, suffix) {
+build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
   
   # Variables used for Concatenate
   tmp_hn              = ifelse(!is.na(df$hn_1),
                                df$hn_1,
                                "")
-  tmp_best_match      = df$best_match
-  tmp_street_type     = ifelse(!is.na(df$tmp),
-                               df$tmp,
+  tmp_best_match      = ifelse(!is.na(df$best_match),
+                               df$best_match,
+                               "")
+  tmp_street_type     = ifelse(!is.na(df$street_type),
+                               df$street_type,
                                "")
   
   # Spell Avenue numerics
@@ -53,7 +104,7 @@ string_Address = function(df, spell_ave, suffix) {
   # Adding suffixes to numerics
   if (suffix == TRUE) {
     
-    tmp_ordinal = str_extract(tmp_hn, 
+    tmp_ordinal = str_extract(tmp_best_match, 
                               pattern = "[:digit:]+") %>%
       as.integer() %>%
       map_chr(., 
@@ -63,38 +114,23 @@ string_Address = function(df, spell_ave, suffix) {
                        "")
               })
 
-    tmp_hn = str_replace(tmp_hn, 
-                         pattern = "[:digit:]+",
-                         tmp_ordinal)
+    tmp_best_match = str_replace(tmp_best_match, 
+                                 pattern = "[:digit:]+",
+                                 tmp_ordinal)
   }
   
-  # Concatenate final output
+  # Concatenating Address
   addr = paste(tmp_hn, 
                tmp_best_match, 
                tmp_street_type) %>%
-    str_trim(side = "left") %>%
+    str_trim(side = "both") %>%
     toupper()
+  
+  # Replacing missing values with NA
+  addr = ifelse(addr == "",
+                NA_character_,
+                addr)
   return(addr)
-}
-
-
-# Main Function
-build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
-  
-  # Placeholder until variable column of street type is made
-  df$tmp = case_when(
-    str_detect(df$street_add, pattern = " ST") ~ "ST",
-    str_detect(df$street_add, pattern = " DR") ~ "DR",
-    str_detect(df$street_add, pattern = " CIR") ~ "CIR",
-    str_detect(df$street_add, pattern = " AVE") ~ "AVE",
-    str_detect(df$street_add, pattern = " RD") ~ "RD"
-  )
-  
-  # Will be removed when the column for tmp is replaced with the street type
-  df$geo_addr = NA
-  df$geo_addr = string_Address(df, spell_ave, suffix)
-  
-  return(df)
 }
 ```
 
@@ -103,23 +139,32 @@ build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
 ### 3. Examples
 
 ```{r}
-examples = mn_output[c(1044,5098),]
+set.seed(12345)
+index = sample(NROW(mn_output), 100)
+examples = mn_output[index,]
 
-base_function   = build_Address(examples)$geo_addr
-spell_ave_true  = build_Address(examples, spell_ave = TRUE)$geo_addr
-suffix_true     = build_Address(examples, suffix = TRUE)$geo_addr
-both_true       = build_Address(examples, spell_ave = TRUE, suffix = TRUE)$geo_addr
+base_function   = build_Address(examples)
+spell_ave_true  = build_Address(examples, spell_ave = TRUE)
+suffix_true     = build_Address(examples, suffix = TRUE)
+both_true       = build_Address(examples, spell_ave = TRUE, suffix = TRUE)
 
-cbind(base_function, spell_ave_true, suffix_true, both_true) %>%
+data.frame(hn_1 = examples$hn_1,
+           best_match = examples$best_match,
+           street_type = examples$street_type, 
+           base_function, 
+           spell_ave_true,
+           suffix_true,
+           both_true) %>%
   kable() %>%
-  kable_styling()
+  kable_styling() %>%
+  scroll_box(width = "100%", height = "300px")
 ```
 
 <br>
 
 ### 4. Future Improvements
 
-* Function is still a little buggy, and some `NA`s exist, but should improve when the `street_type` variable is produced
+* Function is still a little buggy, and some `NA`s exist
 * `map` is performing slowly, and code needs to be optimised to run faster
 
 <br>
