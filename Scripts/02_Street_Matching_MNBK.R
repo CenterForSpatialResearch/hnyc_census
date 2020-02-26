@@ -19,7 +19,7 @@ library(fuzzyjoin)
 # ---- FUNCTION ----
 street_match <- function(sample, edict) {
   ## clean column names: adapt code if sample has different columns. At minimum, ensure `record`, `ED` and `street_add` columns exist after cleaning.
-  names(sample) <- c("hnyc_id", "record", "township", "county", "ED", "person_id",
+  names(sample) <- c("record", "township", "county", "ED", "person_id",
                      "dwelling_seq", "dwelling_ser", "dwelling_ser2", "hh_seq", "hh_seq_8",
                      "hh_ser2", "hh_ser_bef_split", "indiv_seq", "split", 
                      "line_no", "line_no2", "microfilm",
