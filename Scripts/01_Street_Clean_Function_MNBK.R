@@ -107,6 +107,8 @@ clean<-function(x){
   
   ## AVE D
   x <- gsub("(\\b[A-Z])\\s(AVE)", "\\3\\2 \\1", x)
+
+###### ALL MANUAL CLEANING GOES BELOW HERE ######
   
   ## Manual Cleaning
   x <- gsub("\\<ALLANTIC\\>|\\<ATLASTA\\>","ATLANTIC",x)
