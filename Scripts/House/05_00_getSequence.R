@@ -12,7 +12,7 @@
 #' @param sample_hn_seq A string of house_num from enumeration pages. The string can (and should)
 #' contain`NA`s if records have missing house_num.
 #' @return A vector of indices c(seq_head_index, prev_index, current_index, next_index).
-getSequenceHead <- function(sample_hn_seq, jump_size, check_street = TRUE, check_parity = TRUE, check_dir = TRUE){
+getSequenceHead <- function(sample_hn_seq, jump_size, check_parity = TRUE, check_dir = TRUE){
   
   ## Get indices of param with non-NA
   not_na_index_ref_raw <- which(!is.na(sample_hn_seq))
@@ -49,7 +49,7 @@ getSequenceHead <- function(sample_hn_seq, jump_size, check_street = TRUE, check
     next_i <- result[4]}
     
     # ---------- REFACTORED ------
-    isCurrentIndexASeqHead <- isHead(prev_i, curr_i, dir_list, nona_sample_hn_seq, check_street = check_street, check_parity = check_parity, check_dir = check_dir, jump_size = jump_size)
+    isCurrentIndexASeqHead <- isHead(prev_i, curr_i, dir_list, nona_sample_hn_seq, check_parity = check_parity, check_dir = check_dir, jump_size = jump_size)
     if (isCurrentIndexASeqHead) {
       heads <- append(heads, curr_i)
     }
@@ -63,13 +63,13 @@ getSequenceHead <- function(sample_hn_seq, jump_size, check_street = TRUE, check
 }
 
 
-#---- Helper Functions for getSequenceHead ----
+#---- Helper Functions for getSequenceHead: isHead ----
 #' isHead
 #' helper function for getSequenceHead
 #' Return (head_index, new_prev_index, new_current_index, new_next_index)
 #' `head_index` is added to a list of head indices
 #' The last three are used to find next head indices.
-isHead <- function(prev_index, curr_index, dir_list, hn_seq, check_street = TRUE, check_parity = TRUE, check_dir = TRUE, jump_size){
+isHead <- function(prev_index, curr_index, dir_list, hn_seq, check_parity = TRUE, check_dir = TRUE, jump_size){
   if (curr_index > nrow(dir_list)){
     warning(paste0('Index is out of bounds of direction lists. Current index: ', curr_index))
     return() ## out-of-bound. stop.
@@ -121,14 +121,11 @@ isHead <- function(prev_index, curr_index, dir_list, hn_seq, check_street = TRUE
     count_false <- count_false + isDirectionalHead(curr_index, dir_list)
   }
   
-  if (check_street) {
-    
-  }
-  
   return(count_false > 0)
   
 }
 
+# ---- Helper Functions for isHead ----
 #' getHouseNum
 #' Get a house number for a given house_num index
 getHouseNum <- function(index, hn_seq){
@@ -144,6 +141,7 @@ getHouseNum <- function(index, hn_seq){
 getDirectionalHeads <- function(seq){
   
   # ---- EDITED ----
+  if (FALSE) {
   dir_list <- list(actual = c(0),
                    filled = c(0),
                    isHead = c(TRUE))
@@ -173,7 +171,7 @@ getDirectionalHeads <- function(seq){
       }  
     }
   }
-  
+  }
   ### ----- FINAL ------
   
   diff <- diff(seq)
@@ -269,14 +267,16 @@ withinJumpSize <- function(prev_hn, curr_hn, jump_size){
 #' @export
 #' @examples
 #' HN6 <- appendSeqCol(HN5)
-appendSeqCol <- function(sample_df, jump_size, check_street){
+appendSeqCol <- function(df, check_street = TRUE, check_parity = TRUE, check_dir = TRUE, jump_size){
   
   ## Setup
+  df$index <- 1:nrow(df)
+  sample_df <- df %>% filter(!is.na(hn_1))
   sample_df <- sample_df %>% mutate(hn_1 = as.numeric(hn_1)) #! uses house_num, which is not cleaned. change to hn_1
   x <- sample_df$hn_1
   
   ## Get index of house_num that starts a new subsequence (sequence head)
-  begin <- getSequenceHead(x, jump_size)
+  begin <- getSequenceHead(x, check_parity = check_parity, check_dir = check_dir, jump_size)
   
   ## Create a new vector (for a column).
   SEQ <- rep(NA, length(x))
@@ -288,8 +288,7 @@ appendSeqCol <- function(sample_df, jump_size, check_street){
   ## Determine subsequence parities
   ## Fill down SEQ and seq_par for records under subsequence head
   r <- sample_df %>% 
-    mutate(seq_par = ifelse(is.na(hn_1), NA, ifelse(hn_1%%2==0, 1, 0)), # change to hn_1
-           i = row_number()) %>% 
+    mutate(seq_par = ifelse(is.na(hn_1), NA, ifelse(hn_1%%2==0, 1, 0))) %>% 
     tidyr::fill(seq_par, .direction = "down") %>%
     tidyr::fill(SEQ, .direction = "down") 
   
@@ -297,6 +296,11 @@ appendSeqCol <- function(sample_df, jump_size, check_street){
   if(check_street){
     r <- getSeqByStreet(r)
   }
+  r <- select(r, index, SEQ, seq_par)
+  r <- left_join(df, r, by = c("index" = "index"))
+  r <- r %>%
+    fill(SEQ, .direction = "down") %>%
+    fill(SEQ, .direction = "up")
   
   return(r)
 }

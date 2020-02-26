@@ -2,6 +2,8 @@
 ## The code below is for Rmd rendering
 ## @knitr  read_merge_fxs
 
+
+#---- mergeSeq() ----
 #' mergeSeq
 #'
 #' This is an internal function, called by appendMergeSeq(). It checks whether existing 
@@ -12,14 +14,16 @@
 #' This could produce unreliable merged sequences if street names are inaccurate. The 
 #' default is FALSE.
 #' @return TRUE if 2 unique `SEQ` can be merged into 1 merged sequence.
-mergeSeq <- function(sdf, jump_size = 10, check_street){
+mergeSeq <- function(sdf, jump_size, check_street = TRUE, check_parity = TRUE){
   
   if((sdf %>% pull(SEQ) %>% unique() %>% length) != 2){
     message("must provide 2 sequences:",sdf %>% pull(SEQ) %>% unique() %>% length)
     stop()
   }
-  par <- chkPar(sdf)
   jump <- chkJump(sdf, jump_size) #! size 10 jump size currently hardcoded. need to change it to be updated with params.
+  
+  if (check_parity) par <- chkPar(sdf)
+  else par <- TRUE
   
   #' Check street if turned on
   if(check_street) str <- chkStreet(sdf)
@@ -29,6 +33,7 @@ mergeSeq <- function(sdf, jump_size = 10, check_street){
   else return(FALSE)
 }
 
+# ---- mergeSeq Helper functions ----
 #' chkPar
 #'
 #' This is an internal function, called by mergeSeq(). It checks whether the number of 
@@ -79,6 +84,7 @@ chkJump <- function(p1, jump_size){
   return(TRUE)
 }
 
+#---- appendMergeSeq----
 #' appendMergeSeq
 #'
 #' This function returns a dataframe with a new column of merged sequence numbers (`merge_SEQ`). 
@@ -88,7 +94,7 @@ chkJump <- function(p1, jump_size){
 #' @export
 #' @examples
 #' HN7 <- appendMergeSeq(HN6) 
-appendMergeSeq <- function(sdf, jump_size = 10, check_street){
+appendMergeSeq <- function(sdf, jump_size, check_street = TRUE, check_parity = TRUE){
   
   #' Convert SEQ into numeric
   sdf <- sdf %>% mutate(SEQ = as.numeric(as.character(SEQ)))
@@ -102,8 +108,8 @@ appendMergeSeq <- function(sdf, jump_size = 10, check_street){
   
   #' Calls mergeSeq() to check if SEQ i can be mergeg into SEQ i-1
   mergeable <- c()
-  for(i in seq(1, length(seq_list)-1)){
-    mergeable[i]<-mergeSeq(rbind(df_by_SEQ[[i]], df_by_SEQ[[i+1]]), jump_size = jump_size, check_street = check_street)
+  for(i in seq(1, length(seq_list)-1)){ # loops through each seq
+    mergeable[i]<-mergeSeq(rbind(df_by_SEQ[[i]], df_by_SEQ[[i+1]]), jump_size = jump_size, check_street = check_street, check_parity = check_parity)
   }
   
   appended_df <- sdf %>% mutate(merge_SEQ = SEQ)
@@ -119,7 +125,7 @@ appendMergeSeq <- function(sdf, jump_size = 10, check_street){
   return(appended_df)
 }
 
-
+# ---- getMergeSeq----
 #' Wrap two step merging (subsequence and merged sequence) into 1 function
 #' It will be more efficicent to internalize subsequencne step into merged
 #' sequence step.
@@ -134,7 +140,7 @@ appendMergeSeq <- function(sdf, jump_size = 10, check_street){
 #' @example 
 #' HN7_hn <- getMergedSeq(HN5, jump_size = 500, check_street = FALSE)
 #' HN7_st <- getMergedSeq(HN5, jump_size = 500, check_street = TRUE)
-getMergedSeq <- function(df, jump_size = 500, check_street){
+getMergedSeq <- function(df, check_street = TRUE, check_parity = TRUE, jump_size){
   temp <- appendSeqCol(df, jump_size = jump_size, check_street = check_street)
   HN7 <- appendMergeSeq(temp, check_street = check_street)
   return(HN7)
