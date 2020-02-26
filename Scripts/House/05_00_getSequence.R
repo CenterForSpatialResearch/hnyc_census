@@ -35,18 +35,18 @@ getSequenceHead <- function(sample_hn_seq, jump_size, check_parity = TRUE, check
   prev_i <- 1
   curr_i <- 2
   # --- REF ---
-
+  
   while(curr_i <= list_length){
     
     # --------- ORIGINAL --------
     if (FALSE){
-    result <- isHead(prev_i,curr_i,next_i, check_street = check_street, jump_size = jump_size)
-    if (!is.na(result[1])){
-      current_index_of_heads <- c(current_index_of_heads, result[1])
-    }
-    prev_i <- result[2]
-    curr_i <- result[3]
-    next_i <- result[4]}
+      result <- isHead(prev_i,curr_i,next_i, check_street = check_street, jump_size = jump_size)
+      if (!is.na(result[1])){
+        current_index_of_heads <- c(current_index_of_heads, result[1])
+      }
+      prev_i <- result[2]
+      curr_i <- result[3]
+      next_i <- result[4]}
     
     # ---------- REFACTORED ------
     isCurrentIndexASeqHead <- isHead(prev_i, curr_i, dir_list, nona_sample_hn_seq, check_parity = check_parity, check_dir = check_dir, jump_size = jump_size)
@@ -56,7 +56,7 @@ getSequenceHead <- function(sample_hn_seq, jump_size, check_parity = TRUE, check
     
     prev_i <- curr_i
     curr_i <- curr_i + 1
-
+    
   }
   
   return(heads)
@@ -79,29 +79,29 @@ isHead <- function(prev_index, curr_index, dir_list, hn_seq, check_parity = TRUE
   
   # ------------- ORIGINAL --------
   if (FALSE) {
-  #' When house_nums skip for too large, start a new sequence
-  #' this means that curr_index will be the head of a new sequence
-  if(!withinJumpSize(getHouseNum(prev_index), getHouseNum(curr_index), jump_size)){
-    return(c(curr_index, curr_index, curr_index+1, curr_index+2))
-  }
-  
-  same_parity <- sameParity(getHouseNum(prev_index), getHouseNum(curr_index))
-  # diff parity --> start new seq
-  if(!same_parity)return(c(curr_index, curr_index, curr_index+1, curr_index+2))
-  
-  # same parity and same direction --> still in the seq
-  if(sameDirection(prev_index, curr_index)) return(c(NA, curr_index, curr_index+1, curr_index+2))
-  
-  # same parity but diff direction
-  dist <- checkDistance(prev_index, curr_index, next_index)
-  if(dist >= 0){
-    return(c(curr_index, curr_index, curr_index+1, curr_index+2))
-  } else if(dist==-1){
-    return(c(curr_index+1, curr_index+1, curr_index+2, curr_index+3))
-  } else{
-    message("Something is wring. dist = ", dist) # should never gets to here
-    stop()
-  }}
+    #' When house_nums skip for too large, start a new sequence
+    #' this means that curr_index will be the head of a new sequence
+    if(!withinJumpSize(getHouseNum(prev_index), getHouseNum(curr_index), jump_size)){
+      return(c(curr_index, curr_index, curr_index+1, curr_index+2))
+    }
+    
+    same_parity <- sameParity(getHouseNum(prev_index), getHouseNum(curr_index))
+    # diff parity --> start new seq
+    if(!same_parity)return(c(curr_index, curr_index, curr_index+1, curr_index+2))
+    
+    # same parity and same direction --> still in the seq
+    if(sameDirection(prev_index, curr_index)) return(c(NA, curr_index, curr_index+1, curr_index+2))
+    
+    # same parity but diff direction
+    dist <- checkDistance(prev_index, curr_index, next_index)
+    if(dist >= 0){
+      return(c(curr_index, curr_index, curr_index+1, curr_index+2))
+    } else if(dist==-1){
+      return(c(curr_index+1, curr_index+1, curr_index+2, curr_index+3))
+    } else{
+      message("Something is wring. dist = ", dist) # should never gets to here
+      stop()
+    }}
   
   # ----------- REFACTORED --------
   # ISSUES: implement check street, does not checkDistance - not sure what this is for
@@ -110,7 +110,7 @@ isHead <- function(prev_index, curr_index, dir_list, hn_seq, check_parity = TRUE
   
   prev_hn <- getHouseNum(prev_index, hn_seq)
   curr_hn <- getHouseNum(curr_index, hn_seq)
-
+  
   count_false <- !withinJumpSize(prev_hn, curr_hn, jump_size)
   
   if (check_parity) {
@@ -142,35 +142,35 @@ getDirectionalHeads <- function(seq){
   
   # ---- EDITED ----
   if (FALSE) {
-  dir_list <- list(actual = c(0),
-                   filled = c(0),
-                   isHead = c(TRUE))
-  dir <- diff(seq)
-  for(d in dir){
-    if(d>0) current_dir <- 1
-    else if(d<0) current_dir <- -1
-    else current_dir <- 0
+    dir_list <- list(actual = c(0),
+                     filled = c(0),
+                     isHead = c(TRUE))
+    dir <- diff(seq)
+    for(d in dir){
+      if(d>0) current_dir <- 1
+      else if(d<0) current_dir <- -1
+      else current_dir <- 0
+      
+      dir_list[['actual']] <- c(dir_list[['actual']], current_dir)
+      dir_list[['filled']] <- c(dir_list[['filled']], current_dir)
+      dir_list[['isHead']] <- c(dir_list[['isHead']], FALSE)
+    }
     
-    dir_list[['actual']] <- c(dir_list[['actual']], current_dir)
-    dir_list[['filled']] <- c(dir_list[['filled']], current_dir)
-    dir_list[['isHead']] <- c(dir_list[['isHead']], FALSE)
-  }
-  
-  ## if current direction does not change, take previous direction as current
-  ## SET TO OPTIONAL, take into account case where seq starts with string of equals.
-  for(i in seq(2, length(dir_list[['filled']]))){
-    if(dir_list[['filled']][i]==0) {
-      dir_list[['filled']][i] <- dir_list[['filled']][i-1]
+    ## if current direction does not change, take previous direction as current
+    ## SET TO OPTIONAL, take into account case where seq starts with string of equals.
+    for(i in seq(2, length(dir_list[['filled']]))){
+      if(dir_list[['filled']][i]==0) {
+        dir_list[['filled']][i] <- dir_list[['filled']][i-1]
+      }
     }
-  }
-  
-  for (i in seq(2, length(dir_list[['filled']]))){
-    if (dir_list[['actual']][i] != 0 && dir_list[['filled']][i-1] != 0) {
-      if (dir_list[['actual']][i] != dir_list[['actual']][i-1]) {
-        i
-      }  
+    
+    for (i in seq(2, length(dir_list[['filled']]))){
+      if (dir_list[['actual']][i] != 0 && dir_list[['filled']][i-1] != 0) {
+        if (dir_list[['actual']][i] != dir_list[['actual']][i-1]) {
+          i
+        }  
+      }
     }
-  }
   }
   ### ----- FINAL ------
   
@@ -244,7 +244,7 @@ sameParity <- function(num_1, num_2){
     if(num_1%%2==0) return(TRUE)
     else return(FALSE)
   }
-
+  
   if (isEven(num_1+num_2))return(TRUE)
   else return(FALSE)
   
