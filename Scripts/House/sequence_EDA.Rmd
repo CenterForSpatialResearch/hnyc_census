@@ -11,8 +11,14 @@ editor_options:
 library(knitr)
 library(tidyverse)
 library(kableExtra)
+library(extrafont)
 
 opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+theme_set(
+  theme_minimal() +
+  theme(text = element_text(family = "Open Sans Light"))
+)
 ```
 
 ```{r}
@@ -20,29 +26,54 @@ sample <- readRDS("../Data/100k_post_clean.RDS")
 
 source("05_00_getSequence.R")
 source("05_00_mergeSequence.R")
-source("05_00_lookAround.R")
-
-sample2 <- sample %>%
-  filter(record == "H")
 ```
 
 ## Review
-Subsequence:
-1. there is only one parity in house numbers (either odd or even)
-2. house number is only increasing (decreasing)
-3. there is only one street name (only when `check_street` is set to TRUE)
+Subsequence:  
+1. check_parity: there is only one parity in house numbers (either odd or even)  
+2. check_direction: house number is only increasing/decreasing  
+3. check_street: there is only one street name  
+4. within specified jump size  
 
-Merged sequence:
-1. there is only 1 street name (only when `check_street` is set to TRUE)
-2. there are no more than 2 house numbers whose parities are different from the rest of the house numbers in the sequence
-3. Adjacent house numbers to not differ for more than 10. The number can be set by setting `jump_size`.
+Merged sequence: DEPRECATED  
+1. there is only 1 street name (only when `check_street` is set to TRUE)  
+2. there are no more than 2 house numbers whose parities are different from the rest of the house numbers in the sequence  
+3. Adjacent house numbers to not differ for more than 10. The number can be set by setting `jump_size`.  
 
 ```{r}
 # apply sequence functions
 
-seq_hn <- getMergedSeq(sample2, jump_size = 500, check_street = FALSE) # Ignore street names
-seq_st <- getMergedSeq(sample2, jump_size = 500, check_street = TRUE) # Consider street names
+seq_hn <- appendSeqCol(sample, check_street = F, check_parity = T, check_dir = T, jump_size = 10) %>%
+  appendMergeSeq(jump_size = 10, check_street = F, check_parity = F)
+
+seq_st <- appendSeqCol(sample, check_street = T, check_parity = T, check_dir = T, jump_size = 10) %>%
+  appendMergeSeq(jump_size = 10, check_street = T, check_parity = F)
 ```
+
+## Overview of results
+```{r, fig.width=30}
+select(seq_hn, index, st_off = merge_SEQ) %>%
+  bind_cols(st_on = pull(seq_st, merge_SEQ)) %>%
+  mutate(st_off = as.numeric(as.character(st_off)),
+         st_on = as.numeric(as.character(st_on))) %>%
+  gather(key = "check_street", value = "merge_SEQ", - index) %>%
+  ggplot() +
+    geom_point(aes(y = check_street, x = index, col = as.factor(merge_SEQ))) +
+    theme(legend.position = "None")
+```
+
+```{r}
+select(seq_hn, index, st_off = merge_SEQ) %>%
+  bind_cols(st_on = pull(seq_st, merge_SEQ)) %>%
+  mutate(st_off = as.numeric(as.character(st_off)),
+         st_on = as.numeric(as.character(st_on))) %>%
+  gather(key = "check_street", value = "merge_SEQ", - index) %>%
+  group_by(check_street, merge_SEQ) %>%
+  summarize(seq_length = n()) %>%
+  group_by(check_street) %>%
+  summarize(avg_length = mean(seq_length), no_seq = n())
+```
+
 
 ## EDA of sequence 'breakpoints'
 It might be interesting to look at which house number sequences could have gotten merged if not for a single house number breaking the sequence. These 'breakpoints' could indicate errant house numbers.
@@ -50,7 +81,7 @@ It might be interesting to look at which house number sequences could have gotte
 ```{r}
 seq_hn_grp <- seq_hn %>%
   group_by(merge_SEQ) %>%
-  summarize(count = n(), start = first(hn_1), end = last(hn_1),min = min(hn_1, na.rm = T), max = max(hn_1, na.rm = T)) %>%
+  summarize(count = n(), start = first(hn_1), end = last(hn_1), min = min(hn_1, na.rm = T), max = max(hn_1, na.rm = T)) %>%
   arrange(as.numeric(merge_SEQ))
 
 above <- c(NA, flatten(seq_hn_grp[1:nrow(seq_hn_grp)-1, "end"])) %>%
@@ -74,13 +105,126 @@ filter(seq_hn_grp,
        & abs(above_end - below_start) <= 10) %>%
   mutate(hn = min) %>%
   select(merge_SEQ, hn, above_end, below_start) %>%
+#  left_join(select(seq_hn, merge_SEQ, index), by = c("merge_SEQ" = "merge_SEQ")) %>%
+#  bind_cols(row = 1: nrow(.)) %>%
   kable() %>% kable_styling() %>%
+  row_spec(c(2, 3, 6, 7, 10, 12, 15, 16, 22, 23, 25, 27, 29, 30, 32, 34, 35, 37), background = "#ff8080") %>%
+  scroll_box(height = "300px")
+
+count_this <- filter(seq_hn_grp,
+       count == 1
+       & abs(above_end - below_start) <= 10) %>%
+  mutate(hn = min) %>%
+  select(merge_SEQ, hn, above_end, below_start) %>%
+  nrow(.)
+```
+
+**COUNT: `r count_this`**
+
+### What should these numbers be changed to?
+
+```{r}
+plot_seq = function(df, start, end, adjust = c(0, 5)) {
+  seq = df %>%
+    filter(merge_SEQ %in% seq(start, end))
+  
+  ggplot(seq) +
+    geom_point(aes(x = index, y = hn_1, color = merge_SEQ)) +
+    geom_text(data = distinct(seq, merge_SEQ, .keep_all = T), 
+              aes(x = index + adjust[1], y = hn_1 + adjust[2], 
+                  label = paste0(str_to_title(best_match), " (", result_type, ")\n", hn_1)),
+              family = "Open Sans Light")
+}
+```
+
+
+```{r}
+plot_seq(seq_hn, 60, 64, c(1, 1))
+```
+
+```{r}
+plot_seq(seq_hn, 430, 435, c(0, 10))
+```
+
+Example of the need for adaptive house numbers?
+```{r}
+plot_seq(seq_hn, 402, 404, c(0, 5))
+```
+
+```{r}
+plot_seq(seq_hn, 239, 243, c(0, 10))
+```
+
+## Can we confidently change these?
+
+```{r}
+filter(seq_hn_grp,
+       count == 1
+       & abs(above_end - below_start) <= 2) %>%
+  mutate(hn = min) %>%
+  select(merge_SEQ, hn, above_end, below_start) %>%
+#  left_join(select(seq_hn, merge_SEQ, index), by = c("merge_SEQ" = "merge_SEQ")) %>%
+#  bind_cols(row = 1: nrow(.)) %>%
+  kable() %>% kable_styling() %>%
+#  row_spec(c(2, 3, 6, 7, 10, 12, 15, 16, 22, 23, 25, 27, 29, 30, 32, 34, 35, 37), background = "#ff8080") %>%
   scroll_box(height = "300px")
 ```
 
-##### **COUNT: 44**
-**WHY are there some sequences e.g. 23-22-23 that are not merged?**
-Next steps: check if these numbers also fall out of the street dictionary range. They might need to be manually cleaned.
+```{r}
+narrow_breaks = filter(seq_hn_grp,
+       count == 1
+       & abs(above_end - below_start) <= 2) %>%
+  mutate(merge_SEQ = as.numeric(as.character(merge_SEQ))) %>%
+  pull(merge_SEQ)
+
+narrow_breaks_window = narrow_breaks
+seqs = seq_hn %>% 
+  mutate(merge_SEQ = as.numeric(as.character(merge_SEQ))) %>%
+  pull(merge_SEQ) %>% 
+  unique()
+
+for (seq in narrow_breaks) {
+  seq_ind = which(seqs == seq)
+  narrow_breaks_window <- c(narrow_breaks_window, seqs[seq_ind - 1], seqs[seq_ind + 1])
+}
+
+narrow_eda = seq_hn %>%
+  mutate(merge_SEQ = as.numeric(as.character(merge_SEQ))) %>%
+  filter(merge_SEQ %in% narrow_breaks_window) %>%
+  select(ED, street_add, best_match, result_type, hn_1, hn_2, hn_3, merge_SEQ) %>%
+  distinct()
+
+narrow_eda %>%
+  kable() %>% kable_styling() %>%
+  row_spec(which(narrow_eda$merge_SEQ %in% narrow_breaks), background = "#ff8080")
+```
+
+Definitely yes! These are sudden drop in house numbers amongst two extremely close sequences with the same street address (with strong match confidence).
+```{r}
+plot_seq(seq_hn, 69, 71)
+```
+
+```{r}
+plot_seq(seq_hn, 277, 280)
+```
+
+```{r}
+plot_seq(seq_hn, 408, 410)
+```
+
+Maybe?
+Original st name was Haull
+```{r}
+plot_seq(seq_hn, 301, 303)
+```
+
+```{r}
+plot_seq(seq_hn, 429, 432)
+```
+
+
+## Can we use sequences to suggest NA house numbers?
+
 
 ## EDA of sequences for further street address cleaning
 When creating merged sequences, we can decide if sequences should have the same street name or if this rule can be relaxed. We know that if this rule is specified, more sequences are generated- which suggests that without taking into account street name, some sequences have more than 1 street name. It could be useful to check if these sequences can identify errors in the street name cleaning process.
@@ -90,13 +234,23 @@ multi_st_seq <- seq_hn %>%
   group_by(merge_SEQ) %>%
   summarize(count = n_distinct(best_match)) %>%
   filter(count > 1)
+
+#multi_streets <- seq_hn %>%
+#  distinct(merge_SEQ, best_match, result_type)
+
+#multi_st_seq <- left_join(multi_st_seq, multi_streets, by = c(merge_SEQ = "merge_SEQ")) %>%
+#  filter(!is.na(best_match))
 ```
 
-```{r}
-multi_streets <- seq_hn %>%
-  distinct(merge_SEQ, best_match) # how to extract result type, what format
+# Next Steps
 
-multi_st_seq <- left_join(multi_st_seq, multi_streets, by = c(merge_SEQ = "merge_SEQ"))
-```
+1. Create scripts to automatically replace errant numbers (prev / next seq very similar in house number and all having the same street (matched with high confidence))  
 
-# ALSO should find other reasons why it might be broken
+
+
+
+
+
+
+
+
