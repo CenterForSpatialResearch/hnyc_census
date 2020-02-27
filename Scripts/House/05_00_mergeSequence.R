@@ -2,6 +2,8 @@
 ## The code below is for Rmd rendering
 ## @knitr  read_merge_fxs
 
+
+#---- mergeSeq() ----
 #' mergeSeq
 #'
 #' This is an internal function, called by appendMergeSeq(). It checks whether existing 
@@ -12,14 +14,16 @@
 #' This could produce unreliable merged sequences if street names are inaccurate. The 
 #' default is FALSE.
 #' @return TRUE if 2 unique `SEQ` can be merged into 1 merged sequence.
-mergeSeq <- function(sdf, check_street){
+mergeSeq <- function(sdf, jump_size = c(2, 30, 50), check_street = TRUE, check_parity = TRUE){
   
   if((sdf %>% pull(SEQ) %>% unique() %>% length) != 2){
     message("must provide 2 sequences:",sdf %>% pull(SEQ) %>% unique() %>% length)
     stop()
   }
-  par <- chkPar(sdf)
-  jump <- chkJump(sdf, 10)
+  jump <- chkJump(sdf, jump_size)
+  
+  if (check_parity) par <- chkPar(sdf)
+  else par <- TRUE
   
   #' Check street if turned on
   if(check_street) str <- chkStreet(sdf)
@@ -29,6 +33,7 @@ mergeSeq <- function(sdf, check_street){
   else return(FALSE)
 }
 
+# ---- mergeSeq Helper functions ----
 #' chkPar
 #'
 #' This is an internal function, called by mergeSeq(). It checks whether the number of 
@@ -64,21 +69,38 @@ chkStreet <- function(p1){
 #'
 #' This is an internal function, called by mergeSeq(). It checks whether house_nums in `p`
 #' skips with a size smaller than a certain jump size.
-#' @param p1 A dataframe with `house_num` column.
+#' @param p1 A dataframe with `hn_1` column.
 #' @return TRUE if the skips between consecutive house_nums in `p` are not greater than 
 #' `jump_size`. Otherwise, return `FALSE`.
 chkJump <- function(p1, jump_size){
-  x <- p1 %>% filter(!is.na(house_num)) %>% pull(house_num)
+  x <- p1 %>% filter(!is.na(hn_1)) %>% pull(hn_1) # change house_num to hn_1
+  
+  if (length(jump_size) != 3) {
+    warning("Jump size should be length 3")
+  }
   
   #' There can be only 1 or no house_num
   if (length(x)<2) return(TRUE)
   
-  for(i in seq(1, length(x)-1)){
-    if(abs(x[i] - x[i+1]) > jump_size) return(FALSE)
+  for(i in seq(1, length(x)-1)){ 
+    # if two house numbers are of different lengths, use the jump size of the smaller house number
+    curr_str_length = str_length(x[i])
+    next_str_length = str_length(x[i+1])
+    
+    if (curr_str_length > next_str_length) {
+      ind = next_str_length
+    } else {
+      ind = curr_str_length
+    }
+    
+    if (ind > length(jump_size)) {ind = length(jump_size)}
+
+    if(abs(x[i] - x[i+1]) > jump_size[ind]) return(FALSE)
   }
   return(TRUE)
 }
 
+#---- appendMergeSeq----
 #' appendMergeSeq
 #'
 #' This function returns a dataframe with a new column of merged sequence numbers (`merge_SEQ`). 
@@ -88,7 +110,7 @@ chkJump <- function(p1, jump_size){
 #' @export
 #' @examples
 #' HN7 <- appendMergeSeq(HN6) 
-appendMergeSeq <- function(sdf, check_street){
+appendMergeSeq <- function(sdf, jump_size = c(2, 30, 50), check_street = TRUE, check_parity = TRUE){
   
   #' Convert SEQ into numeric
   sdf <- sdf %>% mutate(SEQ = as.numeric(as.character(SEQ)))
@@ -102,8 +124,8 @@ appendMergeSeq <- function(sdf, check_street){
   
   #' Calls mergeSeq() to check if SEQ i can be mergeg into SEQ i-1
   mergeable <- c()
-  for(i in seq(1, length(seq_list)-1)){
-    mergeable[i]<-mergeSeq(rbind(df_by_SEQ[[i]], df_by_SEQ[[i+1]]), check_street = check_street)
+  for(i in seq(1, length(seq_list)-1)){ # loops through each seq
+    mergeable[i]<-mergeSeq(rbind(df_by_SEQ[[i]], df_by_SEQ[[i+1]]), jump_size = jump_size, check_street = check_street, check_parity = check_parity)
   }
   
   appended_df <- sdf %>% mutate(merge_SEQ = SEQ)
@@ -119,24 +141,28 @@ appendMergeSeq <- function(sdf, check_street){
   return(appended_df)
 }
 
-
+# ---- getMergeSeq----
 #' Wrap two step merging (subsequence and merged sequence) into 1 function
 #' It will be more efficicent to internalize subsequencne step into merged
 #' sequence step.
 #' @param df A dataframe with `house_num`, `best_match`, and `i` columns
-#' @param jump_size Used in the subsequence step. If house_num jumps > jump_size, 
+#' @param get_jump_size Used in the subsequence step. If house_num jumps > jump_size, 
 #' break into subsequences.
-#' @param check_street Used in the merged sequence step. If TRUE, in addition to,
-#' other conditions, subsequncecs must have the same street names to be merged
-#' into one.
+#' @param get_check_parity Used in the subsequence step. Should sequence generation check parity of house numbers?
+#' @param get_check_dir Used in the subsequence step. Should sequence generation check the direction (increasing/decreasing) of house numbers?
+#' @param get_check_street Used in the subsequence step. Should sequence generation check that all streets in the sequence are the same?
+#' @param get_jump_size Used in the subsequence step. Largest difference in house numbers in sequence generation. This should be a raw number, e.g. 10
+#' @param merge_jump_size Used in merging step. Should be a vector of jump sizes for each digit length, in the format of a vector, c(max_jump_2digithn, max_jump_3digithn, max_jump_4ormoredigithn). See '05__jump_size_EDA.Rmd' for how defaults were derived. 
+#' @param merge_check_street Used in merging step. Should merged sequences still have the same street name?
+#' @param merge_check_parity Used in merging step. Should merged sequences still have the same parity?
 #' @return A dataframe with `SEQ` and `merge_SEQ` columns attached.
 #' @export
 #' @example 
 #' HN7_hn <- getMergedSeq(HN5, jump_size = 500, check_street = FALSE)
 #' HN7_st <- getMergedSeq(HN5, jump_size = 500, check_street = TRUE)
-getMergedSeq <- function(df, jump_size = 500, check_street){
-  temp <- appendSeqCol(df, jump_size = 500, check_street = check_street)
-  HN7 <- appendMergeSeq(temp, check_street = check_street)
+getMergedSeq <- function(df, get_check_street = TRUE, get_check_parity = TRUE, get_check_dir = T, get_jump_size = 10, merge_jump_size = c(2, 30, 50), merge_check_street = T, merge_check_par = T){
+  temp <- appendSeqCol(df, check_street = get_check_street, check_parity = get_check_parity, check_dir = get_check_dir, jump_size = get_jump_size)
+  HN7 <- appendMergeSeq(temp, jump_size = merge_jump_size, check_street = merge_check_street, check_parity = merge_check_par)
   return(HN7)
 }
 
