@@ -6,6 +6,20 @@ Author: Jolene Lim
 # House Number Sequence Generation & Merging Change Log
 This documents changes to Bo's original functions.
 
+### Date: 26 Feb 2020
+STATUS: getMergeSeq() can now be used as a wrapper function to get and merge sequences. This should be the only function accessed by users. For **documentation** on how to use this function, check the function's roxygen comments.   
+
+Changes:  
+- Introduced adaptive jump sizes for merge sequence step  
+  - This asks users to set a jump size for each digit length, in the format of a vector, c(max_jump_2digithn, max_jump_3digithn, max_jump_4ormoredigithn). 
+- Cleaned up code (removed old versions of code + comments)  
+- getMergeSeq() now can incorporate both types of options- check params applied to get sequence and merge sequence (as e.g. jump sizes may differ for each stage)   
+
+Remaining Issues (Low Priority):  
+- Implement check direction for merge sequence, for now by default it is off  
+- Incorporating jump size checks using getDirectionalHeads()  
+  - can optimize code  
+
 ### Date: 25 Feb 2020
 Remaining Issues:  
 - **VERY HIGH**: How to deal with NAs? Right now, added new functionality to treat remove all NAs before sequence generation and simply fill down the SEQ for NA house numbers  
