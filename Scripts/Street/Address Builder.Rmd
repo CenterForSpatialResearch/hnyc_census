@@ -18,54 +18,44 @@ library(kableExtra)
 mn_output <- readRDS("../../Data/mn_output.rds")
 ```
 
+<br>
+
 ### 2. Street Builder
 
 ```{r}
 # Street type builder
 street_type_builder = function(df) {
   df$street_type = case_when(
-    str_detect(df$street_add, pattern = " ST") ~ "ST",
-    str_detect(df$street_add, pattern = " DR") ~ "DR",
-    str_detect(df$street_add, pattern = " CIR") ~ "CIR",
-    str_detect(df$street_add, pattern = " AVE") ~ "AVE",
-    str_detect(df$street_add, pattern = " PL") ~ "PL",
-    str_detect(df$street_add, pattern = " CT") ~ "CT",
-    str_detect(df$street_add, pattern = " PARK") ~ "PARK",
-    str_detect(df$street_add, pattern = " PLZ") ~ "PLZ",
-    str_detect(df$street_add, pattern = " PKWY") ~ "PKWY",
-    str_detect(df$street_add, pattern = " WAY") ~ "WAY",
-    str_detect(df$street_add, pattern = " ALY") ~ "ALY",
-    str_detect(df$street_add, pattern = " PIER") ~ "PIER",
-    str_detect(df$street_add, pattern = "PIER") ~ "PIER",
-    str_detect(df$street_add, pattern = " SLIP") ~ "SLIP",
-    str_detect(df$street_add, pattern = " ROW") ~ "ROW",
-    str_detect(df$street_add, pattern = " APPROACH") ~ "APPROACH",
-    str_detect(df$street_add, pattern = " LN") ~ "LN",
-    str_detect(df$street_add, pattern = " TER") ~ "TER",
-    str_detect(df$street_add, pattern = " HTS") ~ "HTS",
-    str_detect(df$street_add, pattern = " BLVD") ~ "BLVD",
-    str_detect(df$street_add, pattern = " BRG") ~ "BRG",
-    str_detect(df$street_add, pattern = " HL") ~ "HL",
-    str_detect(df$street_add, pattern = "AVE") ~ "AVE",
-    str_detect(df$street_add, pattern = "BROADWAY") ~ "AVE")
+    str_detect(df$best_match, pattern = " ST") ~ "ST",
+    str_detect(df$best_match, pattern = " DR") ~ "DR",
+    str_detect(df$best_match, pattern = " CIR") ~ "CIR",
+    str_detect(df$best_match, pattern = " AVE") ~ "AVE",
+    str_detect(df$best_match, pattern = " PL") ~ "PL",
+    str_detect(df$best_match, pattern = " CT") ~ "CT",
+    str_detect(df$best_match, pattern = " PARK") ~ "PARK",
+    str_detect(df$best_match, pattern = " PLZ") ~ "PLZ",
+    str_detect(df$best_match, pattern = " PKWY") ~ "PKWY",
+    str_detect(df$best_match, pattern = " WAY") ~ "WAY",
+    str_detect(df$best_match, pattern = " ALY") ~ "ALY",
+    str_detect(df$best_match, pattern = " PIER") ~ "PIER",
+    str_detect(df$best_match, pattern = "PIER") ~ "PIER",
+    str_detect(df$best_match, pattern = " SLIP") ~ "SLIP",
+    str_detect(df$best_match, pattern = " ROW") ~ "ROW",
+    str_detect(df$best_match, pattern = " APPROACH") ~ "APPROACH",
+    str_detect(df$best_match, pattern = " LN") ~ "LN",
+    str_detect(df$best_match, pattern = " TER") ~ "TER",
+    str_detect(df$best_match, pattern = " HTS") ~ "HTS",
+    str_detect(df$best_match, pattern = " BLVD") ~ "BLVD",
+    str_detect(df$best_match, pattern = " BRG") ~ "BRG",
+    str_detect(df$best_match, pattern = " HL") ~ "HL",
+    str_detect(df$best_match, pattern = "AVE") ~ "AVE",
+    str_detect(df$best_match, pattern = "BROADWAY") ~ "AVE",
+    TRUE ~ "ST")
   
   return(df)
 }
-```
 
-
-```{r}
-# Inspecting results
 mn_output = street_type_builder(mn_output)
-```
-
-There are `r mn_output$street_type %>% is.na() %>% sum()` that have `NA` values for their street type after processing, shown below.
-
-```{r}
-mn_output %>%
-  filter(is.na(street_type)) %>%
-  select(street_add) %>%
-  unique()
 ```
 
 <br>
@@ -81,7 +71,7 @@ The function takes three variables `hn_1`, `best_match` and `street_type`, and c
 ```{r}
 build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
   
-  # Variables used for Concatenate
+  # Variables used for Concatenate, replacing with empty string in order to sanitise input for functions below. Also because otherwise NA would be concatenated
   tmp_hn              = ifelse(!is.na(df$hn_1),
                                df$hn_1,
                                "")
@@ -92,7 +82,7 @@ build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
                                df$street_type,
                                "")
   
-  # Spell Avenue numerics
+  # Spell Avenue numerics if TRUE
   if (spell_ave == TRUE) {
     
     tmp_hn = ifelse(str_detect(tmp_street_type, 
@@ -101,7 +91,7 @@ build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
                     tmp_hn)
   }
   
-  # Adding suffixes to numerics
+  # Adding suffixes to numerics if TRUE
   if (suffix == TRUE) {
     
     tmp_ordinal = str_extract(tmp_best_match, 
@@ -119,6 +109,12 @@ build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
                                  tmp_ordinal)
   }
   
+  # Removing duplicated street type if street type already in best match for street types that are not "ST"
+  tmp_street_type = ifelse(str_detect(tmp_best_match,
+                                      pattern = paste0(tmp_street_type, "$")),
+                           "",
+                           tmp_street_type)
+  
   # Concatenating Address
   addr = paste(tmp_hn, 
                tmp_best_match, 
@@ -126,8 +122,8 @@ build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
     str_trim(side = "both") %>%
     toupper()
   
-  # Replacing missing values with NA
-  addr = ifelse(addr == "",
+  # Replacing empty strings back with NA
+  addr = ifelse(addr == "" | str_detect(addr, pattern = "^ST$"),
                 NA_character_,
                 addr)
   return(addr)
@@ -139,7 +135,7 @@ build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
 ### 3. Examples
 
 ```{r}
-set.seed(12345)
+set.seed(2468)
 index = sample(NROW(mn_output), 100)
 examples = mn_output[index,]
 
@@ -164,9 +160,6 @@ data.frame(hn_1 = examples$hn_1,
 
 ### 4. Future Improvements
 
-* Function is still a little buggy, and some `NA`s exist
-* `map` is performing slowly, and code needs to be optimised to run faster
-
-<br>
+* Function works as expected but code could be improved and cut down to be more efficient
 
 ***

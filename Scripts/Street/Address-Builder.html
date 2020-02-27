@@ -389,60 +389,43 @@ library(knitr)
 library(kableExtra)
 
 mn_output &lt;- readRDS(&quot;../../Data/mn_output.rds&quot;)</code></pre>
+<p><br></p>
 </div>
 <div id="street-builder" class="section level3">
 <h3>2. Street Builder</h3>
 <pre class="r"><code># Street type builder
 street_type_builder = function(df) {
   df$street_type = case_when(
-    str_detect(df$street_add, pattern = &quot; ST&quot;) ~ &quot;ST&quot;,
-    str_detect(df$street_add, pattern = &quot; DR&quot;) ~ &quot;DR&quot;,
-    str_detect(df$street_add, pattern = &quot; CIR&quot;) ~ &quot;CIR&quot;,
-    str_detect(df$street_add, pattern = &quot; AVE&quot;) ~ &quot;AVE&quot;,
-    str_detect(df$street_add, pattern = &quot; PL&quot;) ~ &quot;PL&quot;,
-    str_detect(df$street_add, pattern = &quot; CT&quot;) ~ &quot;CT&quot;,
-    str_detect(df$street_add, pattern = &quot; PARK&quot;) ~ &quot;PARK&quot;,
-    str_detect(df$street_add, pattern = &quot; PLZ&quot;) ~ &quot;PLZ&quot;,
-    str_detect(df$street_add, pattern = &quot; PKWY&quot;) ~ &quot;PKWY&quot;,
-    str_detect(df$street_add, pattern = &quot; WAY&quot;) ~ &quot;WAY&quot;,
-    str_detect(df$street_add, pattern = &quot; ALY&quot;) ~ &quot;ALY&quot;,
-    str_detect(df$street_add, pattern = &quot; PIER&quot;) ~ &quot;PIER&quot;,
-    str_detect(df$street_add, pattern = &quot;PIER&quot;) ~ &quot;PIER&quot;,
-    str_detect(df$street_add, pattern = &quot; SLIP&quot;) ~ &quot;SLIP&quot;,
-    str_detect(df$street_add, pattern = &quot; ROW&quot;) ~ &quot;ROW&quot;,
-    str_detect(df$street_add, pattern = &quot; APPROACH&quot;) ~ &quot;APPROACH&quot;,
-    str_detect(df$street_add, pattern = &quot; LN&quot;) ~ &quot;LN&quot;,
-    str_detect(df$street_add, pattern = &quot; TER&quot;) ~ &quot;TER&quot;,
-    str_detect(df$street_add, pattern = &quot; HTS&quot;) ~ &quot;HTS&quot;,
-    str_detect(df$street_add, pattern = &quot; BLVD&quot;) ~ &quot;BLVD&quot;,
-    str_detect(df$street_add, pattern = &quot; BRG&quot;) ~ &quot;BRG&quot;,
-    str_detect(df$street_add, pattern = &quot; HL&quot;) ~ &quot;HL&quot;,
-    str_detect(df$street_add, pattern = &quot;AVE&quot;) ~ &quot;AVE&quot;,
-    str_detect(df$street_add, pattern = &quot;BROADWAY&quot;) ~ &quot;AVE&quot;)
+    str_detect(df$best_match, pattern = &quot; ST&quot;) ~ &quot;ST&quot;,
+    str_detect(df$best_match, pattern = &quot; DR&quot;) ~ &quot;DR&quot;,
+    str_detect(df$best_match, pattern = &quot; CIR&quot;) ~ &quot;CIR&quot;,
+    str_detect(df$best_match, pattern = &quot; AVE&quot;) ~ &quot;AVE&quot;,
+    str_detect(df$best_match, pattern = &quot; PL&quot;) ~ &quot;PL&quot;,
+    str_detect(df$best_match, pattern = &quot; CT&quot;) ~ &quot;CT&quot;,
+    str_detect(df$best_match, pattern = &quot; PARK&quot;) ~ &quot;PARK&quot;,
+    str_detect(df$best_match, pattern = &quot; PLZ&quot;) ~ &quot;PLZ&quot;,
+    str_detect(df$best_match, pattern = &quot; PKWY&quot;) ~ &quot;PKWY&quot;,
+    str_detect(df$best_match, pattern = &quot; WAY&quot;) ~ &quot;WAY&quot;,
+    str_detect(df$best_match, pattern = &quot; ALY&quot;) ~ &quot;ALY&quot;,
+    str_detect(df$best_match, pattern = &quot; PIER&quot;) ~ &quot;PIER&quot;,
+    str_detect(df$best_match, pattern = &quot;PIER&quot;) ~ &quot;PIER&quot;,
+    str_detect(df$best_match, pattern = &quot; SLIP&quot;) ~ &quot;SLIP&quot;,
+    str_detect(df$best_match, pattern = &quot; ROW&quot;) ~ &quot;ROW&quot;,
+    str_detect(df$best_match, pattern = &quot; APPROACH&quot;) ~ &quot;APPROACH&quot;,
+    str_detect(df$best_match, pattern = &quot; LN&quot;) ~ &quot;LN&quot;,
+    str_detect(df$best_match, pattern = &quot; TER&quot;) ~ &quot;TER&quot;,
+    str_detect(df$best_match, pattern = &quot; HTS&quot;) ~ &quot;HTS&quot;,
+    str_detect(df$best_match, pattern = &quot; BLVD&quot;) ~ &quot;BLVD&quot;,
+    str_detect(df$best_match, pattern = &quot; BRG&quot;) ~ &quot;BRG&quot;,
+    str_detect(df$best_match, pattern = &quot; HL&quot;) ~ &quot;HL&quot;,
+    str_detect(df$best_match, pattern = &quot;AVE&quot;) ~ &quot;AVE&quot;,
+    str_detect(df$best_match, pattern = &quot;BROADWAY&quot;) ~ &quot;AVE&quot;,
+    TRUE ~ &quot;ST&quot;)
   
   return(df)
-}</code></pre>
-<pre class="r"><code># Inspecting results
+}
+
 mn_output = street_type_builder(mn_output)</code></pre>
-<p>There are 69931 that have <code>NA</code> values for their street type after processing, shown below.</p>
-<pre class="r"><code>mn_output %&gt;%
-  filter(is.na(street_type)) %&gt;%
-  select(street_add) %&gt;%
-  unique()</code></pre>
-<pre><code>## # A tibble: 1,795 x 1
-##    street_add  
-##    &lt;chr&gt;       
-##  1 WILLIAM     
-##  2 NEW CHAMBERS
-##  3 NEW BOCSY   
-##  4 PANEL       
-##  5 KORE        
-##  6 REAL        
-##  7 PEALER      
-##  8 ROSE        
-##  9 NEW CHAMALE 
-## 10 NEW CHAMAINE
-## # ... with 1,785 more rows</code></pre>
 <p><br></p>
 </div>
 <div id="address-builder" class="section level3">
@@ -454,7 +437,7 @@ mn_output = street_type_builder(mn_output)</code></pre>
 </ul>
 <pre class="r"><code>build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
   
-  # Variables used for Concatenate
+  # Variables used for Concatenate, replacing with empty string in order to sanitise input for functions below. Also because otherwise NA would be concatenated
   tmp_hn              = ifelse(!is.na(df$hn_1),
                                df$hn_1,
                                &quot;&quot;)
@@ -465,7 +448,7 @@ mn_output = street_type_builder(mn_output)</code></pre>
                                df$street_type,
                                &quot;&quot;)
   
-  # Spell Avenue numerics
+  # Spell Avenue numerics if TRUE
   if (spell_ave == TRUE) {
     
     tmp_hn = ifelse(str_detect(tmp_street_type, 
@@ -474,7 +457,7 @@ mn_output = street_type_builder(mn_output)</code></pre>
                     tmp_hn)
   }
   
-  # Adding suffixes to numerics
+  # Adding suffixes to numerics if TRUE
   if (suffix == TRUE) {
     
     tmp_ordinal = str_extract(tmp_best_match, 
@@ -492,6 +475,12 @@ mn_output = street_type_builder(mn_output)</code></pre>
                                  tmp_ordinal)
   }
   
+  # Removing duplicated street type if street type already in best match for street types that are not &quot;ST&quot;
+  tmp_street_type = ifelse(str_detect(tmp_best_match,
+                                      pattern = paste0(tmp_street_type, &quot;$&quot;)),
+                           &quot;&quot;,
+                           tmp_street_type)
+  
   # Concatenating Address
   addr = paste(tmp_hn, 
                tmp_best_match, 
@@ -499,8 +488,8 @@ mn_output = street_type_builder(mn_output)</code></pre>
     str_trim(side = &quot;both&quot;) %&gt;%
     toupper()
   
-  # Replacing missing values with NA
-  addr = ifelse(addr == &quot;&quot;,
+  # Replacing empty strings back with NA
+  addr = ifelse(addr == &quot;&quot; | str_detect(addr, pattern = &quot;^ST$&quot;),
                 NA_character_,
                 addr)
   return(addr)
@@ -509,7 +498,7 @@ mn_output = street_type_builder(mn_output)</code></pre>
 </div>
 <div id="examples" class="section level3">
 <h3>3. Examples</h3>
-<pre class="r"><code>set.seed(12345)
+<pre class="r"><code>set.seed(2468)
 index = sample(NROW(mn_output), 100)
 examples = mn_output[index,]
 
@@ -561,68 +550,22 @@ both_true
 NA
 </td>
 <td style="text-align:left;">
-W 115
+NY ASYLUM SISTERS DOMINIC
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-W 115 ST
+NY ASYLUM SISTERS DOMINIC ST
 </td>
 <td style="text-align:left;">
-W 115 ST
+NY ASYLUM SISTERS DOMINIC ST
 </td>
 <td style="text-align:left;">
-W 115TH ST
+NY ASYLUM SISTERS DOMINIC ST
 </td>
 <td style="text-align:left;">
-W 115TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-132
-</td>
-<td style="text-align:left;">
-COLUMBIA
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-132 COLUMBIA ST
-</td>
-<td style="text-align:left;">
-132 COLUMBIA ST
-</td>
-<td style="text-align:left;">
-132 COLUMBIA ST
-</td>
-<td style="text-align:left;">
-132 COLUMBIA ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:left;">
-W 90
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-2 W 90 ST
-</td>
-<td style="text-align:left;">
-2 W 90 ST
-</td>
-<td style="text-align:left;">
-2 W 90TH ST
-</td>
-<td style="text-align:left;">
-2 W 90TH ST
+NY ASYLUM SISTERS DOMINIC ST
 </td>
 </tr>
 <tr>
@@ -630,22 +573,22 @@ ST
 NA
 </td>
 <td style="text-align:left;">
-E 33
+E 105
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-E 33 ST
+E 105 ST
 </td>
 <td style="text-align:left;">
-E 33 ST
+E 105 ST
 </td>
 <td style="text-align:left;">
-E 33RD ST
+E 105TH ST
 </td>
 <td style="text-align:left;">
-E 33RD ST
+E 105TH ST
 </td>
 </tr>
 <tr>
@@ -653,22 +596,22 @@ E 33RD ST
 NA
 </td>
 <td style="text-align:left;">
-E HOUSTON
+BLVD LAFAYETTE
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-E HOUSTON ST
+BLVD LAFAYETTE ST
 </td>
 <td style="text-align:left;">
-E HOUSTON ST
+BLVD LAFAYETTE ST
 </td>
 <td style="text-align:left;">
-E HOUSTON ST
+BLVD LAFAYETTE ST
 </td>
 <td style="text-align:left;">
-E HOUSTON ST
+BLVD LAFAYETTE ST
 </td>
 </tr>
 <tr>
@@ -676,73 +619,418 @@ E HOUSTON ST
 NA
 </td>
 <td style="text-align:left;">
-AVE B
+RANDALLS ISLAND
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+RANDALLS ISLAND ST
+</td>
+<td style="text-align:left;">
+RANDALLS ISLAND ST
+</td>
+<td style="text-align:left;">
+RANDALLS ISLAND ST
+</td>
+<td style="text-align:left;">
+RANDALLS ISLAND ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+MONTGOMERY
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+MONTGOMERY ST
+</td>
+<td style="text-align:left;">
+MONTGOMERY ST
+</td>
+<td style="text-align:left;">
+MONTGOMERY ST
+</td>
+<td style="text-align:left;">
+MONTGOMERY ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+E 66
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+E 66 ST
+</td>
+<td style="text-align:left;">
+E 66 ST
+</td>
+<td style="text-align:left;">
+E 66TH ST
+</td>
+<td style="text-align:left;">
+E 66TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+E 42
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+E 42 ST
+</td>
+<td style="text-align:left;">
+E 42 ST
+</td>
+<td style="text-align:left;">
+E 42ND ST
+</td>
+<td style="text-align:left;">
+E 42ND ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+MONTGOMERY
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+MONTGOMERY ST
+</td>
+<td style="text-align:left;">
+MONTGOMERY ST
+</td>
+<td style="text-align:left;">
+MONTGOMERY ST
+</td>
+<td style="text-align:left;">
+MONTGOMERY ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+320
+</td>
+<td style="text-align:left;">
+E 69
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+320 E 69 ST
+</td>
+<td style="text-align:left;">
+320 E 69 ST
+</td>
+<td style="text-align:left;">
+320 E 69TH ST
+</td>
+<td style="text-align:left;">
+320 E 69TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+571
+</td>
+<td style="text-align:left;">
+LEX AVE
 </td>
 <td style="text-align:left;">
 AVE
 </td>
 <td style="text-align:left;">
-AVE B AVE
+571 LEX AVE
 </td>
 <td style="text-align:left;">
-AVE B AVE
+FIVE HUNDRED AND SEVENTY-ONE LEX AVE
 </td>
 <td style="text-align:left;">
-AVE B AVE
+571 LEX AVE
 </td>
 <td style="text-align:left;">
-AVE B AVE
+FIVE HUNDRED AND SEVENTY-ONE LEX AVE
 </td>
 </tr>
 <tr>
 <td style="text-align:right;">
+500
+</td>
+<td style="text-align:left;">
 NA
-</td>
-<td style="text-align:left;">
-MADISON AVE
-</td>
-<td style="text-align:left;">
-AVE
-</td>
-<td style="text-align:left;">
-MADISON AVE AVE
-</td>
-<td style="text-align:left;">
-MADISON AVE AVE
-</td>
-<td style="text-align:left;">
-MADISON AVE AVE
-</td>
-<td style="text-align:left;">
-MADISON AVE AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-259
-</td>
-<td style="text-align:left;">
-W 4
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-259 W 4 ST
+500 ST
 </td>
 <td style="text-align:left;">
-259 W 4 ST
+500 ST
 </td>
 <td style="text-align:left;">
-259 W 4TH ST
+500 ST
 </td>
 <td style="text-align:left;">
-259 W 4TH ST
+500 ST
 </td>
 </tr>
 <tr>
 <td style="text-align:right;">
 NA
+</td>
+<td style="text-align:left;">
+BROADWAY
+</td>
+<td style="text-align:left;">
+AVE
+</td>
+<td style="text-align:left;">
+BROADWAY AVE
+</td>
+<td style="text-align:left;">
+BROADWAY AVE
+</td>
+<td style="text-align:left;">
+BROADWAY AVE
+</td>
+<td style="text-align:left;">
+BROADWAY AVE
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+10 AVE
+</td>
+<td style="text-align:left;">
+AVE
+</td>
+<td style="text-align:left;">
+10 AVE
+</td>
+<td style="text-align:left;">
+10 AVE
+</td>
+<td style="text-align:left;">
+10TH AVE
+</td>
+<td style="text-align:left;">
+10TH AVE
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+524
+</td>
+<td style="text-align:left;">
+W 49
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+524 W 49 ST
+</td>
+<td style="text-align:left;">
+524 W 49 ST
+</td>
+<td style="text-align:left;">
+524 W 49TH ST
+</td>
+<td style="text-align:left;">
+524 W 49TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:left;">
+KING
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+3 KING ST
+</td>
+<td style="text-align:left;">
+3 KING ST
+</td>
+<td style="text-align:left;">
+3 KING ST
+</td>
+<td style="text-align:left;">
+3 KING ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+W 110
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+W 110 ST
+</td>
+<td style="text-align:left;">
+W 110 ST
+</td>
+<td style="text-align:left;">
+W 110TH ST
+</td>
+<td style="text-align:left;">
+W 110TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+687
+</td>
+<td style="text-align:left;">
+WASHINGTON
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+687 WASHINGTON ST
+</td>
+<td style="text-align:left;">
+687 WASHINGTON ST
+</td>
+<td style="text-align:left;">
+687 WASHINGTON ST
+</td>
+<td style="text-align:left;">
+687 WASHINGTON ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+E 114
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+E 114 ST
+</td>
+<td style="text-align:left;">
+E 114 ST
+</td>
+<td style="text-align:left;">
+E 114TH ST
+</td>
+<td style="text-align:left;">
+E 114TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+218
 </td>
 <td style="text-align:left;">
 E 118
@@ -751,39 +1039,982 @@ E 118
 ST
 </td>
 <td style="text-align:left;">
-E 118 ST
+218 E 118 ST
 </td>
 <td style="text-align:left;">
-E 118 ST
+218 E 118 ST
 </td>
 <td style="text-align:left;">
-E 118TH ST
+218 E 118TH ST
 </td>
 <td style="text-align:left;">
-E 118TH ST
+218 E 118TH ST
 </td>
 </tr>
 <tr>
 <td style="text-align:right;">
-211
+NA
 </td>
 <td style="text-align:left;">
-W 23
+W 183
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-211 W 23 ST
+W 183 ST
 </td>
 <td style="text-align:left;">
-211 W 23 ST
+W 183 ST
 </td>
 <td style="text-align:left;">
-211 W 23RD ST
+W 183RD ST
 </td>
 <td style="text-align:left;">
-211 W 23RD ST
+W 183RD ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+213
+</td>
+<td style="text-align:left;">
+E 97
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+213 E 97 ST
+</td>
+<td style="text-align:left;">
+213 E 97 ST
+</td>
+<td style="text-align:left;">
+213 E 97TH ST
+</td>
+<td style="text-align:left;">
+213 E 97TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+PELL
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+PELL ST
+</td>
+<td style="text-align:left;">
+PELL ST
+</td>
+<td style="text-align:left;">
+PELL ST
+</td>
+<td style="text-align:left;">
+PELL ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+141
+</td>
+<td style="text-align:left;">
+W 117
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+141 W 117 ST
+</td>
+<td style="text-align:left;">
+141 W 117 ST
+</td>
+<td style="text-align:left;">
+141 W 117TH ST
+</td>
+<td style="text-align:left;">
+141 W 117TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+ELIZABETH
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+ELIZABETH ST
+</td>
+<td style="text-align:left;">
+ELIZABETH ST
+</td>
+<td style="text-align:left;">
+ELIZABETH ST
+</td>
+<td style="text-align:left;">
+ELIZABETH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+W 52
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+W 52 ST
+</td>
+<td style="text-align:left;">
+W 52 ST
+</td>
+<td style="text-align:left;">
+W 52ND ST
+</td>
+<td style="text-align:left;">
+W 52ND ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+107
+</td>
+<td style="text-align:left;">
+W 35
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+107 W 35 ST
+</td>
+<td style="text-align:left;">
+107 W 35 ST
+</td>
+<td style="text-align:left;">
+107 W 35TH ST
+</td>
+<td style="text-align:left;">
+107 W 35TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+231
+</td>
+<td style="text-align:left;">
+BOWERY
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+231 BOWERY ST
+</td>
+<td style="text-align:left;">
+231 BOWERY ST
+</td>
+<td style="text-align:left;">
+231 BOWERY ST
+</td>
+<td style="text-align:left;">
+231 BOWERY ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+14
+</td>
+<td style="text-align:left;">
+FORSYTH
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+14 FORSYTH ST
+</td>
+<td style="text-align:left;">
+14 FORSYTH ST
+</td>
+<td style="text-align:left;">
+14 FORSYTH ST
+</td>
+<td style="text-align:left;">
+14 FORSYTH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+20
+</td>
+<td style="text-align:left;">
+W 131
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+20 W 131 ST
+</td>
+<td style="text-align:left;">
+20 W 131 ST
+</td>
+<td style="text-align:left;">
+20 W 131ST ST
+</td>
+<td style="text-align:left;">
+20 W 131ST ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+W 99
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+W 99 ST
+</td>
+<td style="text-align:left;">
+W 99 ST
+</td>
+<td style="text-align:left;">
+W 99TH ST
+</td>
+<td style="text-align:left;">
+W 99TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+46
+</td>
+<td style="text-align:left;">
+BANK
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+46 BANK ST
+</td>
+<td style="text-align:left;">
+46 BANK ST
+</td>
+<td style="text-align:left;">
+46 BANK ST
+</td>
+<td style="text-align:left;">
+46 BANK ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+571
+</td>
+<td style="text-align:left;">
+LEX AVE
+</td>
+<td style="text-align:left;">
+AVE
+</td>
+<td style="text-align:left;">
+571 LEX AVE
+</td>
+<td style="text-align:left;">
+FIVE HUNDRED AND SEVENTY-ONE LEX AVE
+</td>
+<td style="text-align:left;">
+571 LEX AVE
+</td>
+<td style="text-align:left;">
+FIVE HUNDRED AND SEVENTY-ONE LEX AVE
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+W 166
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+W 166 ST
+</td>
+<td style="text-align:left;">
+W 166 ST
+</td>
+<td style="text-align:left;">
+W 166TH ST
+</td>
+<td style="text-align:left;">
+W 166TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+NORFOLK
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+NORFOLK ST
+</td>
+<td style="text-align:left;">
+NORFOLK ST
+</td>
+<td style="text-align:left;">
+NORFOLK ST
+</td>
+<td style="text-align:left;">
+NORFOLK ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+230
+</td>
+<td style="text-align:left;">
+THOMPSON
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+230 THOMPSON ST
+</td>
+<td style="text-align:left;">
+230 THOMPSON ST
+</td>
+<td style="text-align:left;">
+230 THOMPSON ST
+</td>
+<td style="text-align:left;">
+230 THOMPSON ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+W 185
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+W 185 ST
+</td>
+<td style="text-align:left;">
+W 185 ST
+</td>
+<td style="text-align:left;">
+W 185TH ST
+</td>
+<td style="text-align:left;">
+W 185TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+331
+</td>
+<td style="text-align:left;">
+E 69
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+331 E 69 ST
+</td>
+<td style="text-align:left;">
+331 E 69 ST
+</td>
+<td style="text-align:left;">
+331 E 69TH ST
+</td>
+<td style="text-align:left;">
+331 E 69TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+W 81
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+W 81 ST
+</td>
+<td style="text-align:left;">
+W 81 ST
+</td>
+<td style="text-align:left;">
+W 81ST ST
+</td>
+<td style="text-align:left;">
+W 81ST ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+7
+</td>
+<td style="text-align:left;">
+WALKER
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+7 WALKER ST
+</td>
+<td style="text-align:left;">
+7 WALKER ST
+</td>
+<td style="text-align:left;">
+7 WALKER ST
+</td>
+<td style="text-align:left;">
+7 WALKER ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+87
+</td>
+<td style="text-align:left;">
+E 4
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+87 E 4 ST
+</td>
+<td style="text-align:left;">
+87 E 4 ST
+</td>
+<td style="text-align:left;">
+87 E 4TH ST
+</td>
+<td style="text-align:left;">
+87 E 4TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+142
+</td>
+<td style="text-align:left;">
+W 49
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+142 W 49 ST
+</td>
+<td style="text-align:left;">
+142 W 49 ST
+</td>
+<td style="text-align:left;">
+142 W 49TH ST
+</td>
+<td style="text-align:left;">
+142 W 49TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+20
+</td>
+<td style="text-align:left;">
+W 65
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+20 W 65 ST
+</td>
+<td style="text-align:left;">
+20 W 65 ST
+</td>
+<td style="text-align:left;">
+20 W 65TH ST
+</td>
+<td style="text-align:left;">
+20 W 65TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+FORSYTH
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+FORSYTH ST
+</td>
+<td style="text-align:left;">
+FORSYTH ST
+</td>
+<td style="text-align:left;">
+FORSYTH ST
+</td>
+<td style="text-align:left;">
+FORSYTH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+PARK AVE
+</td>
+<td style="text-align:left;">
+AVE
+</td>
+<td style="text-align:left;">
+PARK AVE
+</td>
+<td style="text-align:left;">
+PARK AVE
+</td>
+<td style="text-align:left;">
+PARK AVE
+</td>
+<td style="text-align:left;">
+PARK AVE
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+751
+</td>
+<td style="text-align:left;">
+E 40
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+751 E 40 ST
+</td>
+<td style="text-align:left;">
+751 E 40 ST
+</td>
+<td style="text-align:left;">
+751 E 40TH ST
+</td>
+<td style="text-align:left;">
+751 E 40TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+1022
+</td>
+<td style="text-align:left;">
+3 AVE
+</td>
+<td style="text-align:left;">
+AVE
+</td>
+<td style="text-align:left;">
+1022 3 AVE
+</td>
+<td style="text-align:left;">
+ONE THOUSAND AND TWENTY-TWO 3 AVE
+</td>
+<td style="text-align:left;">
+1022 3RD AVE
+</td>
+<td style="text-align:left;">
+ONE THOUSAND AND TWENTY-TWO 3RD AVE
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+E 112
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+E 112 ST
+</td>
+<td style="text-align:left;">
+E 112 ST
+</td>
+<td style="text-align:left;">
+E 112TH ST
+</td>
+<td style="text-align:left;">
+E 112TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+149
+</td>
+<td style="text-align:left;">
+W 63
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+149 W 63 ST
+</td>
+<td style="text-align:left;">
+149 W 63 ST
+</td>
+<td style="text-align:left;">
+149 W 63RD ST
+</td>
+<td style="text-align:left;">
+149 W 63RD ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+224
+</td>
+<td style="text-align:left;">
+E 42
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+224 E 42 ST
+</td>
+<td style="text-align:left;">
+224 E 42 ST
+</td>
+<td style="text-align:left;">
+224 E 42ND ST
+</td>
+<td style="text-align:left;">
+224 E 42ND ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+361
+</td>
+<td style="text-align:left;">
+W 27
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+361 W 27 ST
+</td>
+<td style="text-align:left;">
+361 W 27 ST
+</td>
+<td style="text-align:left;">
+361 W 27TH ST
+</td>
+<td style="text-align:left;">
+361 W 27TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+224
+</td>
+<td style="text-align:left;">
+W 138
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+224 W 138 ST
+</td>
+<td style="text-align:left;">
+224 W 138 ST
+</td>
+<td style="text-align:left;">
+224 W 138TH ST
+</td>
+<td style="text-align:left;">
+224 W 138TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+104
+</td>
+<td style="text-align:left;">
+W 96
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+104 W 96 ST
+</td>
+<td style="text-align:left;">
+104 W 96 ST
+</td>
+<td style="text-align:left;">
+104 W 96TH ST
+</td>
+<td style="text-align:left;">
+104 W 96TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+123
+</td>
+<td style="text-align:left;">
+W 28
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+123 W 28 ST
+</td>
+<td style="text-align:left;">
+123 W 28 ST
+</td>
+<td style="text-align:left;">
+123 W 28TH ST
+</td>
+<td style="text-align:left;">
+123 W 28TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+E 120
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+E 120 ST
+</td>
+<td style="text-align:left;">
+E 120 ST
+</td>
+<td style="text-align:left;">
+E 120TH ST
+</td>
+<td style="text-align:left;">
+E 120TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+1574
+</td>
+<td style="text-align:left;">
+2 AVE
+</td>
+<td style="text-align:left;">
+AVE
+</td>
+<td style="text-align:left;">
+1574 2 AVE
+</td>
+<td style="text-align:left;">
+ONE THOUSAND FIVE HUNDRED AND SEVENTY-FOUR 2 AVE
+</td>
+<td style="text-align:left;">
+1574 2ND AVE
+</td>
+<td style="text-align:left;">
+ONE THOUSAND FIVE HUNDRED AND SEVENTY-FOUR 2ND AVE
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+E 15
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+E 15 ST
+</td>
+<td style="text-align:left;">
+E 15 ST
+</td>
+<td style="text-align:left;">
+E 15TH ST
+</td>
+<td style="text-align:left;">
+E 15TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+MULBERRY
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+MULBERRY ST
+</td>
+<td style="text-align:left;">
+MULBERRY ST
+</td>
+<td style="text-align:left;">
+MULBERRY ST
+</td>
+<td style="text-align:left;">
+MULBERRY ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+E 72
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+E 72 ST
+</td>
+<td style="text-align:left;">
+E 72 ST
+</td>
+<td style="text-align:left;">
+E 72ND ST
+</td>
+<td style="text-align:left;">
+E 72ND ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+W 136
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+W 136 ST
+</td>
+<td style="text-align:left;">
+W 136 ST
+</td>
+<td style="text-align:left;">
+W 136TH ST
+</td>
+<td style="text-align:left;">
+W 136TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
 </td>
 </tr>
 <tr>
@@ -814,183 +2045,22 @@ W 118TH ST
 NA
 </td>
 <td style="text-align:left;">
-E 101
+W 125
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-E 101 ST
+W 125 ST
 </td>
 <td style="text-align:left;">
-E 101 ST
+W 125 ST
 </td>
 <td style="text-align:left;">
-E 101ST ST
+W 125TH ST
 </td>
 <td style="text-align:left;">
-E 101ST ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-3 AVE
-</td>
-<td style="text-align:left;">
-AVE
-</td>
-<td style="text-align:left;">
-3 AVE AVE
-</td>
-<td style="text-align:left;">
-3 AVE AVE
-</td>
-<td style="text-align:left;">
-3RD AVE AVE
-</td>
-<td style="text-align:left;">
-3RD AVE AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W 56
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 56 ST
-</td>
-<td style="text-align:left;">
-W 56 ST
-</td>
-<td style="text-align:left;">
-W 56TH ST
-</td>
-<td style="text-align:left;">
-W 56TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-E 131
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-E 131 ST
-</td>
-<td style="text-align:left;">
-E 131 ST
-</td>
-<td style="text-align:left;">
-E 131ST ST
-</td>
-<td style="text-align:left;">
-E 131ST ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-EDGECOMBE AVE
-</td>
-<td style="text-align:left;">
-AVE
-</td>
-<td style="text-align:left;">
-EDGECOMBE AVE AVE
-</td>
-<td style="text-align:left;">
-EDGECOMBE AVE AVE
-</td>
-<td style="text-align:left;">
-EDGECOMBE AVE AVE
-</td>
-<td style="text-align:left;">
-EDGECOMBE AVE AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-RIVINGTON
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-RIVINGTON ST
-</td>
-<td style="text-align:left;">
-RIVINGTON ST
-</td>
-<td style="text-align:left;">
-RIVINGTON ST
-</td>
-<td style="text-align:left;">
-RIVINGTON ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-587
-</td>
-<td style="text-align:left;">
-1 AVE
-</td>
-<td style="text-align:left;">
-AVE
-</td>
-<td style="text-align:left;">
-587 1 AVE AVE
-</td>
-<td style="text-align:left;">
-FIVE HUNDRED AND EIGHTY-SEVEN 1 AVE AVE
-</td>
-<td style="text-align:left;">
-587 1ST AVE AVE
-</td>
-<td style="text-align:left;">
-FIVE HUNDRED AND EIGHTY-SEVEN 1ST AVE AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-BROOME
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-BROOME ST
-</td>
-<td style="text-align:left;">
-BROOME ST
-</td>
-<td style="text-align:left;">
-BROOME ST
-</td>
-<td style="text-align:left;">
-BROOME ST
+W 125TH ST
 </td>
 </tr>
 <tr>
@@ -1021,22 +2091,45 @@ W 61ST ST
 NA
 </td>
 <td style="text-align:left;">
-E 12
+E 112
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-E 12 ST
+E 112 ST
 </td>
 <td style="text-align:left;">
-E 12 ST
+E 112 ST
 </td>
 <td style="text-align:left;">
-E 12TH ST
+E 112TH ST
 </td>
 <td style="text-align:left;">
-E 12TH ST
+E 112TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+225
+</td>
+<td style="text-align:left;">
+CHRYSTIE
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+225 CHRYSTIE ST
+</td>
+<td style="text-align:left;">
+225 CHRYSTIE ST
+</td>
+<td style="text-align:left;">
+225 CHRYSTIE ST
+</td>
+<td style="text-align:left;">
+225 CHRYSTIE ST
 </td>
 </tr>
 <tr>
@@ -1044,50 +2137,27 @@ E 12TH ST
 NA
 </td>
 <td style="text-align:left;">
-WILLET
+W 4
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-WILLET ST
+W 4 ST
 </td>
 <td style="text-align:left;">
-WILLET ST
+W 4 ST
 </td>
 <td style="text-align:left;">
-WILLET ST
+W 4TH ST
 </td>
 <td style="text-align:left;">
-WILLET ST
+W 4TH ST
 </td>
 </tr>
 <tr>
 <td style="text-align:right;">
 NA
-</td>
-<td style="text-align:left;">
-W 96
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 96 ST
-</td>
-<td style="text-align:left;">
-W 96 ST
-</td>
-<td style="text-align:left;">
-W 96TH ST
-</td>
-<td style="text-align:left;">
-W 96TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-171
 </td>
 <td style="text-align:left;">
 E 91
@@ -1096,16 +2166,39 @@ E 91
 ST
 </td>
 <td style="text-align:left;">
-171 E 91 ST
+E 91 ST
 </td>
 <td style="text-align:left;">
-171 E 91 ST
+E 91 ST
 </td>
 <td style="text-align:left;">
-171 E 91ST ST
+E 91ST ST
 </td>
 <td style="text-align:left;">
-171 E 91ST ST
+E 91ST ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+24
+</td>
+<td style="text-align:left;">
+WAVERLY PL
+</td>
+<td style="text-align:left;">
+PL
+</td>
+<td style="text-align:left;">
+24 WAVERLY PL
+</td>
+<td style="text-align:left;">
+24 WAVERLY PL
+</td>
+<td style="text-align:left;">
+24 WAVERLY PL
+</td>
+<td style="text-align:left;">
+24 WAVERLY PL
 </td>
 </tr>
 <tr>
@@ -1113,22 +2206,252 @@ ST
 NA
 </td>
 <td style="text-align:left;">
-E 99
+E 9
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-E 99 ST
+E 9 ST
 </td>
 <td style="text-align:left;">
-E 99 ST
+E 9 ST
 </td>
 <td style="text-align:left;">
-E 99TH ST
+E 9TH ST
 </td>
 <td style="text-align:left;">
-E 99TH ST
+E 9TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+305
+</td>
+<td style="text-align:left;">
+E 26
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+305 E 26 ST
+</td>
+<td style="text-align:left;">
+305 E 26 ST
+</td>
+<td style="text-align:left;">
+305 E 26TH ST
+</td>
+<td style="text-align:left;">
+305 E 26TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+260
+</td>
+<td style="text-align:left;">
+W 23
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+260 W 23 ST
+</td>
+<td style="text-align:left;">
+260 W 23 ST
+</td>
+<td style="text-align:left;">
+260 W 23RD ST
+</td>
+<td style="text-align:left;">
+260 W 23RD ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+W 169
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+W 169 ST
+</td>
+<td style="text-align:left;">
+W 169 ST
+</td>
+<td style="text-align:left;">
+W 169TH ST
+</td>
+<td style="text-align:left;">
+W 169TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+223
+</td>
+<td style="text-align:left;">
+W 126
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+223 W 126 ST
+</td>
+<td style="text-align:left;">
+223 W 126 ST
+</td>
+<td style="text-align:left;">
+223 W 126TH ST
+</td>
+<td style="text-align:left;">
+223 W 126TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+E 81
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+E 81 ST
+</td>
+<td style="text-align:left;">
+E 81 ST
+</td>
+<td style="text-align:left;">
+E 81ST ST
+</td>
+<td style="text-align:left;">
+E 81ST ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+W 135
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+W 135 ST
+</td>
+<td style="text-align:left;">
+W 135 ST
+</td>
+<td style="text-align:left;">
+W 135TH ST
+</td>
+<td style="text-align:left;">
+W 135TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+302
+</td>
+<td style="text-align:left;">
+W 55
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+302 W 55 ST
+</td>
+<td style="text-align:left;">
+302 W 55 ST
+</td>
+<td style="text-align:left;">
+302 W 55TH ST
+</td>
+<td style="text-align:left;">
+302 W 55TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+W 148
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+W 148 ST
+</td>
+<td style="text-align:left;">
+W 148 ST
+</td>
+<td style="text-align:left;">
+W 148TH ST
+</td>
+<td style="text-align:left;">
+W 148TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+E 115
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+E 115 ST
+</td>
+<td style="text-align:left;">
+E 115 ST
+</td>
+<td style="text-align:left;">
+E 115TH ST
+</td>
+<td style="text-align:left;">
+E 115TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+265
+</td>
+<td style="text-align:left;">
+AVE A
+</td>
+<td style="text-align:left;">
+AVE
+</td>
+<td style="text-align:left;">
+265 AVE A AVE
+</td>
+<td style="text-align:left;">
+TWO HUNDRED AND SIXTY-FIVE AVE A AVE
+</td>
+<td style="text-align:left;">
+265 AVE A AVE
+</td>
+<td style="text-align:left;">
+TWO HUNDRED AND SIXTY-FIVE AVE A AVE
 </td>
 </tr>
 <tr>
@@ -1156,48 +2479,25 @@ E 83RD ST
 </tr>
 <tr>
 <td style="text-align:right;">
-32
-</td>
-<td style="text-align:left;">
-MADISON AVE
-</td>
-<td style="text-align:left;">
 NA
 </td>
 <td style="text-align:left;">
-32 MADISON AVE
-</td>
-<td style="text-align:left;">
-32 MADISON AVE
-</td>
-<td style="text-align:left;">
-32 MADISON AVE
-</td>
-<td style="text-align:left;">
-32 MADISON AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-327
-</td>
-<td style="text-align:left;">
-W 18
+BROOME
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-327 W 18 ST
+BROOME ST
 </td>
 <td style="text-align:left;">
-327 W 18 ST
+BROOME ST
 </td>
 <td style="text-align:left;">
-327 W 18TH ST
+BROOME ST
 </td>
 <td style="text-align:left;">
-327 W 18TH ST
+BROOME ST
 </td>
 </tr>
 <tr>
@@ -1205,22 +2505,22 @@ ST
 NA
 </td>
 <td style="text-align:left;">
-E 2
+W 111
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-E 2 ST
+W 111 ST
 </td>
 <td style="text-align:left;">
-E 2 ST
+W 111 ST
 </td>
 <td style="text-align:left;">
-E 2ND ST
+W 111TH ST
 </td>
 <td style="text-align:left;">
-E 2ND ST
+W 111TH ST
 </td>
 </tr>
 <tr>
@@ -1228,22 +2528,22 @@ E 2ND ST
 NA
 </td>
 <td style="text-align:left;">
-E 10
+W 140
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-E 10 ST
+W 140 ST
 </td>
 <td style="text-align:left;">
-E 10 ST
+W 140 ST
 </td>
 <td style="text-align:left;">
-E 10TH ST
+W 140TH ST
 </td>
 <td style="text-align:left;">
-E 10TH ST
+W 140TH ST
 </td>
 </tr>
 <tr>
@@ -1251,45 +2551,22 @@ E 10TH ST
 NA
 </td>
 <td style="text-align:left;">
-3 AVE
-</td>
-<td style="text-align:left;">
-AVE
-</td>
-<td style="text-align:left;">
-3 AVE AVE
-</td>
-<td style="text-align:left;">
-3 AVE AVE
-</td>
-<td style="text-align:left;">
-3RD AVE AVE
-</td>
-<td style="text-align:left;">
-3RD AVE AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-306
-</td>
-<td style="text-align:left;">
-E 86
+MANGIN
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-306 E 86 ST
+MANGIN ST
 </td>
 <td style="text-align:left;">
-306 E 86 ST
+MANGIN ST
 </td>
 <td style="text-align:left;">
-306 E 86TH ST
+MANGIN ST
 </td>
 <td style="text-align:left;">
-306 E 86TH ST
+MANGIN ST
 </td>
 </tr>
 <tr>
@@ -1297,988 +2574,22 @@ ST
 NA
 </td>
 <td style="text-align:left;">
-W 165
+E 104
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-W 165 ST
+E 104 ST
 </td>
 <td style="text-align:left;">
-W 165 ST
+E 104 ST
 </td>
 <td style="text-align:left;">
-W 165TH ST
+E 104TH ST
 </td>
 <td style="text-align:left;">
-W 165TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-E 11
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-E 11 ST
-</td>
-<td style="text-align:left;">
-E 11 ST
-</td>
-<td style="text-align:left;">
-E 11TH ST
-</td>
-<td style="text-align:left;">
-E 11TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-925
-</td>
-<td style="text-align:left;">
-WEST END AVE
-</td>
-<td style="text-align:left;">
-AVE
-</td>
-<td style="text-align:left;">
-925 WEST END AVE AVE
-</td>
-<td style="text-align:left;">
-NINE HUNDRED AND TWENTY-FIVE WEST END AVE AVE
-</td>
-<td style="text-align:left;">
-925 WEST END AVE AVE
-</td>
-<td style="text-align:left;">
-NINE HUNDRED AND TWENTY-FIVE WEST END AVE AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-29
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-29
-</td>
-<td style="text-align:left;">
-29
-</td>
-<td style="text-align:left;">
-29
-</td>
-<td style="text-align:left;">
-29
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-E 11
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-E 11 ST
-</td>
-<td style="text-align:left;">
-E 11 ST
-</td>
-<td style="text-align:left;">
-E 11TH ST
-</td>
-<td style="text-align:left;">
-E 11TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-333
-</td>
-<td style="text-align:left;">
-E 54
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-333 E 54 ST
-</td>
-<td style="text-align:left;">
-333 E 54 ST
-</td>
-<td style="text-align:left;">
-333 E 54TH ST
-</td>
-<td style="text-align:left;">
-333 E 54TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-FORSYTH
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-FORSYTH ST
-</td>
-<td style="text-align:left;">
-FORSYTH ST
-</td>
-<td style="text-align:left;">
-FORSYTH ST
-</td>
-<td style="text-align:left;">
-FORSYTH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-HOME AGED LITTLE SISTERS POOR
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-HOME AGED LITTLE SISTERS POOR ST
-</td>
-<td style="text-align:left;">
-HOME AGED LITTLE SISTERS POOR ST
-</td>
-<td style="text-align:left;">
-HOME AGED LITTLE SISTERS POOR ST
-</td>
-<td style="text-align:left;">
-HOME AGED LITTLE SISTERS POOR ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W HOUSTON
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-W HOUSTON
-</td>
-<td style="text-align:left;">
-W HOUSTON
-</td>
-<td style="text-align:left;">
-W HOUSTON
-</td>
-<td style="text-align:left;">
-W HOUSTON
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-52
-</td>
-<td style="text-align:left;">
-MANHATTAN AVE
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-52 MANHATTAN AVE ST
-</td>
-<td style="text-align:left;">
-52 MANHATTAN AVE ST
-</td>
-<td style="text-align:left;">
-52 MANHATTAN AVE ST
-</td>
-<td style="text-align:left;">
-52 MANHATTAN AVE ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W 118
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 118 ST
-</td>
-<td style="text-align:left;">
-W 118 ST
-</td>
-<td style="text-align:left;">
-W 118TH ST
-</td>
-<td style="text-align:left;">
-W 118TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-235
-</td>
-<td style="text-align:left;">
-2 AVE
-</td>
-<td style="text-align:left;">
-AVE
-</td>
-<td style="text-align:left;">
-235 2 AVE AVE
-</td>
-<td style="text-align:left;">
-TWO HUNDRED AND THIRTY-FIVE 2 AVE AVE
-</td>
-<td style="text-align:left;">
-235 2ND AVE AVE
-</td>
-<td style="text-align:left;">
-TWO HUNDRED AND THIRTY-FIVE 2ND AVE AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-CENTRAL PARK WEST
-</td>
-<td style="text-align:left;">
-PARK
-</td>
-<td style="text-align:left;">
-CENTRAL PARK WEST PARK
-</td>
-<td style="text-align:left;">
-CENTRAL PARK WEST PARK
-</td>
-<td style="text-align:left;">
-CENTRAL PARK WEST PARK
-</td>
-<td style="text-align:left;">
-CENTRAL PARK WEST PARK
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W 55
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 55 ST
-</td>
-<td style="text-align:left;">
-W 55 ST
-</td>
-<td style="text-align:left;">
-W 55TH ST
-</td>
-<td style="text-align:left;">
-W 55TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-11 AVE
-</td>
-<td style="text-align:left;">
-AVE
-</td>
-<td style="text-align:left;">
-11 AVE AVE
-</td>
-<td style="text-align:left;">
-11 AVE AVE
-</td>
-<td style="text-align:left;">
-11TH AVE AVE
-</td>
-<td style="text-align:left;">
-11TH AVE AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-FORSYTH
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-FORSYTH ST
-</td>
-<td style="text-align:left;">
-FORSYTH ST
-</td>
-<td style="text-align:left;">
-FORSYTH ST
-</td>
-<td style="text-align:left;">
-FORSYTH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-JEFFERSON
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-JEFFERSON ST
-</td>
-<td style="text-align:left;">
-JEFFERSON ST
-</td>
-<td style="text-align:left;">
-JEFFERSON ST
-</td>
-<td style="text-align:left;">
-JEFFERSON ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-LEXINGTON AVE
-</td>
-<td style="text-align:left;">
-AVE
-</td>
-<td style="text-align:left;">
-LEXINGTON AVE AVE
-</td>
-<td style="text-align:left;">
-LEXINGTON AVE AVE
-</td>
-<td style="text-align:left;">
-LEXINGTON AVE AVE
-</td>
-<td style="text-align:left;">
-LEXINGTON AVE AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-VANDAM
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-VANDAM ST
-</td>
-<td style="text-align:left;">
-VANDAM ST
-</td>
-<td style="text-align:left;">
-VANDAM ST
-</td>
-<td style="text-align:left;">
-VANDAM ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-E 81
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-E 81
-</td>
-<td style="text-align:left;">
-E 81
-</td>
-<td style="text-align:left;">
-E 81ST
-</td>
-<td style="text-align:left;">
-E 81ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-E 7
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-E 7 ST
-</td>
-<td style="text-align:left;">
-E 7 ST
-</td>
-<td style="text-align:left;">
-E 7TH ST
-</td>
-<td style="text-align:left;">
-E 7TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W 27
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 27 ST
-</td>
-<td style="text-align:left;">
-W 27 ST
-</td>
-<td style="text-align:left;">
-W 27TH ST
-</td>
-<td style="text-align:left;">
-W 27TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-112
-</td>
-<td style="text-align:left;">
-W 72
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-112 W 72 ST
-</td>
-<td style="text-align:left;">
-112 W 72 ST
-</td>
-<td style="text-align:left;">
-112 W 72ND ST
-</td>
-<td style="text-align:left;">
-112 W 72ND ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-E 84
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-E 84 ST
-</td>
-<td style="text-align:left;">
-E 84 ST
-</td>
-<td style="text-align:left;">
-E 84TH ST
-</td>
-<td style="text-align:left;">
-E 84TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-AVE C
-</td>
-<td style="text-align:left;">
-AVE
-</td>
-<td style="text-align:left;">
-AVE C AVE
-</td>
-<td style="text-align:left;">
-AVE C AVE
-</td>
-<td style="text-align:left;">
-AVE C AVE
-</td>
-<td style="text-align:left;">
-AVE C AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-17
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-17 ST
-</td>
-<td style="text-align:left;">
-17 ST
-</td>
-<td style="text-align:left;">
-17TH ST
-</td>
-<td style="text-align:left;">
-17TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-314
-</td>
-<td style="text-align:left;">
-E 105
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-314 E 105
-</td>
-<td style="text-align:left;">
-314 E 105
-</td>
-<td style="text-align:left;">
-314 E 105TH
-</td>
-<td style="text-align:left;">
-314 E 105TH
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-71
-</td>
-<td style="text-align:left;">
-BEDFORD
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-71 BEDFORD ST
-</td>
-<td style="text-align:left;">
-71 BEDFORD ST
-</td>
-<td style="text-align:left;">
-71 BEDFORD ST
-</td>
-<td style="text-align:left;">
-71 BEDFORD ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-ESSEX
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-ESSEX ST
-</td>
-<td style="text-align:left;">
-ESSEX ST
-</td>
-<td style="text-align:left;">
-ESSEX ST
-</td>
-<td style="text-align:left;">
-ESSEX ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W 36
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 36 ST
-</td>
-<td style="text-align:left;">
-W 36 ST
-</td>
-<td style="text-align:left;">
-W 36TH ST
-</td>
-<td style="text-align:left;">
-W 36TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-E 60
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-E 60 ST
-</td>
-<td style="text-align:left;">
-E 60 ST
-</td>
-<td style="text-align:left;">
-E 60TH ST
-</td>
-<td style="text-align:left;">
-E 60TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-511
-</td>
-<td style="text-align:left;">
-W 57
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-511 W 57 ST
-</td>
-<td style="text-align:left;">
-511 W 57 ST
-</td>
-<td style="text-align:left;">
-511 W 57TH ST
-</td>
-<td style="text-align:left;">
-511 W 57TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W 101
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 101 ST
-</td>
-<td style="text-align:left;">
-W 101 ST
-</td>
-<td style="text-align:left;">
-W 101ST ST
-</td>
-<td style="text-align:left;">
-W 101ST ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-JEFFERSON
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-JEFFERSON ST
-</td>
-<td style="text-align:left;">
-JEFFERSON ST
-</td>
-<td style="text-align:left;">
-JEFFERSON ST
-</td>
-<td style="text-align:left;">
-JEFFERSON ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-NORFOLK
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-NORFOLK ST
-</td>
-<td style="text-align:left;">
-NORFOLK ST
-</td>
-<td style="text-align:left;">
-NORFOLK ST
-</td>
-<td style="text-align:left;">
-NORFOLK ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-E 79
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-E 79 ST
-</td>
-<td style="text-align:left;">
-E 79 ST
-</td>
-<td style="text-align:left;">
-E 79TH ST
-</td>
-<td style="text-align:left;">
-E 79TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-E 9
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-E 9 ST
-</td>
-<td style="text-align:left;">
-E 9 ST
-</td>
-<td style="text-align:left;">
-E 9TH ST
-</td>
-<td style="text-align:left;">
-E 9TH ST
+E 104TH ST
 </td>
 </tr>
 <tr>
@@ -2309,119 +2620,119 @@ ST
 NA
 </td>
 <td style="text-align:left;">
-AMSTERDAM AVE
+E 109
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+E 109 ST
+</td>
+<td style="text-align:left;">
+E 109 ST
+</td>
+<td style="text-align:left;">
+E 109TH ST
+</td>
+<td style="text-align:left;">
+E 109TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+CORNELIA
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+CORNELIA ST
+</td>
+<td style="text-align:left;">
+CORNELIA ST
+</td>
+<td style="text-align:left;">
+CORNELIA ST
+</td>
+<td style="text-align:left;">
+CORNELIA ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:left;">
+W 118
+</td>
+<td style="text-align:left;">
+ST
+</td>
+<td style="text-align:left;">
+W 118 ST
+</td>
+<td style="text-align:left;">
+W 118 ST
+</td>
+<td style="text-align:left;">
+W 118TH ST
+</td>
+<td style="text-align:left;">
+W 118TH ST
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+1923
+</td>
+<td style="text-align:left;">
+3 AVE
 </td>
 <td style="text-align:left;">
 AVE
 </td>
 <td style="text-align:left;">
-AMSTERDAM AVE AVE
+1923 3 AVE
 </td>
 <td style="text-align:left;">
-AMSTERDAM AVE AVE
+ONE THOUSAND NINE HUNDRED AND TWENTY-THREE 3 AVE
 </td>
 <td style="text-align:left;">
-AMSTERDAM AVE AVE
+1923 3RD AVE
 </td>
 <td style="text-align:left;">
-AMSTERDAM AVE AVE
+ONE THOUSAND NINE HUNDRED AND TWENTY-THREE 3RD AVE
 </td>
 </tr>
 <tr>
 <td style="text-align:right;">
-107
-</td>
-<td style="text-align:left;">
-W 35
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-107 W 35
-</td>
-<td style="text-align:left;">
-107 W 35
-</td>
-<td style="text-align:left;">
-107 W 35TH
-</td>
-<td style="text-align:left;">
-107 W 35TH
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-BLACKWELLS ISLAND
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-BLACKWELLS ISLAND
-</td>
-<td style="text-align:left;">
-BLACKWELLS ISLAND
-</td>
-<td style="text-align:left;">
-BLACKWELLS ISLAND
-</td>
-<td style="text-align:left;">
-BLACKWELLS ISLAND
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W 127
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 127 ST
-</td>
-<td style="text-align:left;">
-W 127 ST
-</td>
-<td style="text-align:left;">
-W 127TH ST
-</td>
-<td style="text-align:left;">
-W 127TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W 144
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 144 ST
-</td>
-<td style="text-align:left;">
-W 144 ST
-</td>
-<td style="text-align:left;">
-W 144TH ST
-</td>
-<td style="text-align:left;">
-W 144TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
+1031
 </td>
 <td style="text-align:left;">
 2 AVE
@@ -2430,16 +2741,16 @@ NA
 AVE
 </td>
 <td style="text-align:left;">
-2 AVE AVE
+1031 2 AVE
 </td>
 <td style="text-align:left;">
-2 AVE AVE
+ONE THOUSAND AND THIRTY-ONE 2 AVE
 </td>
 <td style="text-align:left;">
-2ND AVE AVE
+1031 2ND AVE
 </td>
 <td style="text-align:left;">
-2ND AVE AVE
+ONE THOUSAND AND THIRTY-ONE 2ND AVE
 </td>
 </tr>
 <tr>
@@ -2447,160 +2758,22 @@ AVE
 NA
 </td>
 <td style="text-align:left;">
-E 98
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-E 98 ST
-</td>
-<td style="text-align:left;">
-E 98 ST
-</td>
-<td style="text-align:left;">
-E 98TH ST
-</td>
-<td style="text-align:left;">
-E 98TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-403
-</td>
-<td style="text-align:left;">
-E 64
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-403 E 64 ST
-</td>
-<td style="text-align:left;">
-403 E 64 ST
-</td>
-<td style="text-align:left;">
-403 E 64TH ST
-</td>
-<td style="text-align:left;">
-403 E 64TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-KING
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-KING ST
-</td>
-<td style="text-align:left;">
-KING ST
-</td>
-<td style="text-align:left;">
-KING ST
-</td>
-<td style="text-align:left;">
-KING ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-165
-</td>
-<td style="text-align:left;">
-E 97
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-165 E 97
-</td>
-<td style="text-align:left;">
-165 E 97
-</td>
-<td style="text-align:left;">
-165 E 97TH
-</td>
-<td style="text-align:left;">
-165 E 97TH
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-CHERRY
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-CHERRY ST
-</td>
-<td style="text-align:left;">
-CHERRY ST
-</td>
-<td style="text-align:left;">
-CHERRY ST
-</td>
-<td style="text-align:left;">
-CHERRY ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-AVE A
+PARK AVE
 </td>
 <td style="text-align:left;">
 AVE
 </td>
 <td style="text-align:left;">
-AVE A AVE
+PARK AVE
 </td>
 <td style="text-align:left;">
-AVE A AVE
+PARK AVE
 </td>
 <td style="text-align:left;">
-AVE A AVE
+PARK AVE
 </td>
 <td style="text-align:left;">
-AVE A AVE
+PARK AVE
 </td>
 </tr>
 <tr>
@@ -2608,22 +2781,22 @@ AVE A AVE
 NA
 </td>
 <td style="text-align:left;">
-HOME AGED LITTLE SISTERS POOR
+WILLETT
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-HOME AGED LITTLE SISTERS POOR ST
+WILLETT ST
 </td>
 <td style="text-align:left;">
-HOME AGED LITTLE SISTERS POOR ST
+WILLETT ST
 </td>
 <td style="text-align:left;">
-HOME AGED LITTLE SISTERS POOR ST
+WILLETT ST
 </td>
 <td style="text-align:left;">
-HOME AGED LITTLE SISTERS POOR ST
+WILLETT ST
 </td>
 </tr>
 <tr>
@@ -2631,45 +2804,22 @@ HOME AGED LITTLE SISTERS POOR ST
 NA
 </td>
 <td style="text-align:left;">
-RIVINGTON
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-RIVINGTON
-</td>
-<td style="text-align:left;">
-RIVINGTON
-</td>
-<td style="text-align:left;">
-RIVINGTON
-</td>
-<td style="text-align:left;">
-RIVINGTON
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W HOUSTON
+E 106
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-W HOUSTON ST
+E 106 ST
 </td>
 <td style="text-align:left;">
-W HOUSTON ST
+E 106 ST
 </td>
 <td style="text-align:left;">
-W HOUSTON ST
+E 106TH ST
 </td>
 <td style="text-align:left;">
-W HOUSTON ST
+E 106TH ST
 </td>
 </tr>
 <tr>
@@ -2677,183 +2827,22 @@ W HOUSTON ST
 NA
 </td>
 <td style="text-align:left;">
-E 7
+CHRISTOPHER
 </td>
 <td style="text-align:left;">
 ST
 </td>
 <td style="text-align:left;">
-E 7 ST
+CHRISTOPHER ST
 </td>
 <td style="text-align:left;">
-E 7 ST
+CHRISTOPHER ST
 </td>
 <td style="text-align:left;">
-E 7TH ST
+CHRISTOPHER ST
 </td>
 <td style="text-align:left;">
-E 7TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-7 AVE
-</td>
-<td style="text-align:left;">
-AVE
-</td>
-<td style="text-align:left;">
-7 AVE AVE
-</td>
-<td style="text-align:left;">
-7 AVE AVE
-</td>
-<td style="text-align:left;">
-7TH AVE AVE
-</td>
-<td style="text-align:left;">
-7TH AVE AVE
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-150
-</td>
-<td style="text-align:left;">
-E 113
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-150 E 113 ST
-</td>
-<td style="text-align:left;">
-150 E 113 ST
-</td>
-<td style="text-align:left;">
-150 E 113TH ST
-</td>
-<td style="text-align:left;">
-150 E 113TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-202
-</td>
-<td style="text-align:left;">
-VARICK
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-202 VARICK ST
-</td>
-<td style="text-align:left;">
-202 VARICK ST
-</td>
-<td style="text-align:left;">
-202 VARICK ST
-</td>
-<td style="text-align:left;">
-202 VARICK ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W 101
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 101 ST
-</td>
-<td style="text-align:left;">
-W 101 ST
-</td>
-<td style="text-align:left;">
-W 101ST ST
-</td>
-<td style="text-align:left;">
-W 101ST ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W 112
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 112 ST
-</td>
-<td style="text-align:left;">
-W 112 ST
-</td>
-<td style="text-align:left;">
-W 112TH ST
-</td>
-<td style="text-align:left;">
-W 112TH ST
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-NA
-</td>
-<td style="text-align:left;">
-W 129
-</td>
-<td style="text-align:left;">
-ST
-</td>
-<td style="text-align:left;">
-W 129 ST
-</td>
-<td style="text-align:left;">
-W 129 ST
-</td>
-<td style="text-align:left;">
-W 129TH ST
-</td>
-<td style="text-align:left;">
-W 129TH ST
+CHRISTOPHER ST
 </td>
 </tr>
 </tbody>
@@ -2864,10 +2853,8 @@ W 129TH ST
 <div id="future-improvements" class="section level3">
 <h3>4. Future Improvements</h3>
 <ul>
-<li>Function is still a little buggy, and some <code>NA</code>s exist</li>
-<li><code>map</code> is performing slowly, and code needs to be optimised to run faster</li>
+<li>Function works as expected but code could be improved and cut down to be more efficient</li>
 </ul>
-<p><br></p>
 <hr />
 </div>
 
