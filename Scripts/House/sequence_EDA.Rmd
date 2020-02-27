@@ -12,6 +12,7 @@ library(knitr)
 library(tidyverse)
 library(kableExtra)
 library(extrafont)
+library(DT)
 
 opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
@@ -44,13 +45,24 @@ Merged sequence: DEPRECATED
 # apply sequence functions
 
 seq_hn <- appendSeqCol(sample, check_street = F, check_parity = T, check_dir = T, jump_size = 10) %>%
-  appendMergeSeq(jump_size = 10, check_street = F, check_parity = F)
+  appendMergeSeq(jump_size = 10, check_street = F, check_parity = F) %>%
+  mutate(merge_SEQ = as.numeric(as.character(merge_SEQ)))
 
 seq_st <- appendSeqCol(sample, check_street = T, check_parity = T, check_dir = T, jump_size = 10) %>%
   appendMergeSeq(jump_size = 10, check_street = T, check_parity = F)
 ```
 
 ## Overview of results
+<style>
+  .superbigimage{
+      overflow-x:scroll;
+      white-space: nowrap;
+  }
+  .superbigimage img{
+     max-width: none;
+  }
+</style>
+<div class="superbigimage">
 ```{r, fig.width=30}
 select(seq_hn, index, st_off = merge_SEQ) %>%
   bind_cols(st_on = pull(seq_st, merge_SEQ)) %>%
@@ -61,6 +73,8 @@ select(seq_hn, index, st_off = merge_SEQ) %>%
     geom_point(aes(y = check_street, x = index, col = as.factor(merge_SEQ))) +
     theme(legend.position = "None")
 ```
+</div>
+
 
 ```{r}
 select(seq_hn, index, st_off = merge_SEQ) %>%
@@ -71,7 +85,30 @@ select(seq_hn, index, st_off = merge_SEQ) %>%
   group_by(check_street, merge_SEQ) %>%
   summarize(seq_length = n()) %>%
   group_by(check_street) %>%
-  summarize(avg_length = mean(seq_length), no_seq = n())
+  summarize(min = min(seq_length), avg_length = mean(seq_length), median = median(seq_length),
+            max = max(seq_length), no_seq = n()) %>%
+  t() %>% as.data.frame() %>%
+  filter(V1 != "st_off") %>%
+  bind_cols(stat = c("min", "mean", "median", "max", "count")) %>%
+  select(stat, V1, V2) %>%
+  kable(col.names = c("", "st_on", "st_off")) %>%
+  kable_styling(full_width = F)
+```
+
+```{r}
+select(seq_hn, index, st_off = merge_SEQ) %>%
+  bind_cols(st_on = pull(seq_st, merge_SEQ)) %>%
+  mutate(st_off = as.numeric(as.character(st_off)),
+         st_on = as.numeric(as.character(st_on))) %>%
+  gather(key = "check_street", value = "merge_SEQ", - index) %>%
+  group_by(check_street, merge_SEQ) %>%
+  summarize(seq_length = n()) %>%
+  group_by(check_street, seq_length) %>%
+  summarize(count = n()) %>%
+  ggplot() +
+    geom_jitter(aes(x = check_street, y = seq_length, col = check_street)) +
+    labs(x = "", y = "Sequence Length", title = "Distribution of Sequence Lengths") +
+    theme(legend.position = "None")
 ```
 
 
@@ -129,7 +166,7 @@ plot_seq = function(df, start, end, adjust = c(0, 5)) {
     filter(merge_SEQ %in% seq(start, end))
   
   ggplot(seq) +
-    geom_point(aes(x = index, y = hn_1, color = merge_SEQ)) +
+    geom_point(aes(x = index, y = hn_1, color = as.factor(merge_SEQ))) +
     geom_text(data = distinct(seq, merge_SEQ, .keep_all = T), 
               aes(x = index + adjust[1], y = hn_1 + adjust[2], 
                   label = paste0(str_to_title(best_match), " (", result_type, ")\n", hn_1)),
@@ -157,6 +194,7 @@ plot_seq(seq_hn, 239, 243, c(0, 10))
 
 ## Can we confidently change these?
 
+Above and below are within 2
 ```{r}
 filter(seq_hn_grp,
        count == 1
@@ -170,6 +208,8 @@ filter(seq_hn_grp,
   scroll_box(height = "300px")
 ```
 
+
+Looking specifically at the house numbers
 ```{r}
 narrow_breaks = filter(seq_hn_grp,
        count == 1
@@ -196,7 +236,8 @@ narrow_eda = seq_hn %>%
 
 narrow_eda %>%
   kable() %>% kable_styling() %>%
-  row_spec(which(narrow_eda$merge_SEQ %in% narrow_breaks), background = "#ff8080")
+  row_spec(which(narrow_eda$merge_SEQ %in% narrow_breaks), background = "#ff8080") %>%
+  scroll_box(height = "300px")
 ```
 
 Definitely yes! These are sudden drop in house numbers amongst two extremely close sequences with the same street address (with strong match confidence).
@@ -213,7 +254,7 @@ plot_seq(seq_hn, 408, 410)
 ```
 
 Maybe?
-Original st name was Haull
+Original st name was Haull<br>
 ```{r}
 plot_seq(seq_hn, 301, 303)
 ```
@@ -223,7 +264,10 @@ plot_seq(seq_hn, 429, 432)
 ```
 
 
-## Can we use sequences to suggest NA house numbers?
+## Can we use sequences to suggest what NA house numbers should be?
+```{r}
+
+```
 
 
 ## EDA of sequences for further street address cleaning
@@ -240,11 +284,74 @@ multi_st_seq <- seq_hn %>%
 
 #multi_st_seq <- left_join(multi_st_seq, multi_streets, by = c(merge_SEQ = "merge_SEQ")) %>%
 #  filter(!is.na(best_match))
+
+cols = rep(c("white", "#E8E8E8"), 55)
+
+filter(seq_hn, merge_SEQ %in% multi_st_seq$merge_SEQ) %>%
+  select(ED, street_add, best_match, result_type, hn_1, merge_SEQ) %>%
+  distinct() %>%
+  datatable(
+    filter = "top",
+    options = list(
+      initComplete = JS(
+                  "function(settings, json) {",
+                  "$('body').css({'font-family': 'Open Sans Light'});",
+                  "}")
+      )
+    ) %>%
+  formatStyle(
+    'merge_SEQ',
+    target = 'row',
+    backgroundColor = styleEqual(unique(multi_st_seq$merge_SEQ), 
+                                 cols)
+    )
+              
 ```
+
+## Using spatial proximity of streets
+When determining if a street has been wrongly matched, we could use the following steps:  
+1. Look at sequences (generated with check_street off) with multiple street names in them  
+2. If any of the multiple street names are of a fill-down result type, use the predominant street name in the sequence instead  
+- this works because when filling down, we used the select the most similar string from a pool of 3 above/below records. for nonsensical street names, this approach may not be ideal.  
+- (but are we making changes to the street match function?)  
+3. Determine if the different street names are close in spatial proximity: as enumerator may have cross an intersection - if they are close, leave it, else change to predominant street name  
+
+An example of how this may help:  
+For nonsensical street names:  
+```{r}
+filter(seq_hn, merge_SEQ == 69) %>%
+  select(street_add, best_match, result_type, hn_1) %>%
+  distinct() %>%
+  kable() %>% kable_styling(full_width = F) %>%
+  row_spec(2:3, bold = T)
+```
+
+For situations where it's possible the the multiple street names are correct:  
+
+If 30 Roosevelt is near 38 New Bowery, this could be correct and left alone
+```{r}
+filter(seq_hn, merge_SEQ == 13) %>%
+  select(street_add, best_match, result_type, hn_1) %>%
+  distinct() %>%
+  kable() %>% kable_styling(full_width = F) %>%
+  row_spec(1, bold = T)
+```
+
+But this can identify errors. E.g. we know from manual checking that Pearl was somehow mistranscribed here. If Pearl and Madison are far apart, this process would be able to correct that:
+```{r}
+filter(seq_hn, merge_SEQ == 2) %>%
+  select(street_add, best_match, result_type, hn_1) %>%
+  distinct() %>%
+  kable() %>% kable_styling(full_width = F) %>%
+  row_spec(8, bold = T)
+```
+
+Note: we should be quite strict about this process as we do not want our error rate to increase unnecssarily. More EDA needs to be done to check if this process is worth carrying out.
+
 
 # Next Steps
 
-1. Create scripts to automatically replace errant numbers (prev / next seq very similar in house number and all having the same street (matched with high confidence))  
+1. Create scripts to automatically replace errant numbers. Criteria for now: prev / next seq very similar in house number and all having the same street (matched with high confidence))  
 
 
 

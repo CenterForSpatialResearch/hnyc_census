@@ -24,10 +24,10 @@ fillDownHouseNum <- function(df){
 }
 
 #` ############ IMPORTANT !! change input to this function call to output from 04_.R
-sample_hn_filled <- fillDownHouseNum(sample_st_filled)
+#sample_hn_filled <- fillDownHouseNum(sample_st_filled)
 
 #' One test for fillDownHouseNum(). Should not get error message from
 #' running this line after if the function works properly. This checks
 #' if house_num is not filled down but the flag says it is.
-assertthat::assert_that(nrow(sample_hn_filled %>% filter(is.na(house_num) && flg_filled_hn==1)) == 0)
+#assertthat::assert_that(nrow(sample_hn_filled %>% filter(is.na(house_num) && flg_filled_hn==1)) == 0)
 

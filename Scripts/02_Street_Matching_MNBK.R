@@ -15,6 +15,7 @@
 # Libraries
 library(tidyverse)
 library(fuzzyjoin)
+source("01_Street_Clean_Function_MNBK.R")
 
 # ---- FUNCTION ----
 street_match <- function(sample, edict) {
