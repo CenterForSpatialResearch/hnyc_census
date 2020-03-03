@@ -12,7 +12,6 @@
 fillDownStreet <- function(df){
   
   df <- df %>%
-    fill(microfilm, .direction = "up") %>%
     filter(record == "H") %>%
     mutate(best_match_temp = best_match) %>% 
     group_by(ED) %>%
