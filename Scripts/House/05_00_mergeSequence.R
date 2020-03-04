@@ -157,12 +157,14 @@ appendMergeSeq <- function(sdf, jump_size = c(2, 30, 50), check_street = TRUE, c
 #' @param merge_check_parity Used in merging step. Should merged sequences still have the same parity?
 #' @return A dataframe with `SEQ` and `merge_SEQ` columns attached.
 #' @export
-#' @example 
-#' HN7_hn <- getMergedSeq(HN5, jump_size = 500, check_street = FALSE)
-#' HN7_st <- getMergedSeq(HN5, jump_size = 500, check_street = TRUE)
 getMergedSeq <- function(df, get_check_street = TRUE, get_check_parity = TRUE, get_check_dir = T, get_jump_size = 10, merge_jump_size = c(2, 30, 50), merge_check_street = T, merge_check_par = T){
   temp <- appendSeqCol(df, check_street = get_check_street, check_parity = get_check_parity, check_dir = get_check_dir, jump_size = get_jump_size)
   HN7 <- appendMergeSeq(temp, jump_size = merge_jump_size, check_street = merge_check_street, check_parity = merge_check_par)
+  
+  # clean data types
+  HN7 <- HN7 %>% 
+    mutate(SEQ = as.numeric(as.character(SEQ)),
+           merge_SEQ = as.numeric(as.character(merge_SEQ)))
   return(HN7)
 }
 
