@@ -126,7 +126,10 @@ build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
   addr = ifelse(addr == "" | str_detect(addr, pattern = "^ST$"),
                 NA_character_,
                 addr)
-  return(addr)
+  # Appending to data frame
+  df$addr = addr
+  
+  return(df)
 }
 ```
 
@@ -139,10 +142,10 @@ set.seed(2468)
 index = sample(NROW(mn_output), 100)
 examples = mn_output[index,]
 
-base_function   = build_Address(examples)
-spell_ave_true  = build_Address(examples, spell_ave = TRUE)
-suffix_true     = build_Address(examples, suffix = TRUE)
-both_true       = build_Address(examples, spell_ave = TRUE, suffix = TRUE)
+base_function   = build_Address(examples)$addr
+spell_ave_true  = build_Address(examples, spell_ave = TRUE)$addr
+suffix_true     = build_Address(examples, suffix = TRUE)$addr
+both_true       = build_Address(examples, spell_ave = TRUE, suffix = TRUE)$addr
 
 data.frame(hn_1 = examples$hn_1,
            best_match = examples$best_match,
