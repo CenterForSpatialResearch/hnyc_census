@@ -23,7 +23,7 @@ getSequenceHead <- function(sample_hn_seq, jump_size, check_parity = TRUE, check
   heads <- c(1)
   
   ## Get direction list
-  dir_list <- getDirectionalHeads(nona_sample_hn_seq)
+  dir_list <- getDirectionalHeads(nona_sample_hn_seq, jump_size = jump_size)
   
   list_length <- length(nona_sample_hn_seq)
   
@@ -94,21 +94,34 @@ getHouseNum <- function(index, hn_seq){
 #' Return -11 if the current is decreasing from the prev house_num
 #' Return 0 if the current = the prev
 #' returns a vector of directions 
-getDirectionalHeads <- function(seq){
-
+getDirectionalHeads <- function(seq, jump_size) {
+  
   diff <- diff(seq)
-  dir_list <- tibble(actual = c(0, diff),
+  dir_list <- tibble(hn_1 = seq,
+                     actual = c(0, diff),
                      isHead = rep(FALSE, length(seq)),
                      seq = rep(0, length(seq)))
   
   dir_list <- dir_list %>%
     mutate(dir = case_when(actual == 0 ~ 0,
                            actual > 0 ~ 1,
-                           actual < 0 ~ -1))
+                           actual < 0 ~ -1),
+           # isHead due to jump size
+           isHead = ifelse(abs(actual) > jump_size, TRUE, FALSE))
+  
+  # very first hn is head
   dir_list$isHead[1] <- TRUE
   dir_list$seq[1] <- 1
-  
+
   for (i in seq(2, nrow(dir_list))) {
+    
+    # if the house number is a head due to jump_size
+    if (dir_list$isHead[i]) {
+      dir_list$seq[i] <- dir_list$seq[i-1] + 1
+      dir_list$dir[i] <- 0
+      next
+    }
+    
     if (dir_list$dir[i] == 0) { # if house num is same as previous house num
       dir_list$seq[i] <- dir_list$seq[i-1] # isHead still FALSE, seq = prev seq
       dir_list$dir[i] <- dir_list$dir[i-1] # ensure this inherits the direction of seq
@@ -131,10 +144,10 @@ getDirectionalHeads <- function(seq){
       }
       
     }
+    
+    return(dir_list)
+    
   }
-  
-  return(dir_list)
-  
 }
 
 #' sameDirection
