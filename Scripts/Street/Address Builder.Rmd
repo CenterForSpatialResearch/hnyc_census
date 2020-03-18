@@ -1,4 +1,4 @@
----
+`c ---
 title: "Address Builder"
 author: "Clinton"
 date: "26 February 2020"
@@ -16,6 +16,7 @@ library(knitr)
 library(kableExtra)
 
 mn_output <- readRDS("../../Data/mn_output.rds")
+bk_output <- readRDS("../../Data/mn_output.rds")
 ```
 
 <br>
@@ -56,6 +57,7 @@ street_type_builder = function(df) {
 }
 
 mn_output = street_type_builder(mn_output)
+bk_output = street_type_builder(bk_output)
 ```
 
 <br>
@@ -161,7 +163,25 @@ data.frame(hn_1 = examples$hn_1,
 
 <br>
 
-### 4. Future Improvements
+### 4. Running on Entire Borough Dataset and Generating New Output
+
+Applying `address_builder()` function to entire borough dataset and exporting with `addr`
+Optional to toggle parameters, first default
+
+
+```{r}
+mn_addr_output = build_Address(mn_output)
+bk_addr_output = build_Address(bk_output)
+
+#save csv
+write.csv(mn_addr_output, "../../Data/mn_addr_output.csv")
+write.csv(bk_addr_output, "../../Data/bk_addr_output.csv")
+```
+
+
+<br>
+
+### 5. Future Improvements
 
 * Function works as expected but code could be improved and cut down to be more efficient
 
