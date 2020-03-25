@@ -546,7 +546,6 @@ example <- mn_output %>% filter(ED == '0227')
 example[41:60,]
 ```
 
-
 ```{r}
 # Map for NA Street Address / Best Match in Manhattan
 tmap_mode("view")
