@@ -332,8 +332,8 @@ Current criteria: 'faulty' match is result type > 2, above and below are good ma
 
 ```{r}
 detect_unclean_st_seq = function(df) {
-  df = df %>%
-    select(street_add, best_match, result_type, hn_1)
+#  df = df %>%
+#    select(street_add, best_match, result_type, hn_1)
   
   above = df %>%
     select(abv_match = best_match, abv_res = result_type, abv_hn = hn_1)
@@ -348,20 +348,23 @@ detect_unclean_st_seq = function(df) {
                     tibble(bel_match = NA, bel_res = NA, bel_hn = NA))
   
   output = bind_cols(df, above, below) %>%
-    filter(result_type > 2 
+    filter(result_type = ifelse(result_type > 2 
            & (abv_res <= 2 | bel_res <= 2) 
            & ((abs(abv_hn - hn_1) <= 4) | (abs(bel_hn - hn_1) <= 4))
-           & (abv_match == bel_match | is.na(abv_match) | is.na(bel_match))
-           )
+           & (abv_match == bel_match | is.na(abv_match) | is.na(bel_match)),
+           7, result_type
+           ),
+           new_hn = ifelse(result_type == 7, bel_match, best_match)) %>%
+    select(- c("abv_match", "abv_res", "abv_hn", "bel_match", "bel_res", "bel_hn"))
   
-  return(nrow(output) > 0) 
+  return(output) 
 }
 
 seq_w_multi_st_df = split(filter(seq_hn, SEQ %in% multi_st_seq$SEQ), pull(filter(seq_hn, SEQ %in% multi_st_seq$SEQ), SEQ))
 ```
 
 ```{r}
-print(sum(map_lgl(seq_w_multi_st_df, function(x) detect_unclean_st_seq(x))))
+test = sum(map_lgl(seq_w_multi_st_df, function(x) detect_unclean_st_seq(x)))
 ```
 
 But!! Some errors still:

@@ -3,8 +3,6 @@ title: "Adaptive Jump Sizes EDA"
 author: "Jolene Lim"
 date: "26 February 2020"
 output: html_document
-editor_options: 
-  chunk_output_type: console
 ---
 
 This EDA looks at how we may implement adaptive jump_sizes for use in getSequence and mergeSequence

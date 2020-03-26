@@ -1,6 +1,8 @@
-
-
-# SHOULD UPDATE MERGE_SEQ WHEN CHANGING NUMBER TOO (?)
+#' This function creates a `new_hn` column with the corrected, non-breakpoint hn.
+#' @param seq_df df with merge_SEQ column, sequence done WITHOUT check_st
+#' @param too_small threshold of distinct hn in sequence for it to be considered too small
+#' @param proximity how close could the prev and next hn be
+#' @return original dataframe with `new_hn` column. `new_hn` is empty for non-breakpoint rows.
 rmSeqBreakpoints = function(seq_df, too_small = 1, proximity = 2) {
   
   # create summary with start and endpoint of seq + start/end of seq above, start/end of seq below
@@ -47,7 +49,7 @@ rmSeqBreakpoints = function(seq_df, too_small = 1, proximity = 2) {
     left_join(df_below, by = c("index" = "idx_above"))
   
   # clean house number based on certain criteria
-  # ADD PARAMS TO ADJUST RESTRICTIVENESS, DO WE WANT CLEAN IN NEW COL?
+
   df <- df %>%
     filter(best_match == above_match & best_match == below_match
            & above_result %in% c(1, 2) & below_result %in% c(1, 2)) %>%
@@ -58,3 +60,61 @@ rmSeqBreakpoints = function(seq_df, too_small = 1, proximity = 2) {
     
   return (output)
 }
+
+
+#' This function cleans street names using sequence work. Details and demo in `sequence_EDA`.
+#' @param df df with SEQ column, sequence done WITHOUT check_st.
+#' @param res_limit limit to result type confidence. e.g. if set to 2 -> if the row below is result type = 2, it is considered a confident match.
+#' @param diff_limit limit to the difference between above and below house numbers
+#' @return original df. if changes are applied, `best_match` will be changed to the cleaned address, and result type will be changed to type 7.
+cleanStusingSeq = function(seq_hn, res_limit = 2, diff_limit = 4) {
+  multi_st_seq <- seq_hn %>%
+    group_by(SEQ) %>%
+    summarize(count = n_distinct(best_match)) %>%
+    filter(count > 1)
+  
+  seq_w_multi_st_df = split(filter(seq_hn, SEQ %in% multi_st_seq$SEQ), pull(filter(seq_hn, SEQ %in% multi_st_seq$SEQ), SEQ))
+  
+  # applied to individual df containing hn of one SEQ
+  cleanSeq = function(df) {
+    above = df %>%
+      select(abv_match = best_match, abv_res = result_type, abv_hn = hn_1)
+    above = above[1:(nrow(above) - 1), ]
+    above = bind_rows(tibble(abv_match = NA, abv_res = NA, abv_hn = NA),
+                      above)
+    
+    below = df %>%
+      select(bel_match = best_match, bel_res = result_type, bel_hn = hn_1)
+    below = below[2:(nrow(below)), ]
+    below = bind_rows(below,
+                      tibble(bel_match = NA, bel_res = NA, bel_hn = NA))
+    
+    output = bind_cols(df, above, below) %>%
+      mutate(result_type = ifelse(result_type > res_limit 
+                                  & (abv_res <= res_limit | bel_res <= res_limit) 
+                                  & ((abs(abv_hn - hn_1) <= diff_limit) | (abs(bel_hn - hn_1) <= diff_limit))
+                                  & (abv_match == bel_match | is.na(abv_match) | is.na(bel_match)),
+                                  7, result_type
+      ),
+      best_match = ifelse(result_type == 7, bel_match, best_match)) %>%
+      filter(result_type == 7) %>%
+      select("index", new_match = "best_match") %>%
+      fill(new_match, .direction = "up") %>%
+      fill(new_match, .direction = "down")
+  
+    return(output)  
+  }
+  
+  # join back to the original df
+  cleaned_dfs = map(seq_w_multi_st_df, function(x) cleanSeq(x)) %>%
+    reduce(bind_rows)
+  
+  seq_hn = seq_hn %>%
+    left_join(cleaned_dfs, by = c("index" = "index")) %>%
+    mutate(best_match = ifelse(!is.na(new_match), new_match, best_match),
+           result_type = ifelse(!is.na(new_match), 7, result_type)) %>%
+    select(- c("new_match"))
+  
+  return(seq_hn) 
+}
+
