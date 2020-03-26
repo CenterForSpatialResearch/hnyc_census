@@ -16,7 +16,7 @@ library(knitr)
 library(kableExtra)
 
 mn_output <- readRDS("../../Data/mn_output.rds")
-bk_output <- readRDS("../../Data/mn_output.rds")
+bk_output <- readRDS("../../Data/bk_output.rds")
 ```
 
 <br>
