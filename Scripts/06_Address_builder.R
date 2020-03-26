@@ -1,29 +1,22 @@
----
-title: "Address Builder"
-author: "Clinton"
-date: "26 February 2020"
-output: html_document
----
+#' address_builder()
+#' 
+#' The function takes three variables `hn_1`, `best_match` and 
+#' `street_type`, and concatenates an address suitable for geocoding. 
+#' Two parameters are available for customising the output address. 
+#' 
+#' This is assissted by the street_type_builder() function, which
+#' produces the `street_type` variable from the data frame.
+#' 
+#' * The first parameter `spell_ave` defaults to FALSE, 
+#' and converts numerics to words for streets where `street_type` 
+#' is avenue. For example, "3 AVE" will be transformed to "THIRD AVE".
+#'  
+#' * The second parameter `suffix` defaults to FALSE, and adds 
+#' ordinal indicators (e.g. st, nd, rd) for all streets. 
+#' For example, "108 ST" will be transformed to "108TH ST".
 
-### 1. Set Up
 
-```{r message = FALSE, warning = FALSE}
-library(dplyr)
-library(stringr)
-library(english)
-library(purrr)
-library(knitr)
-library(kableExtra)
-
-mn_output <- readRDS("../../Data/mn_output.rds")
-```
-
-<br>
-
-### 2. Street Builder
-
-```{r}
-# Street type builder
+# Street type function
 street_type_builder = function(df) {
   df$street_type = case_when(
     str_detect(df$best_match, pattern = " ST") ~ "ST",
@@ -55,20 +48,8 @@ street_type_builder = function(df) {
   return(df)
 }
 
-mn_output = street_type_builder(mn_output)
-```
 
-<br>
-
-### 3. Address Builder
-
-The function takes three variables `hn_1`, `best_match` and `street_type`, and concatenates an address suitable for geocoding. Two parameters are available for customising the output address. 
-
-* The first parameter `spell_ave` defaults to FALSE, and converts numerics to words for streets where `street_type` is avenue. For example, "3 AVE" will be transformed to "THIRD AVE".
-
-* The second parameter `suffix` defaults to FALSE, and adds ordinal indicators (e.g. st, nd, rd) for all streets. For example, "108 ST" will be transformed to "108TH ST".
-
-```{r}
+# Address builder
 build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
   
   # Variables used for Concatenate, replacing with empty string in order to sanitise input for functions below. Also because otherwise NA would be concatenated
@@ -103,7 +84,7 @@ build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
                        scales::ordinal(x),
                        "")
               })
-
+    
     tmp_best_match = str_replace(tmp_best_match, 
                                  pattern = "[:digit:]+",
                                  tmp_ordinal)
@@ -131,38 +112,3 @@ build_Address = function(df, spell_ave = FALSE, suffix = FALSE) {
   
   return(df)
 }
-```
-
-<br>
-
-### 3. Examples
-
-```{r}
-set.seed(2468)
-index = sample(NROW(mn_output), 100)
-examples = mn_output[index,]
-
-base_function   = build_Address(examples)$addr
-spell_ave_true  = build_Address(examples, spell_ave = TRUE)$addr
-suffix_true     = build_Address(examples, suffix = TRUE)$addr
-both_true       = build_Address(examples, spell_ave = TRUE, suffix = TRUE)$addr
-
-data.frame(hn_1 = examples$hn_1,
-           best_match = examples$best_match,
-           street_type = examples$street_type, 
-           base_function, 
-           spell_ave_true,
-           suffix_true,
-           both_true) %>%
-  kable() %>%
-  kable_styling() %>%
-  scroll_box(width = "100%", height = "300px")
-```
-
-<br>
-
-### 4. Future Improvements
-
-* Function works as expected but code could be improved and cut down to be more efficient
-
-***
