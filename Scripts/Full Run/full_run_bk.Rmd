@@ -65,7 +65,7 @@ names(sample) <- c("record", "township", "county", "ED", "person_id",
 #### Street Clean Function `01_Street_Clean_Function_MNBK`
 This function preprocesses the `edict`. It will be used in the `02_Street_Matching_MNBK` function.
 ```{r street clean}
-# Updated on 27th February
+# Updated on 27th March
 clean<-function(x){
   x<-gsub("\\<STREET\\>|\\<SRT\\>$|\\<SR\\>$\\<SRT\\>$|\\<STR\\>$|\\<SST\\>$|\\<SEET\\>$|\\<TREET\\>$|\\<SHEER\\>$|\\<SHEE\\>$|\\<STREE\\>$|\\<SREET\\>$|\\<REET\\>$|\\<STEE\\>$|\\<ST\\>$","ST",x)
   x<-gsub("\\<N\\>","N",x)
@@ -143,15 +143,15 @@ clean<-function(x){
   x<-gsub("\\<FIFETH\\>|\\<FIFTH\\>|\\<FIFFTH\\>|\\<FIFTHE\\>|\\<FIVE\\>","5",x)
   x<-gsub("\\<SIXTH\\>|\\<SXTH\\>|\\<SITH\\>|\\<SIHXT\\>|\\<SIX\\>","6",x)
   x<-gsub("\\<SEVENTH\\>|\\<SVEN\\>|\\<SVENTH\\>|\\<SEVENH\\>|\\<SEVENT\\>|\\<SEVEN\\>","7",x)
-  x<-gsub("\\<EIGHTH\\>|\\<EIGHTEH\\>|\\<EITH\\>|\\<EIGHT\\>","8",x)
+  x<-gsub("\\<EIGHTH\\>|\\<EIGHTEH\\>|\\<EITH\\>|\\<EIGHT\\>|\\<EIGHTTH\\>|\\<EIGTH\\>|\\<FIGHT\\>","8",x)
   x<-gsub("\\<NINETH\\>|\\<NINTH\\>|\\<NINT\\>|\\<NINETH\\>|\\<NINE\\>|\\<NIN\\>","9",x)
   x<-gsub("\\<TWENTIETH\\>|\\<TWENTIEFTH\\>","20",x) 
   x<-gsub("\\<THIRTIETH\\>|\\<THIRTIEFTH\\>","30",x)
-  x<-gsub("\\<FORTIETH\\>|\\<FOURTIETH\\>","40",x)
+  x<-gsub("\\<FORTIETH\\>|\\<FOURTIETH\\>|\\<FOURTHENTH\\>","40",x)
   x<-gsub("\\<FIFTIETH\\>","50",x)
   x<-gsub("\\<SIXTIETH\\>","60",x)
   x<-gsub("\\<SEVENTIETH\\>","70",x)
-  x<-gsub("\\<EIGHTIETH\\>","80",x)
+  x<-gsub("\\<EIGHTIETH\\>|\\<EIGHTETH\\>","80",x)
   x<-gsub("\\<NINETIETH\\>|\\<NINTIETH\\>","90",x)
   x<-gsub("(?<=\\d) (?=\\d)","",x,perl = T) 
   
@@ -180,33 +180,38 @@ clean<-function(x){
   x <- gsub("\\<ALLANTIC\\>|\\<ATLASTA\\>","ATLANTIC",x)
   x <- gsub("\\<ALLEM\\>","ALLEN",x)
   x <- gsub("\\<ANENUE\\>","AVE",x)
+  x <- gsub("\\<CROTON\\>|\\<GROTON\\>","AUDUBON",x)
+  x <- gsub("\\<AT RINS\\>","ATKINS",x)
   
   x <- gsub("\\<BATTIE\\>","BALTIC",x)
   x <- gsub("\\<BARREE\\>","BARROW",x)
   x <- gsub("\\<BESSHLEY\\>","BURLING",x)
-  x <- gsub("\\<BIRY\\>","BROADWAY",x)
+  x <- gsub("\\<BIRY\\>|\\<B WAY\\>|\\<BWAY\\>|\\<BRAKSWAY\\","BROADWAY",x)
   x <- gsub("\\<BUSTWICK\\>","BUSHWICK",x)
   x <- gsub("\\<BUTTER\\>","BUTLER",x)
   x <- gsub("\\<BREEVORT\\>","BREVOORT",x)
-  x <- gsub("\\<BRENNEL\\>|\\<BROOMES\\|\\<BROOM\\|\\<BRANNAS\\>","BROOME",x)
+  x <- gsub("\\<BRENNEL\\>|\\<BROOMES\\>|\\<BROOM\\>|\\<BRANNAS\\>|\\<BROWN\\>","BROOME",x)
+  x <- gsub("\\<BLACKER\\>|\\<BLENKER\\>","BLEECKER",x)
 
   x <- gsub("\\<CLAIR\\>","CLASSON",x)
   x <- gsub("\\<CLISTEN\\>","CLINTON",x)
   x <- gsub("\\<CHERY\\>","CHERRY",x)
-  x <- gsub("\\<CHRYSTEE\\>|\\<CHRYSTAL\\>","CANAL",x)
+  x <- gsub("\\<CHRYSTEE\\>|\\<CHRYSTAL\\>|\\<CHTYSTIE\\>|\\<CHRYSTEL\\>","CHRYSTIE",x)
   x <- gsub("\\<CARRAL\\>|\\<COYAL\\>","CANAL",x)
   x <- gsub("\\<COLUMBIN\\>","COLUMBIA",x)
   x <- gsub("\\<CAMNON\\>","CANNON",x)
+  x <- gsub("\\<CROWH\\>","CROWN",x)
   
   x <- gsub("\\<DEVAL\\>","DEVOE",x)
   x <- gsub("\\<DEBOUCHEL\\>","DEBEVOISE",x)
   x <- gsub("\\<DAFONT\\>","DUPONT",x)
   x <- gsub("\\<DEGRAN\\>","DEGRAW",x)
   x <- gsub("\\<DENBO\\>|\\<DEKALB\\>","DE KALB",x)
-  x <- gsub("\\<DELAMERE\\>|\\<DALANEY\\>","DELANCEY",x) 
+  x <- gsub("\\<DELAMERE\\>|\\<DALANEY\\>|\\<DELANEY\\>|\\<DELANCY\\>","DELANCEY",x) 
 
   x <- gsub("\\<ELTHZROTH\\>|\\<ELLSWICK\\>","ELLIOTT",x)
   x <- gsub("\\<ELDREDGE\\>|\\<CLARIDGE\\>","ELDRIDGE",x) 
+  x <- gsub("\\<ESSEY\\>","ESSEX",x) 
 
   x <- gsub("\\<FORSYTHE\\>","FORSYTH",x) 
   x <- gsub("\\<FLATHISH\\>","FLATBUSH",x)
@@ -216,39 +221,43 @@ clean<-function(x){
   x <- gsub("\\<GREENS\\>","GREENE",x)
   x <- gsub("\\<GREENRICH\\>|\\<GAMWICH\\>","GREENWICH",x) 
   
+  x <- gsub("\\<HOUTON\\>","HOUSTON",x) 
   x <- gsub("\\<HAVES\\>","HEWES",x) 
   x <- gsub("\\<HAKEY\\>","HALSEY",x)
   x <- gsub("\\<HEWEY\\>","HENRY",x)
   x <- gsub("\\<HICK\\>","HICKS",x)
-  x <- gsub("\\<HUMBOLOT\\>|\\<HUMBARD\\>","HUMBOLDT",x) 
+  x <- gsub("\\<HUMBOLOT\\>|\\<HUMBARD\\>|\\<HUMBOLT\\>","HUMBOLDT",x) 
   
   x <- gsub("\\<JOHOM\\>","JOHNS",x) 
   
   x <- gsub("\\<KIOP\\>|\\<HEAP\\>","KEAP",x) 
   
-  x <- gsub("\\<LAY FAY ESTE\\>|\\<LADORATT\\>","LAFAYETTE",x)
-  x <- gsub("\\<LIRA\\>|\\<LOUMOR\\|\\<LARMER\\>","LORIMER",x)
+  x <- gsub("\\<LAY FAY ESTE\\>|\\<LADORATT\\>|\\<LAFYAYETTE\\>","LAFAYETTE",x)
+  x <- gsub("\\<LIRA\\>|\\<LOUMOR\\>|\\<LARMER\\>","LORIMER",x)
   x <- gsub("\\<LAAVIUK\\>","LAWRENCE",x) 
   x <- gsub("\\<LAIDLOW\\>","LUDLOW",x) 
   x <- gsub("\\<TEX\\>","LEX",x)
+  x <- gsub("\\<REPPERTS\\>","LEFFERTS",x)
   
-  x <- gsub("\\<PARLE\\>|\\<MALLE\\|\\<MYETTE\\>","MYRTLE",x)
-  x <- gsub("\\<MC DOUGALL\\>","MCDOUGAL",x)
+  x <- gsub("\\<PARLE\\>|\\<MALLE\\>|\\<MYETTE\\>","MYRTLE",x)
+  x <- gsub("\\<MC DOUGALL\\>|\\<MC DOUGAL\\>|\\<MCDOUGALL\\>","MCDOUGAL",x)
   x <- gsub("\\<MC DONOUGH\\>","MCDONOUGH",x)
   x <- gsub("\\<MANZA\\>|\\<MAREY\\>","MARCY",x)
   x <- gsub("\\<MESCOLE\\>","MESEROLE",x)
   x <- gsub("\\<MEASE\\>","MOORE",x)
   x <- gsub("\\<MEDDLER\\>","MIDDLETON",x)
   x <- gsub("\\<MANGEN\\>","MANGIN",x)
-
+  x <- gsub("\\<HAULL\\>|\\<MALLERY\\>","MULBERRY",x)
+  
   x <- gsub("\\<NAPOLK\\>","NORFOLK",x)
   x <- gsub("\\<VAST AND\\>","NOSTRAND",x)
 
+  x <- gsub("\\<DAK\\>","OAK",x)
   x <- gsub("\\<OLWEN\\>","OLIVER",x)
   x <- gsub("\\<GERHARD\\>","ORCHARD",x)
 
   x <- gsub("\\<PUTT\\>","PITT",x)
-  x <- gsub("\\<PERROTT\\>","PIERREPONT",x)
+  x <- gsub("\\<PERROTT\\>|\\<PERROTT PREMPONT\\>","PIERREPONT",x)
   x <- gsub("\\<PLAD\\>","PLACE",x)
   x <- gsub("\\<PRUFER\\>","PROSPECT",x)
   x <- gsub("\\<PREDIDUNT\\>","PRESIDENT",x)
@@ -256,15 +265,20 @@ clean<-function(x){
      
   x <- gsub("\\<RUTHIE\\>","RUTLEDGE",x)
   x <- gsub("\\<RIDAL\\>","RIDGE",x)
+  x <- gsub("\\<RAYSON\\>","RYERSON",x)
   x <- gsub("\\<REVENTON\\>","RIVINGTON",x)
   x <- gsub("\\<RUALMAINE\\>|\\<RICER SIDE\\>","RIVERSIDE",x)
+  x <- gsub("\\<REDERICK\\>|\\<RENNICK\\>","RENWICK",x)
   
   x <- gsub("\\<SELLTOWN\\>","SULLIVAN",x)
   x <- gsub("\\<SISH\\>","SIDE",x)
   x <- gsub("\\<STUCKER\\>","STEUBEN",x)
+  x <- gsub("\\<STATES\\>","STATE",x)
+  x <- gsub("\\<SCHAALS\\>","SCHOLES",x)
   x <- gsub("\\<SUMME\\>","SUMMIT",x)
   x <- gsub("\\<SCHOMERDOSA\\>","SCHERMERHORN",x)
   x <- gsub("\\<DOUTH\\>|\\<SONSE\\>","SOUTH",x)
+  x <- gsub("\\<STUYVESTANT\\>","STUYVESANT",x)
   
    x <- gsub("\\<STONPSON\\>","THOMPSON",x)
   x <- gsub("\\<TRAY\\>","TROY",x)
@@ -276,13 +290,14 @@ clean<-function(x){
   x <- gsub("\\<VEMON\\>","VERNON",x)
   x <- gsub("\\<VANDERLY\\>|\\<VANDERSLIDE\\>","VANDERBILT",x)
   
+  x <- gsub("\\<WYONIA\\>","WYONA",x)
   x <- gsub("\\<WITKINS\\>","WATKINS",x)
   x <- gsub("\\<WALLWORTH\\>","WALWORTH",x)
   x <- gsub("\\<WHIPPER\\>","WHIPPLE",x)
-  x <- gsub("\\<WALLABANK\\>","WALLABOUT",x)
+  x <- gsub("\\<WALLABANK\\>|\\<WALKABOUT\\>","WALLABOUT",x)
   x <- gsub("\\<WASH\\>|\\<WASTEWATER\\>","WASHINGTON",x)
     
-}  
+} 
 ```
 
 #### Street Matching Function `02_Street_Matching_MNBK` (STREET CLEAN FIRST)
