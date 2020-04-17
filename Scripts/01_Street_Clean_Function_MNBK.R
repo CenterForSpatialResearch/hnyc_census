@@ -120,7 +120,7 @@ clean<-function(x){
   x <- gsub("\\<BATTIE\\>","BALTIC",x)
   x <- gsub("\\<BARREE\\>","BARROW",x)
   x <- gsub("\\<BESSHLEY\\>","BURLING",x)
-  x <- gsub("\\<BIRY\\>|\\<B WAY\\>|\\<BWAY\\>|\\<BRAKSWAY\\","BROADWAY",x)
+  x <- gsub("\\<BIRY\\>|\\<B WAY\\>|\\<BWAY\\>|\\<BRAKSWAY\\>","BROADWAY",x)
   x <- gsub("\\<BUSTWICK\\>","BUSHWICK",x)
   x <- gsub("\\<BUTTER\\>","BUTLER",x)
   x <- gsub("\\<BREEVORT\\>","BREVOORT",x)

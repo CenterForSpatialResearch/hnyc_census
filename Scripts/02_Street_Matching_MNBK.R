@@ -29,7 +29,7 @@ street_match <- function(sample, edict) {
   ## clean ED number
   edict <- edict %>%
     mutate(ED = str_pad(ED, 4, "left", pad = "0")) # ensure numbers are all 4 digit
-    
+  
   ## Extract Unique Addresses
   unique_addresses <- sample %>%
     select(ED, street_add) %>%
@@ -104,17 +104,26 @@ street_match <- function(sample, edict) {
   
   ## bind all dfs by row
   match_dict <- bind_rows(ed_list) %>%
-    select(ED = "ED", raw = "raw", clean = "clean.x",
-           match_dl = "clean.y.x", dscore_dl = "dscore.x",
-           match_qgram = "clean.y.y", dscore_qgram = "dscore.y",
-           match_cos = "clean.y.x.x", dscore_cos = "dscore.x.x",
-           match_jac = "clean.y.y.y", dscore_jac = "dscore.y.y",
-           match_jw = "clean.y", dscore_jw = "dscore")
+    select(ED = ED, raw = raw, clean = clean.x,
+           match_dl = clean.y.x, dscore_dl = dscore.x,
+           match_qgram = clean.y.y, dscore_qgram = dscore.y,
+           match_cos = clean.y.x.x, dscore_cos = dscore.x.x,
+           match_jac = clean.y.y.y, dscore_jac = dscore.y.y,
+           match_jw = clean.y, dscore_jw = dscore)
   
   ## ---- FURTHER TUNING ----
   ## create summary statistics
   summ_dscores <- match_dict %>%
-    replace(is.na(.), 5) %>%
+    mutate(match_dl = ifelse(is.na(match_dl), "5", match_dl),
+           match_qgram = ifelse(is.na(match_qgram), "5", match_qgram),
+           match_cos = ifelse(is.na(match_cos), "5", match_cos),
+           match_jac = ifelse(is.na(match_jac), "5", match_jac),
+           match_jw = ifelse(is.na(match_jw), "5", match_jw),
+           dscore_dl = ifelse(is.na(dscore_dl), 5, dscore_dl),
+           dscore_qgram = ifelse(is.na(dscore_qgram), 5, dscore_qgram),
+           dscore_cos = ifelse(is.na(dscore_cos), 5, dscore_cos),
+           dscore_jac = ifelse(is.na(dscore_jac), 5, dscore_jac),
+           dscore_jw = ifelse(is.na(dscore_jw), 5, dscore_jw)) %>%
     group_by(ED) %>%
     summarize(mean_dl = mean(dscore_dl), sd_dl = sd(dscore_dl),
               mean_qgram = mean(dscore_qgram), sd_qgram = sd(dscore_qgram),
@@ -175,12 +184,12 @@ street_match <- function(sample, edict) {
   
   ## bind all dfs by row
   match_dict <- bind_rows(ed_list) %>%
-    select(ED = "ED", raw = "raw", clean = "clean.x",
-           match_dl = "clean.y.x", dscore_dl = "dscore.x",
-           match_qgram = "clean.y.y", dscore_qgram = "dscore.y",
-           match_cos = "clean.y.x.x", dscore_cos = "dscore.x.x",
-           match_jac = "clean.y.y.y", dscore_jac = "dscore.y.y",
-           match_jw = "clean.y", dscore_jw = "dscore")
+    select(ED = ED, raw = raw, clean = clean.x,
+           match_dl = clean.y.x, dscore_dl = dscore.x,
+           match_qgram = clean.y.y, dscore_qgram = dscore.y,
+           match_cos = clean.y.x.x, dscore_cos = dscore.x.x,
+           match_jac = clean.y.y.y, dscore_jac = dscore.y.y,
+           match_jw = clean.y, dscore_jw = dscore)
   
   # ---- BEST MATCH ----
   ## function to extract modes
@@ -195,8 +204,18 @@ street_match <- function(sample, edict) {
   
   ## extract modes
   match_dict_modes <- match_dict %>%
-    replace(is.na(.), "0") %>%
-    select(- c("dscore_dl", "dscore_qgram", "dscore_cos", "dscore_jac", "dscore_jw")) %>%
+    mutate(match_dl = ifelse(is.na(match_dl), "0", match_dl),
+           match_qgram = ifelse(is.na(match_qgram), "0", match_qgram),
+           match_cos = ifelse(is.na(match_cos), "0", match_cos),
+           match_jac = ifelse(is.na(match_jac), "0", match_jac),
+           match_jw = ifelse(is.na(match_jw), "0", match_jw),
+           dscore_dl = ifelse(is.na(dscore_dl), 0, dscore_dl),
+           dscore_qgram = ifelse(is.na(dscore_qgram), 0, dscore_qgram),
+           dscore_cos = ifelse(is.na(dscore_cos), 0, dscore_cos),
+           dscore_jac = ifelse(is.na(dscore_jac), 0, dscore_jac),
+           dscore_jw = ifelse(is.na(dscore_jw), 0, dscore_jw)) %>%
+    select(ED, raw, clean, match_dl, match_qgram, 
+           match_cos, match_jac, match_jw) %>%
     gather("method", "match", - c("ED", "raw", "clean")) %>%
     group_by(ED, raw) %>%
     summarise(mode = modal(match))
@@ -206,7 +225,16 @@ street_match <- function(sample, edict) {
   
   ## best match
   match_dict <- match_dict %>%
-    replace(is.na(.), 0) %>%
+    mutate(match_dl = ifelse(is.na(match_dl), "0", match_dl),
+           match_qgram = ifelse(is.na(match_qgram), "0", match_qgram),
+           match_cos = ifelse(is.na(match_cos), "0", match_cos),
+           match_jac = ifelse(is.na(match_jac), "0", match_jac),
+           match_jw = ifelse(is.na(match_jw), "0", match_jw),
+           dscore_dl = ifelse(is.na(dscore_dl), 0, dscore_dl),
+           dscore_qgram = ifelse(is.na(dscore_qgram), 0, dscore_qgram),
+           dscore_cos = ifelse(is.na(dscore_cos), 0, dscore_cos),
+           dscore_jac = ifelse(is.na(dscore_jac), 0, dscore_jac),
+           dscore_jw = ifelse(is.na(dscore_jw), 0, dscore_jw)) %>%
     rowwise() %>%
     mutate(result_type = ifelse(match_dl == match_cos & match_dl == match_qgram & match_dl == match_jac & match_dl == match_jw, ifelse(clean == match_dl, 1, ifelse(mode == 0, 6, 2)), ifelse(str_detect(mode, "\\+"), 4, ifelse(mode == 0, 5, 3)))) %>%
     mutate(best_match = case_when(result_type %in% c(1, 2, 3) ~ mode,
