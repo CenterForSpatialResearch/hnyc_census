@@ -7,7 +7,8 @@
 * **04_1_hn_dict_clean.R** [function] wrangles `combined_MN_dict.csv` to format needed by 04_house_clean.
 * **04_house_clean.R**: [function] Cleans house number: extracts house numbers from streets, separates modifiers and separates house ranges
 * **05_House_Number_Fill_Down.R** [function + one-line script] simply fills down `house_num` within a street name and an ED.
-* Bo's House No. Sequence Detection
+* House No. Sequence Detection (under /House, 06_seqClean.R)
+
 
 ### Run Full Script
 * Consolidated Scripts can be found in the `Full Run` folder
