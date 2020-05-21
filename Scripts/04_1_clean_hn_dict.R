@@ -1,7 +1,6 @@
   
-clean_hn_dict <- function(file) {
-  hn_dict <- read_csv(file)
-  
+clean_hn_dict <- function(hn_dict) {
+
   fix_order <- function(str) {
     if (str == "NA?NA") {return (NA_character_)}
     
