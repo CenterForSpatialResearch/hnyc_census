@@ -27,6 +27,8 @@ Quick links to preview Documentation HTML files in the repo:
 * [Street Matching BK 100k sample](http://htmlpreview.github.io/?https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/Scripts/Street/Street_Dist_Check_BK.html)
 * [House Number Cleaning](http://htmlpreview.github.io/?https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/Scripts/House/House_Cleaning_100k_MN.html)
 * [House Number Sequence Detection Report](http://htmlpreview.github.io/?https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/Scripts/House/merge_sequence_report.html)
+* [Sequence Analysis I](http://htmlpreview.github.io/?https://github.com/CenterForSpatialResearch/hnyc_census/blob/master/Scripts/House/sequence_EDA.html)
+* [Sequence Analysis II](https://htmlpreview.github.io/?https://github.com/CenterForSpatialResearch/hnyc_census/blob/master/Scripts/House/sequence_breakpoints_EDA.html)
 
 ## Data, Inputs and Outputs
 * Data, shapefiles, combined street dictionaries and output data can be found on the [google drive](https://drive.google.com/drive/u/1/folders/1lBPqmNGByQK41NQ3-dPQdfU3aGBLg5CS)
