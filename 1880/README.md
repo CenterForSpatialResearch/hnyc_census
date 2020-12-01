@@ -16,7 +16,7 @@
 An example of how to run all the scripts together is in **99_Full_Census_Cleaning_1880**
 
 ## Exploratory Data Analysis
-* [EDA](___) can be found in the `EDA` folder within the `Full Run` folder
+* [EDA](https://htmlpreview.github.io/?https://github.com/CenterForSpatialResearch/hnyc_census/blob/master/1880/Scripts/EDA/EDA_1880_Census.html) can be found in the `EDA` folder within the `Full Run` folder
 
 ## Documentation
 Quick links to preview Documentation HTML files in the repo:
