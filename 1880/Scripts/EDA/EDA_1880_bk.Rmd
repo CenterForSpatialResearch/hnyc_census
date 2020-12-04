@@ -1,6 +1,10 @@
 ---
 title: "EDA 1880 BK"
-output: html_notebook
+author: "Olivia Huang"
+date: "12/01/2020"
+output:
+  html_document:
+    df_print: paged
 ---
 
 ## Set up
@@ -20,7 +24,6 @@ sample <- extract(sample, "street", c("house_num", "street_add"), "(\\d.)(\\D+)"
 sample_split <- read.csv("/Users/olivia/Documents/GitHub/hnyc_census/1880/Scripts/census_1880_h_bk_split.csv")
 ```
 House numbers and street names are separated from the original address column, into house_num and street_add.
-
 
 ## Dataset
 Here is a sample of the 1880 Brooklyn census data.
