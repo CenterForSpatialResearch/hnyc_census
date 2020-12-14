@@ -18,7 +18,7 @@ library(fuzzyjoin)
 source("01_Street_Clean_Function_1880.R")
 
 #use brooklyn street dictionary
-edict <- read_csv("1880/Street_Dict/full_bk_dict1880.csv")
+#edict <- read_csv("1880/Street_Dict/full_bk_dict1880.csv")
 #use manhattan street dictionary
 #edict <- read_csv("1880/Street_Dict/full_mn_dict1880.csv")
 
