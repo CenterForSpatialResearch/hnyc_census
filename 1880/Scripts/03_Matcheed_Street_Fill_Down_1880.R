@@ -27,7 +27,7 @@ fillDownStreet <- function(df){
 }
 
 #' sample_cleaned is an output from `02_Street_Matching_MNBK.R`
-sample_st_filled <- fillDownStreet(sample_cleaned)
+#sample_st_filled <- fillDownStreet(sample_cleaned)
 
 #' One test for fillDownStreet(). Should not get error message from
 #' running this line after if the function works properly. This checks
