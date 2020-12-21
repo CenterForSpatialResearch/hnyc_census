@@ -20,10 +20,10 @@ source("06_Address_builder.R")
 # Street Dictionary EDIT TO TOGGLE MN OR BK DICTS
 edict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_street_dictionary/master/StreetsALL/Data/geo_dict_1910_mn.csv")
 hn_dict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/Street_Dict/combine_mn.csv") %>%
-  select(#Left_Low = y1910Left_Low,
-         #Left_High = y1910Left_High,
-         #Right_Low = y1910Right_Low,
-         #Right_High = y1910Right_High,
+  select(Left_Low = y1910Left_Low,
+         Left_High = y1910Left_High,
+         Right_Low = y1910Right_Low,
+         Right_High = y1910Right_High,
          everything()) %>%
   clean_hn_dict()
 #Census Data EDIT INPUT CSV TO TOGGLE MN OR BK INPUT
