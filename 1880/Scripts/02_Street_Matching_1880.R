@@ -1,6 +1,6 @@
 # This script contains the full street address matching and fill down as a function.
 
-#' @param rawData Census sample to match. Note: this is currently tailored to samples that have same columns as the original 100k sample. If column names change, adapt the code to clean column names accordingly, ensuring that relevant column names retain the names specified in the function.
+#' @param sample Census sample to match. Note: this is currently tailored to samples that have same columns as the original 100k sample. If column names change, adapt the code to clean column names accordingly, ensuring that relevant column names retain the names specified in the function.
 #' @param edict Street Dictionary used for matching. Ensure that each ED is a row and streets in the ED are in columns.
 #' 
 #' @output The full, original census sample data input into the function with 3 additional columns:
@@ -17,28 +17,19 @@ library(tidyverse)
 library(fuzzyjoin)
 source("01_Street_Clean_Function_1880.R")
 
-#use brooklyn street dictionary
-#edict <- read_csv("1880/Street_Dict/full_bk_dict1880.csv")
-#use manhattan street dictionary
-#edict <- read_csv("1880/Street_Dict/full_mn_dict1880.csv")
-
 # ---- FUNCTION ----
-street_match <- function(rawData, edict) {
+street_match <- function(sample, edict) {
   ## clean column names: adapt code if sample has different columns. At minimum, ensure `record`, `ED` and `street_add` columns exist after cleaning.
-  # names(sample) <- c("record", "township", "county", "ED", "person_id",
-  #                    "dwelling_seq", "dwelling_ser", "dwelling_ser2", "hh_seq", "hh_seq_8",
-  #                    "hh_ser2", "hh_ser_bef_split", "indiv_seq", "split", 
-  #                    "line_no", "line_no2", "microfilm",
-  #                    "n_fam", "n_person_bef_split", "house_num", "street_add")
-  names(rawData) <- c("record", "year", "dwelling_ser", "dwsize", "township", 
-                     "pageno", "microfilm", "n_fam", "hh_ser_bef_split", "split", 
+  names(sample) <- c("record", "year", "dwelling_ser", "dwsize", "township", 
+                     "pageno", "microfilm", "n_fam", "hh_ser_bef_split", "split",
                      "mcd", "county", "ED", "supdist", "house_num", "street_add")
+  
   ## clean ED number
   edict <- edict %>%
     mutate(ED = str_pad(ED, 4, "left", pad = "0")) # ensure numbers are all 4 digit
   
   ## Extract Unique Addresses
-  unique_addresses <- rawData %>%
+  unique_addresses <- sample %>%
     select(ED, street_add) %>%
     filter(!is.na(street_add)) %>%
     distinct(ED, street_add)
@@ -51,7 +42,7 @@ street_match <- function(rawData, edict) {
             " ")
   }
   
-  ## [NOTE] make sure to run clean() function from '01_Street_Clean_Function_1880.R'
+  ## [NOTE] make sure to run clean() function from '01_Street_Clean_Function_MNBK.R'
   
   ## preallocate memory for cleaned column
   cleaned <- rep(NA_character_, nrow(unique_addresses))
@@ -277,5 +268,5 @@ street_match <- function(rawData, edict) {
   
   # ---- MERGE TO ORIGINAL SAMPLE ----
   match_dict_subset <- select(match_dict, ED, raw, best_match, result_type, flag_st = flag)
-  sample_cleaned <- left_join(rawData, match_dict_subset, by = c("ED" = "ED", "street_add" = "raw"))
+  sample_cleaned <- left_join(sample, match_dict_subset, by = c("ED" = "ED", "street_add" = "raw"))
 }

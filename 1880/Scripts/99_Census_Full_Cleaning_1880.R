@@ -7,22 +7,23 @@
 library(hunspell)
 library(tidyverse)
 library(fuzzyjoin)
-source("01_Street_Clean_Function_1880.R")
-source("02_Street_Matching_1880.R")
-source("03_Matched_Street_Fill_Down_1880.R")
-source("04_HouseNumber_Clean_1880.R")
-source("04_HN_Clean_1880.R")
-source("05_House_Number_Fill_Down_1880.R")
-source("06_Address_builder_1880.R")
+source("1880/Scripts/01_Street_Clean_Function_1880.R")
+source("1880/Scripts/02_Street_Matching_1880.R")
+source("1880/Scripts/03_Matched_Street_Fill_Down_1880.R")
+source("1880/Scripts/04_HouseNumber_Clean_1880.R")
+source("1880/Scripts/04_HN_Clean_1880.R")
+source("1880/Scripts/05_House_Number_Fill_Down_1880.R")
+source("1880/Scripts/06_Address_builder_1880.R")
 
 
-# Codes below need to be updated for 1880 census data
-
-# Set up to run for BK 1910 Census EDIT FOR EACH NEW RUN - edited 20200604 BK
+# Set up to run for BK 1880 Census EDIT FOR EACH NEW RUN - currently for 1880 BK
 # Import data
+#rawData <- read_csv("1880/census_1880_h_bk_sample100k.csv")
 # Street Dictionary EDIT TO TOGGLE MN OR BK DICTS
-edict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/1880/Street_Dict/full_bk_dict1880.csv")
-hn_dict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/1880/Street_Dict/combine_bk1880.csv") %>%
+edict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_street_dictionary/1880/Data/geo_dict_1880_bk.csv")
+#edict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/1880/Street_Dict/full_bk_dict1880.csv")
+hn_dict <- read_csv(url("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_street_dictionary/1880/Data/segment_1880_bk5.csv")) %>%
+#hn_dict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/1880/Street_Dict/combine_bk1880.csv") %>%
   select(Left_Low = y1880Left_Low,
          Left_High = y1880Left_High,
          Right_Low = y1880Right_Low,

@@ -2,6 +2,7 @@
 
 # Required Libraries
 library(dplyr)
+library(stringr)
 library(hunspell)
 
 # Load Raw Data
