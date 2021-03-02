@@ -25,7 +25,11 @@ fillDownHouseNum <- function(df){
 }
 
 #` ############ IMPORTANT !! change input to this function call to output from 04_.R
+<<<<<<< HEAD
 #sample_hn_filled <- fillDownHouseNum(data)
+=======
+#sample_hn_filled <- fillDownHouseNum(sample_st_filled)
+>>>>>>> c66c29fac27c8010eae343f5786cbf25be3bb492
 
 #' One test for fillDownHouseNum(). Should not get error message from
 #' running this line after if the function works properly. This checks
