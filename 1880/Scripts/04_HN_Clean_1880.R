@@ -18,12 +18,12 @@
 #' The original house number is stored in \code{house_num}
 #' 
 
-house_clean <- function(rawData, edict, hn_dict) {
+house_clean <- function(census_data) {
   
   # ---- Preprocessing ----
   # select only records with house numbers
   
-  HN <- rawData %>%
+  HN <- censusdata %>%
     fill(microfilm, .direction = "up") %>%
     filter(!is.na(house_num)) %>%
     select(microfilm, ED, 

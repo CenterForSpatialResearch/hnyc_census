@@ -11,9 +11,10 @@
 fillDownHouseNum <- function(df){
   
   df <- df %>% 
-    filter(record == "H") %>%
+    mutate(across(where(is.character), ~na_if(., ""))) %>% 
+    filter(rectype == "H") %>%
     mutate(house_num_temp = house_num) %>% 
-    group_by(ED, best_match) %>%
+    group_by(ED, street_name_clean) %>%
     fill(modifier.number, modifier.word, house_num, hn_1, hn_2, hn_3, .direction="down") %>%
     fill(modifier.number, modifier.word, house_num, hn_1, hn_2, hn_3, .direction="up") %>%
     rowwise() %>% 
@@ -24,7 +25,7 @@ fillDownHouseNum <- function(df){
 }
 
 #` ############ IMPORTANT !! change input to this function call to output from 04_.R
-sample_hn_filled <- fillDownHouseNum(sample_st_filled)
+#sample_hn_filled <- fillDownHouseNum(data)
 
 #' One test for fillDownHouseNum(). Should not get error message from
 #' running this line after if the function works properly. This checks

@@ -15,7 +15,7 @@ source("04_house_clean.R")
 source("05_House_Number_Fill_Down.R")
 source("06_Address_builder.R")
 
-# Set up to run for BK 1910 Census EDIT FOR EACH NEW RUN - edited 20200604 BK
+# Set up to run for BK 1910 Census EDIT FOR EACH NEW RUN - edited 20210302 BK
 # Import data
 # Street Dictionary EDIT TO TOGGLE MN OR BK DICTS
 edict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_street_dictionary/master/StreetsALL/Data/geo_dict_1910_bk.csv")
@@ -29,7 +29,6 @@ hn_dict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/
 #Census Data EDIT INPUT CSV TO TOGGLE MN OR BK INPUT
 census_data <- read_csv("../Data/input/census_1910_h_bk.csv")
 
-
 # Running all functions
 output <- street_match(census_data, edict) %>%
   fillDownStreet(.) %>%
@@ -39,4 +38,4 @@ output <- street_match(census_data, edict) %>%
   build_Address(.)
 
 # Writing Output to CSV, COMMENT OUT if not needed EDIT to reflect MN BK and VERSION
-write_csv(output, "../Data/output/output_bk_1221.csv")
+write_csv(output, "../Data/output/output_bk_20210302.csv")

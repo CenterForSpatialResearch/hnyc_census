@@ -17,6 +17,7 @@
 
 
 # Street type function
+# Street type function
 street_type_builder = function(df) {
   df$street_type = case_when(
     str_detect(df$best_match, pattern = " ST") ~ "ST",
@@ -42,7 +43,11 @@ street_type_builder = function(df) {
     str_detect(df$best_match, pattern = " BRG") ~ "BRG",
     str_detect(df$best_match, pattern = " HL") ~ "HL",
     str_detect(df$best_match, pattern = "AVE") ~ "AVE",
-    str_detect(df$best_match, pattern = "BROADWAY") ~ "AVE",
+    #str_detect(df$best_match, pattern = "BROADWAY") ~ "AVE",
+    # Streets without street type
+    str_detect(df$best_match, pattern = "CASTLE GARDEN") ~ "",
+    str_detect(df$best_match, pattern = "BROADWAY") ~ "",
+    str_detect(df$best_match, pattern = "BOWERY") ~ "",
     TRUE ~ "ST")
   
   return(df)
