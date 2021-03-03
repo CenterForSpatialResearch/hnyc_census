@@ -18,8 +18,8 @@ source("06_Address_builder.R")
 # Set up to run for BK 1910 Census EDIT FOR EACH NEW RUN - edited 20210302 BK
 # Import data
 # Street Dictionary EDIT TO TOGGLE MN OR BK DICTS
-edict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_street_dictionary/master/StreetsALL/Data/geo_dict_1910_bk.csv")
-hn_dict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/Street_Dict/combine_bk.csv") %>%
+edict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_street_dictionary/master/StreetsALL/Data/geo_dict_1910_mn.csv")
+hn_dict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/hnyc_census/master/Street_Dict/combine_mn.csv") %>%
   select(Left_Low = y1910Left_Low,
          Left_High = y1910Left_High,
          Right_Low = y1910Right_Low,
@@ -27,7 +27,7 @@ hn_dict <- read_csv("https://raw.githubusercontent.com/CenterForSpatialResearch/
          everything()) %>%
   clean_hn_dict()
 #Census Data EDIT INPUT CSV TO TOGGLE MN OR BK INPUT
-census_data <- read_csv("../Data/input/census_1910_h_bk.csv")
+census_data <- read_csv("../Data/input/census_1910_h_mn.csv")
 
 # Running all functions
 output <- street_match(census_data, edict) %>%
@@ -38,4 +38,4 @@ output <- street_match(census_data, edict) %>%
   build_Address(.)
 
 # Writing Output to CSV, COMMENT OUT if not needed EDIT to reflect MN BK and VERSION
-write_csv(output, "../Data/output/output_bk_20210302.csv")
+write_csv(output, "../Data/output/output_mn_20210302.csv")
