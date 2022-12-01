@@ -16,7 +16,8 @@ warnings.filterwarnings('ignore')
 
 
 def street_type(x):
-    
+    pattern = re.compile(r'^(\W+\s)')
+    x = re.sub(pattern, "", x)
     pattern = re.compile(r'\sSTREET|\sSTREE$|\sSTR|\sSTE$|\sSRT$|\sSR$|\sSST$|\sSEET$|\sTREET$|\sSHEER$|\sSHEE$|\sSTREE$|\sSREET$|\sREET$|\sSTEE$|\sST$|\sS$')
     x = re.sub(pattern, " ST", x)
     pattern = re.compile(r'\sDRIVE$|\sDRV$|\sDRI$|\sDRIV$|\sDRIE$|\sDE$|\sDV$|\sDR$')
@@ -25,7 +26,7 @@ def street_type(x):
     x = re.sub(pattern, " CIR", x)
     pattern = re.compile(r'\sAVENUE$|\sAVENUE|\sAVENU$|\sAVEN$|\sAVE$|\sAVN$|\sAV$')
     x = re.sub(pattern, " AVE", x)
-    pattern = re.compile(r'^AVENUE\s|^(\W+)AV\s')
+    pattern = re.compile(r'^AVENUE\s|^(\W+)\sAV\s')
     x = re.sub(pattern, "AVE ", x)
     pattern = re.compile(r"\sCOURT$|\sCT$|\sCRT$|\sCTR$|\sCOUR$|<=\sCOT$|\sCORT$")
     x = re.sub(pattern, " CT", x)
