@@ -1,0 +1,364 @@
+---
+title: "House Number Cleaning (1910 Census Data)"
+author: "Jolene and Bo"
+date: '`r format(Sys.Date(), "%Y-%B-%d")`'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message=FALSE, fig.align='center', fig.width=6, fig.height=4)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+```
+
+# Outdated. See Jolene's version.
+
+# Flow:
+
+### Census --> Extract HN from Street column (+flag1) --> clean HN (+flag2) --> outliers (+flag3) --> handle HN range (+flag4) --> HN interpolation (+flag5)
+
+# 1. Raw Census
+
+This script explores the 1910 census sample data in order to gain insights for filling in missing house numbers. Only relevant columns that will be needed for recovering house numbers and joining the final output back are included.
+
+```{r}
+std_name <- c("hnyc_id", "record", "township", "county", "ED", "person_id",
+              "dwelling_seq", "dwelling_ser", "dwelling_ser2", "hh_seq", "hh_seq_8",
+              "hh_ser2", "hh_ser_bef_split", "indiv_seq", "split",
+              "line_no", "line_no2", "microfilm",
+              "n_fam", "n_person_bef_split", "house_num", "street_add")
+HN1 <- read.csv(here::here("Data/us1910m_usa_sample100k.csv")) %>% 
+    as.data.frame()
+# HN1 <- read.csv(here::here("Scripts/House/data/us1910m_usa_sample100k.csv")) %>%
+#     as.data.frame()
+names(HN1) <- std_name
+
+HN1 <- HN1 %>%
+    fill(microfilm, .direction = "up") %>%
+    filter(record=="H") %>%
+    select(microfilm, ED, 
+           dwelling_ser, house_num, street_add) %>%
+    mutate(originalHN = house_num,
+           house_num = ifelse(house_num=="", NA, as.character(house_num)))
+```
+
+### Note:
+
+* Although some different `ED` share the same `microfilm` page number, the page seems to indicate different physical enumeration pages. Thus, an enumeration page should be uniquely identified by both `ED` and `microfilm`. (I only quickly look through the pages. Any rigorous check?)
+* Records are ordered by `dwelling_ser`.
+
+
+```{r}
+count_missing <- function(HN_df){
+  HN_df %>% mutate(na.cnt = ifelse(is.na(house_num), "Missing", "Present")) %>% group_by(na.cnt) %>% summarize(count_missing=n()) 
+}
+count_missing(HN1) %>% kable()
+```
+
+Most of `house_num`s in the sample are missing.
+
+# 2. Extract house number from `street_add`
+
+Some house numbers are in `street_add` instead of `house_num` column. Numbers in a form of "100 - 120" or "100 TO 120" in `street_add` are considered house numbers and copied to `house_num` if a current `house_num` is `NA`. If a house number is recovered from `street_add`, a record is flagged as 1 in `flg_hn_from_strt`. If a house number is detected in `street_add` but `house_num` is not `NA`, a record is flagged as 1 in`flg_hn_from_strt2`. 
+
+Example:
+```{r, echo=FALSE}
+## subset of the sample
+HN1 %>%
+  select(dwelling_ser, originalHN, street_add) %>%
+  filter(dwelling_ser == 14004) %>%
+  kable()
+```
+
+
+```{r}
+HN2 <- HN1%>% rowwise() %>%
+  mutate(flag1=ifelse(is.na(house_num)&
+                               !is.na(str_extract(street_add,"[0-9]+\\s*(-|TO)+\\s*[0-9]+")), 
+                             str_extract(street_add,"[0-9]+\\s*(-|TO)+\\s*[0-9]+"),
+                             NA),
+         house_num=ifelse(is.na(house_num), flag1, house_num),
+         flg_hn_from_strt2=ifelse((!is.na(flag1))&(house_num != flag1) , 1, 0),
+         flg_hn_from_strt=ifelse(is.na(flag1), 0, 1),
+         house_num = gsub("\\s*(TO)\\s*", "-", house_num, ignore.case = TRUE)) %>%
+  select(-flag1)
+```
+
+There are `r sum(HN2$flg_hn_from_strt)` records whose house numbers are detected from `street_add` and `r sum(HN2$flg_hn_from_strt2)` records whose house number in `house_num` is not the same as a house number detected in `street_add`. They are flagged.
+
+[if different format of house numbers are found in street column, extracting should be taken care in this step]
+
+
+# 3. Clean `house_num`
+
+Ideally, we want `house_num` to contain only numerical values. But here are problems.
+
+```{r, eval = FALSE, echo = TRUE}
+## run this code to see all possible house numbers
+HN1 %>% pull(house_num) %>% unique()
+```
+
+Example:
+```{r, echo=FALSE}
+## subset of the sample
+HN1 %>%
+  select(dwelling_ser, originalHN, street_add) %>%
+  filter(dwelling_ser %in% c(13797, 13855, 13970, 14250, 14910, 17365, 17649, 29158, 16231)) %>%
+  kable()
+```
+
+1. Some house numbers have "1/2"s, which should be moved into `modifier` column for the geocoder.
+2. Modifiers (e.g. "REAR") are included in `house_num` column. The modifiers may be helpful to geocoder later so we will create a new column specifically for them. 
+3. There are words in `house_num`. Currently, the code moves these words to `modifier` column.
+4. House number ranges are used instead of house numbers (using "TO", "&", "/", and " "). These symbols should all be uniformly turned into "-". A slash (`/`) is used to indicate a house number range except for the case when it is exactly `1/2`. 
+
+```{r}
+HN3 <- HN2 %>% rowwise() %>%
+  mutate(modifier.number = str_extract(house_num, "\\s1[/-]2\\b"), 
+         house_num = gsub("\\s1[/-]2\\b", " ", house_num),  
+         house_num = gsub("\\s*(TO|/|&)\\s*", "-", house_num, ignore.case = TRUE), 
+         house_num = gsub("(?<=\\d)\\s+(?=\\d)", "-", house_num, ignore.case = TRUE, perl = TRUE), 
+         modifier.word = trimws(str_extract(house_num, "[A-Za-z\\s]+")),            
+         house_num = gsub("\\s+", " ", house_num),                    
+         house_num = trimws(gsub("[A-Za-z\\s]+", "", house_num)),
+         house_num = gsub("^\\D+", "", house_num, ignore.case = TRUE), 
+         house_num = gsub("\\D+$", "", house_num, ignore.case = TRUE),
+         flg_cleaned = ifelse(originalHN=="", 0, ifelse(house_num==originalHN, 0, 1))) 
+```
+
+The chunk above does:
+
+1. Copy `1/2` or `1-2` from `house_num` to `modifier.number` column
+2. Remove `1/2` or `1-2` from `house_num`
+3. Change `TO` and `/` into `-`
+4. Copy any modifier words from `house_num` to `modifier.number` column
+5. Remove excess whitespaces
+6. Remove any modifier words from `house_num`
+
+** I include `1-2` just in case this exists. The regex for this case excludes `11-20` for example.
+
+# 4. Flag outliers
+
+House numbers that are strangely different from other house numbers in the same enumeration page should be flagged for manual check.
+
+House numbers that should be flagged are:
+
+* house numbers that are not in the house number ranges specified in the ED dict
+* house numbers that were mistranscribed into bizarrely large number. E.g. house number range 100-120 that was transcribed into 100120
+
+```{r}
+threshold <- 6000
+
+HN3 <- HN3 %>% mutate(numeric_hn = as.numeric(house_num),
+                      flg_outlier = ifelse(is.na(numeric_hn), 0, ifelse(numeric_hn > threshold, 1, 0))) %>%
+  select(-numeric_hn)
+```
+
+```{r}
+HN3 %>% filter(flg_outlier == 1) %>% kable()
+```
+
+For the second bullet point, the resulting house numbers are gennerally an integer large. We set a threshold at `r threshold` and any house number that is greater than this is flagged for manual check. Note that house numbers can be mistranscribed into a smaller number than the treshold. !! the current treshold may not work best.
+
+
+## [to be implemented]
+
+# 5. Handle house number ranges 
+
+```{r, eval = FALSE, echo = TRUE}
+## run this chunk to see all possible house numbers
+HN3 %>% pull(house_num) %>% unique()
+```
+
+House number range can be in a form of  
+
+* [number]
+* [number]-[number]
+* [number]-[number]-[number] 
+
+in this sample census data. Each [number] will be separated into new columns: `hn_1`, `hn_2`, and `hn_3`.
+
+```{r, echo = FALSE}
+splt_df <- str_split_fixed(HN3$house_num, "-", 3) %>% data.frame() %>% rename(hn_1 = X1, hn_2 = X2, hn_3 = X3) %>% mutate_all(as.character) %>% mutate_all(as.numeric)
+HN4 <- HN3  %>% cbind(splt_df) 
+```
+
+Part of the resulting table.
+```{r}
+## sample
+HN4 %>% filter(!is.na(hn_2)) %>% head(5) %>% kable()
+```
+
+
+# 6. Identify house number sequences
+
+## Within an enumeration page
+
+As mentioned earlier, an enumeration page can be uniquely identified using a combination of `ED` and `microfilm`. A new page index column `grp` is created using the combination. A new `index` column is used to identify records.
+
+```{r}
+HN_grp <- HN4 %>% mutate(grp = paste0(ED,"_",microfilm )) %>%
+  group_by(grp) %>%
+  mutate(index = row_number()) %>%
+  ungroup() %>% select(grp, index, house_num)
+```
+
+
+```{r}
+temp <- HN_grp %>% mutate(not_missing = !is.na(house_num)) %>% group_by(grp) %>% summarize(cnt_not_missing = sum(not_missing))
+temp %>% ggplot(aes(x=cnt_not_missing)) + geom_bar() + xlab("The number of available house numbers")
+```
+
+The majority of the page have fewer than 5 house numbers for the interpolation. There are a few with 50 present house numbers (all records have their own house number).
+
+```{r, eval = FALSE}
+## see which group has complete HN
+HN_grp %>% mutate(not_missing = !is.na(house_num)) %>% group_by(grp) %>% summarize(cnt_not_missing = sum(not_missing)) %>% filter(cnt_not_missing < 5) %>% View
+```
+
+Below is a sample page whose all records have house numbers.
+
+```{r}
+HN_grp %>% filter(grp=="24_348") %>% head(5) %>% kable()
+
+#HN_grp %>% filter(grp=="44_635") %>% head(5)
+```
+
+### Approach 0: fill down. 
+
+This may not be ideal because we are missing too many house numbers. But we'll stick with this while exploring other option.
+
+### Approach 1: run through a house number string and break it into sequences when appropriate.
+
+It is likely that a large gap of missing house numbers between 2 and 10 should be evenly filled with 4, 6, and 8. To do so, we need to identify possible house number sequences from available house numbers. There are some characteristics we know about house number sequence that can be used for filling in blank streets.
+
+* An enumerator is likely to collect data from one side of a street at a time. Thus, we expect to see sequences of odd numbers and sequences of even numbers separately.
+* There is a range for possible house numbers that exist on a street. Any house number outside the range can be considered as mistranscribed.
+* It is unlikely that there are more than 500 house numbers on a street. (This 500 is arbitrary and can be made dynamic depending on width and length of an ED.)
+
+We can use these observations to break a sequence.
+
+#### Confident Fill Downs
+Basic Principle: if the first non-NA above and first non-NA below has a difference of 0 or 2, AND the ED of those are the same, AND the street address are the same, fill down.
+
+```{r}
+approach_1 <- HN4 %>%
+  
+  # fix street_add
+  mutate(street_add = as.character(street_add)) %>%
+  
+  # create copy of the columns to filled up/down - these should only be filled for records with house no.s
+  mutate(above_hn = hn_1, below_hn = hn_1) %>% 
+  mutate(above_ED = ifelse(!is.na(hn_1), ED, NA), below_ED = ifelse(!is.na(hn_1), ED, NA)) %>%
+  mutate(above_add = ifelse(!is.na(hn_1), street_add, NA), 
+         below_add = ifelse(!is.na(hn_1), street_add, NA)) %>%
+  
+  # fill
+  fill(above_hn, .direction = "down") %>%
+  fill(below_hn, .direction = "up") %>%
+  fill(above_ED, .direction = "down") %>%
+  fill(below_ED, .direction = "up") %>%
+  fill(above_add, .direction = "down") %>%
+  fill(below_add, .direction = "up") %>%
+  
+  # can we confidently fill up/down?
+  mutate(yes_fill = ifelse(abs(above_hn - below_hn) %in% c(0, 2) 
+                           & above_ED == below_ED & above_ED == ED
+                           & above_add == below_add & above_add == street_add, 
+                           1, 0))
+```
+
+```{r}
+sum(approach_1$yes_fill)
+sum(approach_1$yes_fill) - sum(!is.na(approach_1$hn_1))
+```
+
+Using this method, 6092 additional records have been recovered (with confidence), i.e. we have 10946 (56.3%) confident house numbers.
+(Note: without controlling for ED and street address, the number was 8067 additional records, i.e. 12921 total, 66.5%. The difference in records is likely due to unclean street_add, which can be resolved soon).
+
+#### Breaking overly large numbers
+First, an EDA of house numbers with 4 or more digits:
+```{r}
+unique(HN4[HN4$hn_1 > 999, "hn_1"]) 
+```
+
+Code to select house numbers that might be a sequence, e.g. "6765" (which is 67-65) or "38040" (38-40)
+```{r}
+large_hn <- HN4 %>%
+  mutate(hn1_first_2 = as.integer(str_sub(hn_1, 1, 2))) %>%
+  mutate(hn1_last_2 = as.integer(str_sub(hn_1, str_length(hn_1) - 1, str_length(hn_1)))) %>%
+  filter(abs(hn1_first_2 - hn1_last_2) < 10)
+  
+# visualization
+large_hn %>%
+  filter(!is.na(hn_1) &
+         str_length(hn_1) >= 4 &
+         hn1_first_2 != hn1_last_2) %>%
+  select(microfilm, ED, dwelling_ser, house_num, hn_1, hn1_first_2, hn1_last_2) %>%
+  kable() %>% kable_styling()
+```
+
+This helps, but we can't tell what is a valid gap. E.g. 90-92 is likely a range, but what about 1813? 
+### Approach 2: scatter plot and fitted regression lines. 
+
+This is similar to approach 1 but simplier because we don't have to iterate over house numbers. The idea is to plot available house numbers and recover house numbers from a fitted line.
+
+For instance,
+
+```{r}
+temp <- HN_grp %>% filter(grp == "126_938") %>% mutate(house_num = as.numeric(house_num))
+fit.lm <- lm(house_num ~ index, data = temp)
+pred <- data.frame(index = seq(1:nrow(temp)), pred = predict(object = fit.lm, newdata = data.frame(index = seq(1:nrow(temp)))))
+
+temp %>% 
+  ggplot(aes(x=index, y = house_num)) + geom_point() + 
+  expand_limits(x = 0, y = 0) + 
+  ggtitle("grp: 126_938") + expand_limits(x = 0, y = 0)+ 
+  geom_line(data = pred, aes(y = pred), size = 1, color = "red")
+```
+
+But linear model may not work for all pages
+
+```{r}
+temp <- HN_grp %>% filter(grp == "21_232") %>% mutate(house_num = as.numeric(house_num))
+fit.lm <- lm(house_num ~ index, data = temp)
+pred <- data.frame(index = seq(1:nrow(temp)), pred = predict(object = fit.lm, newdata = data.frame(index = seq(1:nrow(temp)))))
+
+
+temp %>% 
+  ggplot(aes(x=index, y = house_num)) + geom_point() + 
+  expand_limits(x = 0, y = 0) + 
+  ggtitle("grp: 21_232") + expand_limits(x = 0, y = 0)+ 
+  geom_line(data = pred, aes(y = pred), size = 1, color = "red")
+```
+
+
+```{r, eval = FALSE}
+HN_grp %>% filter(grp == "126_961") %>% mutate(house_num = as.numeric(house_num)) %>% 
+  ggplot(aes(x=index, y = house_num)) + geom_point() + 
+  expand_limits(x = 0, y = 0) + 
+  ggtitle("grp: 126_961") + 
+  geom_smooth()
+```
+
+
+#### issues
+
+* There is only 1 house number in the page (see grp == "354_205") so no seqence can be implied.
+* Some page does not even have house numbers (see grp == "354_208")
+* Linear model does not work well for some pages
+* Linear model does not work if a page has a decreasing and an increasing sequences. Should look for more information about non-linear model.
+
+Work across enumeration pages for the first and the second bullet points?
+Use non-linear model? break a house number string into pieces (back to the approach 1)
+
+## Note from Dan
+
+* There is a mistake in transcription that may post a challenge in house number inferring. "3-5-7" is transcribed as "357". However, this should be less painful to handle once we have a new ED dict that comes with house number ranges. 
+
+
+
+

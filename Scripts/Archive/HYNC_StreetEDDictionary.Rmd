@@ -1,0 +1,360 @@
+---
+title: "Dictionary check"
+author: "Kyi Yeung Goh"
+date: "16/07/2019"
+output: html_document
+---
+
+```{r warning=FALSE}
+library(zoo)
+library(magrittr)
+library(dplyr)
+library(tidyverse)
+library(openxlsx)
+library(readxl)
+library(stringr)
+library(fuzzyjoin)
+library(tm)
+library(english)
+library(reshape2)
+library(gtools)
+library(compare)
+morse_mn1910<-read_csv("MN_MORSE_EDstreet_dict_1910.csv") 
+morse_bk1910<-read_csv("BK_MORSE_EDstreet_dict_1910.csv")
+mn_original<-read_csv("MN_EDDictionary.csv")
+bk_original<-read_xlsx("BK_EDDictionary.xlsx")
+```
+
+
+```{r}
+## convert to similar form as previous EDict
+morse_mn1910<-as.data.frame(sapply(morse_mn1910, toupper)) 
+morse_bk1910<-as.data.frame(sapply(morse_bk1910, toupper)) 
+
+## joining frames
+morse_mn1910$ED<-as.numeric(as.character(morse_mn1910$ED))
+combined_edict_mn<-left_join(morse_mn1910,mn_original,by="ED")
+combined_edict_mn<-combined_edict_mn%>%
+  select(-X1)
+
+## gather
+combined_edict_mn<-gather(data = combined_edict_mn, 
+             key = item, 
+             value = value, 
+             V1.x:V66)%>%
+   select(-item)%>%
+  group_by(ED)
+combined_edict_mn<-na.omit(combined_edict_mn)
+
+## clean strings
+str_clean_streets<-function(x){
+x$street<-toupper(x$street)
+x$street<-gsub("^\\bST\\b","SAINT", x$street) ## new
+x$street<-gsub("\\<SRT\\>|\\<SR\\>\\<SRT\\>|\\<STR\\>|\\<SST\\>|\\<SEET\\>|\\<TREET\\>|\\<SREET\\>|\\<SRT\\>|\\<REET\\>|\\<ST\\>","STREET",x$street)
+x$street<-gsub("\\<N\\>","NORTH",x$street)
+x$street<-gsub("\\<S\\>","SOUTH",x$street)
+x$street<-gsub("\\<E\\>","EAST",x$street)
+x$street<-gsub("\\<W\\>","WEST",x$street)
+x$street<-gsub("\\<DR\\>|\\<DV\\>|\\<DE\\>|\\<DRV\\>|\\<DRI\\>|\\<DRIV\\>|\\<DRIE\\>","DRIVE",x$street)
+x$street<-gsub("\\<CIR\\>|\\<CRL\\>|\\<CIRC\\>|\\<CR\\>|\\<CL\\>|\\<CIRCL\\>|\\<CICLE\\>","CIRCLE",x$street)
+x$street<-gsub("\\<AVE\\>|\\<AV\\>|\\<AVN\\>|\\<AVEN\\>|\\<AVENU\\>","AVENUE",x$street)
+x$street<-gsub("\\<CT\\>|\\<CRT\\>|\\<CTR\\>|\\<COUR\\>|\\<COT\\>|\\<CORT\\>","COURT",x$street)
+x$street<-gsub("\\<BLVD\\>|\\<BVLD\\>|\\<BV\\>|\\<BLD\\>|\\<BD\\>|\\<BL\\>|\\<BLV\\>","BOULEVARD",x$street)
+x$street<-gsub("\\<ALY\\>|\\<AL\\>|\\<ALLY\\>|\\<ALEY\\>|\\<ALLE\\>|\\<AY\\>","ALLEY",x$street)
+x$street<-gsub("\\<PL\\>|\\<PLC\\>|\\<PLE\\>|\\<PC\\>|\\<PLAC\\>|\\<PLCE\\>|\\<PCE\\>","PLACE",x$street)
+x$street<-gsub("\\<PKWY\\>|\\<PARKW\\>|\\<PWY\\>|\\<PKW\\>|\\<PRKWY\\>|\\<PKWY\\>|\\<PKW\\>","PARKWAY",x$street)
+x$street<-gsub("\\<PK\\>","PARK",x$street) ##new
+x$street<-gsub("\\<APPR\\>|\\<APR\\>|\\<APPROA\\>|\\<APRCH\\>|\\<APPRCH\\>","APPROACH",x$street)
+x$street<-gsub("\\<TER\\>|\\<TERR\\>|\\<TRC\\>|\\<TRCE\\>|\\<TR\\>","TERRACE",x$street)
+x$street<-gsub("\\<PLZ\\>|\\<PLAZ\\>|\\<PZ\\>|\\<PLZA\\>","PLAZA",x$street)
+x$street<-gsub("\\<LN\\>|\\<LNE\\>|\\<LAN\\>","LANE",x$street)
+x$street<-gsub("\\<BRG\\>|\\<BRGD\\>|\\<BGE\\>","BRIDGE",x$street)
+x$street<-gsub("\\<HL\\>|\\<HLL\\>|\\<HIL\\>","HILL",x$street)
+x$street<-gsub("\\<1ST\\>","FIRST",x$street)
+x$street<-gsub("\\b1\\b","FIRST",x$street)
+x$street<-gsub("\\<2ND\\>","SECOND",x$street)
+x$street<-gsub("\\b2\\b","SECOND",x$street)
+x$street<-gsub("\\<3RD\\>","THIRD",x$street)
+x$street<-gsub("\\b3\\b","THIRD",x$street)
+x$street<-gsub("\\<4TH\\>","FOURTH",x$street)
+x$street<-gsub("\\b4\\b","FOURTH",x$street)
+x$street<-gsub("\\<5TH\\>","FIFTH",x$street)
+x$street<-gsub("\\b5\\b","FIFTH",x$street)
+x$street<-gsub("\\<6TH\\>","SIXTH",x$street)
+x$street<-gsub("\\b6\\b","SIXTH",x$street)
+x$street<-gsub("\\<7TH\\>","SEVENTH",x$street)
+x$street<-gsub("\\b7\\b","SEVENTH",x$street)
+x$street<-gsub("\\<8TH\\>","EIGHTH",x$street)
+x$street<-gsub("\\b8\\b","EIGHTH",x$street)
+x$street<-gsub("\\<9TH\\>","NINTH",x$street)
+x$street<-gsub("\\b9\\b","NINTH",x$street)
+x$street<-gsub("\\<10TH\\>","TENTH",x$street)
+x$street<-gsub("\\b10\\b","TENTH",x$street)
+x$street<-gsub("\\<11TH\\>","ELEVENTH",x$street)
+x$street<-gsub("\\b11\\b","ELEVENTH",x$street)
+x$street<-gsub("\\<12TH\\>","TWELFTH",x$street)
+x$street<-gsub("\\b12\\b","TWELFTH",x$street)
+x$street<-gsub("\\<13TH\\>","THIRTEENTH",x$street)
+x$street<-gsub("\\b13\\b","THIRTEENTH",x$street)
+x$street<-gsub("\\\\", "", x$street)
+x$street<-str_remove(x$street,"STREET")
+}
+
+colnames(combined_edict_mn)[2]="streets"
+
+```
+
+
+```{r}
+combined_edict_MN1<-combined_edict_mn%>%
+  dplyr::arrange(streets)%>%
+  melt(., id.vars=c("streets"), variable.name="ED")%>%
+  select(-c(ED))%>%
+  distinct(streets,value)%>%
+  dplyr::group_by(value)%>%
+  dplyr::mutate(rn = paste0("ED", 1:n()))%>%
+  tidyr::spread(rn, streets)
+
+colnames(combined_edict_MN1)[1]="ED"
+
+combined_edict_MN1 <- combined_edict_MN1[mixedorder(colnames(combined_edict_MN1))]
+##write.xlsx(combined_edict_MN1,"combined_EDDictionary_MN.xlsx")
+
+```
+
+### Checking which are missing after cleaning
+```{r}
+morse_mn_list<-gather(data = morse_mn1910, 
+             key = item, 
+             value = value, 
+             V1:V35)%>%
+   select(-item)
+
+morse_mn_list<-na.omit(morse_mn_list)
+colnames(morse_mn_list)[2]<-"street"
+morse_mn_list$street<-str_clean_streets(morse_mn_list)
+morse_mn_list$source<-"morse"
+morse_mn_list$street<-trimws(morse_mn_list$street,"both")
+
+## Dan pull
+geocoder_mn_list<-gather(data = mn_original, 
+             key = item, 
+             value = value, 
+             V1:V66)%>%
+   select(-X1)%>%
+  select(-item)
+geocoder_mn_list<-na.omit(geocoder_mn_list)
+colnames(geocoder_mn_list)[2]<-"street"
+geocoder_mn_list$street<-str_clean_streets(geocoder_mn_list)
+geocoder_mn_list$source<-"geocoder"
+geocoder_mn_list$street<-trimws(geocoder_mn_list$street,"both")
+
+
+#left join 
+missing_MN<-left_join(morse_mn_list,geocoder_mn_list, by=c("ED","street"))
+missing_geocoder_MN<-missing_MN%>%
+  filter(is.na(source.y)==TRUE)%>%
+  select(-c(source.x,source.y))
+
+missing_geocoder_MN<-missing_geocoder_MN%>%
+  dplyr::arrange(street)%>%
+  melt(., id.vars=c("street"), variable.name="ED")%>%
+  select(-c(ED))%>%
+  distinct(street,value)%>%
+  dplyr::group_by(value)%>%
+  dplyr::mutate(rn = paste0("V", 1:n()))%>%
+  tidyr::spread(rn, street)
+colnames(missing_geocoder_MN)[1]="ED"
+
+missing_geocoder_MN <- missing_geocoder_MN[mixedorder(colnames(missing_geocoder_MN))]
+#write.csv(missing_geocoder_MN,"missing_geocoder_MN.csv")
+
+missing_ED<-left_join(morse_mn_list,geocoder_mn_list,by="ED")
+missing_ED_MN<-missing_ED%>%
+  filter(is.na(street.y)==TRUE)
+#write.csv(missing_ED_MN,"missing_geocoder_MN_completeEDs.csv")
+```
+
+
+
+### For BK
+```{r}
+## joining frames
+morse_bk1910$ED<-as.numeric(as.character(morse_bk1910$ED))
+combined_edict_bk<-left_join(morse_bk1910,bk_original,by="ED")
+combined_edict_bk<-combined_edict_bk
+
+## gather
+combined_edict_bk<-gather(data = combined_edict_bk, 
+                          key = item, 
+                          value = value, 
+                          V1.x:V93)%>%
+  select(-item)%>%
+  group_by(ED)
+combined_edict_bk<-na.omit(combined_edict_bk)
+
+
+
+```
+
+
+```{r}
+combined_edict_bk1<-combined_edict_bk%>%
+  dplyr::arrange(streets)%>%
+  melt(., id.vars=c("streets"), variable.name="ED")%>%
+  select(-c(ED))%>%
+  distinct(streets,value)%>%
+  dplyr::group_by(value)%>%
+  dplyr::mutate(rn = paste0("ED", 1:n()))%>%
+  tidyr::spread(rn, streets)
+
+colnames(combined_edict_bk1)[1]="ED"
+
+combined_edict_bk1 <- combined_edict_bk1[mixedorder(colnames(combined_edict_bk1))]
+##write.xlsx(combined_edict_bk1,"combined_EDDictionary_BK.xlsx")
+
+```
+
+### Checking which are missing after cleaning
+```{r}
+morse_mn_list<-gather(data = morse_mn1910, 
+             key = item, 
+             value = value, 
+             V1:V35)%>%
+   select(-item)
+
+morse_mn_list<-na.omit(morse_mn_list)
+colnames(morse_mn_list)[2]<-"street"
+morse_mn_list$street<-str_clean_streets(morse_mn_list)
+morse_mn_list$source<-"morse"
+morse_mn_list$street<-trimws(morse_mn_list$street,"both")
+
+## Dan pull
+geocoder_mn_list<-gather(data = mn_original, 
+             key = item, 
+             value = value, 
+             V1:V66)%>%
+   select(-X1)%>%
+  select(-item)
+geocoder_mn_list<-na.omit(geocoder_mn_list)
+colnames(geocoder_mn_list)[2]<-"street"
+geocoder_mn_list$street<-str_clean_streets(geocoder_mn_list)
+geocoder_mn_list$source<-"geocoder"
+geocoder_mn_list$street<-trimws(geocoder_mn_list$street,"both")
+
+
+#left join 
+missing_MN<-left_join(morse_mn_list,geocoder_mn_list, by=c("ED","street"))
+missing_geocoder_MN<-missing_MN%>%
+  filter(is.na(source.y)==TRUE)%>%
+  select(-c(source.x,source.y))
+
+missing_geocoder_MN<-missing_geocoder_MN%>%
+  dplyr::arrange(street)%>%
+  melt(., id.vars=c("street"), variable.name="ED")%>%
+  select(-c(ED))%>%
+  distinct(street,value)%>%
+  dplyr::group_by(value)%>%
+  dplyr::mutate(rn = paste0("V", 1:n()))%>%
+  tidyr::spread(rn, street)
+colnames(missing_geocoder_MN)[1]="ED"
+
+missing_geocoder_MN <- missing_geocoder_MN[mixedorder(colnames(missing_geocoder_MN))]
+#write.csv(missing_geocoder_MN,"missing_geocoder_MN.csv")
+
+missing_ED<-left_join(morse_mn_list,geocoder_mn_list,by="ED")
+missing_ED_MN<-missing_ED%>%
+  filter(is.na(street.y)==TRUE)
+#write.csv(missing_ED_MN,"missing_geocoder_MN_completeEDs.csv")
+```
+
+## For Brooklyn
+```{r}
+## joining frames
+morse_bk1910$ED<-as.numeric(as.character(morse_bk1910$ED))
+combined_edict_bk<-left_join(morse_bk1910,bk_original,by="ED")
+
+## gather
+combined_edict_bk<-gather(data = combined_edict_bk, 
+                          key = item, 
+                          value = value, 
+                          V1.x:V93)%>%
+  select(-item)%>%
+  group_by(ED)
+combined_edict_bk<-na.omit(combined_edict_bk)
+
+
+colnames(combined_edict_bk)[2]="streets"
+
+```
+
+
+```{r}
+combined_edict_bk1<-combined_edict_bk%>%
+  dplyr::arrange(streets)%>%
+  melt(., id.vars=c("streets"), variable.name="ED")%>%
+  select(-c(ED))%>%
+  distinct(streets,value)%>%
+  dplyr::group_by(value)%>%
+  dplyr::mutate(rn = paste0("ED", 1:n()))%>%
+  tidyr::spread(rn, streets)
+
+colnames(combined_edict_bk1)[1]="ED"
+
+combined_edict_bk1 <- combined_edict_bk1[mixedorder(colnames(combined_edict_bk1))]
+##write.xlsx(combined_edict_bk1,"combined_EDDictionary_bk.xlsx")
+
+```
+
+
+### Checking which are missing after cleaning
+```{r}
+morse_bk_list<-gather(data = morse_bk1910, 
+                      key = item, 
+                      value = value, 
+                      V1:V72)%>%
+  select(-item)
+
+morse_bk_list<-na.omit(morse_bk_list)
+colnames(morse_bk_list)[2]<-"street"
+morse_bk_list$street<-str_clean_streets(morse_bk_list)
+morse_bk_list$source<-"morse"
+morse_bk_list$street<-trimws(morse_bk_list$street,"both")
+
+## Dan pull
+geocoder_bk_list<-gather(data = bk_original, 
+                         key = item, 
+                         value = value, 
+                         V1:V93)%>%
+  select(-item)
+geocoder_bk_list<-na.omit(geocoder_bk_list)
+colnames(geocoder_bk_list)[2]<-"street"
+geocoder_bk_list$street<-str_clean_streets(geocoder_bk_list)
+geocoder_bk_list$source<-"geocoder"
+geocoder_bk_list$street<-trimws(geocoder_bk_list$street,"both")
+
+#left join 
+missing_bk<-left_join(morse_bk_list,geocoder_bk_list, by=c("ED","street"))
+missing_geocoder_bk<-missing_bk%>%
+  filter(is.na(source.y)==TRUE)%>%
+  select(-c(source.x,source.y))
+
+missing_geocoder_bk<-missing_geocoder_bk%>%
+  dplyr::arrange(street)%>%
+  melt(., id.vars=c("street"), variable.name="ED")%>%
+  select(-c(ED))%>%
+  distinct(street,value)%>%
+  dplyr::group_by(value)%>%
+  dplyr::mutate(rn = paste0("V", 1:n()))%>%
+  tidyr::spread(rn, street)
+colnames(missing_geocoder_bk)[1]="ED"
+
+missing_geocoder_bk <- missing_geocoder_bk[mixedorder(colnames(missing_geocoder_bk))]
+#write.csv(missing_geocoder_bk,"missing_geocoder_bk.csv")
+
+missing_ED<-left_join(morse_bk_list,geocoder_bk_list,by="ED")
+missing_ED_bk<-missing_ED%>%
+  filter(is.na(street.y)==TRUE)
+#write.csv(missing_ED_bk,"missing_geocoder_bk_completeEDs.csv")
+```
+

@@ -1,0 +1,109 @@
+---
+title: "HYNC Cleaning (Brooklyn)"
+author: "Kyi Yeung Goh"
+date: "10/07/2019"
+output: html_document
+---
+
+## ED BK Dictionary for matching
+```{r}
+library(zoo)
+library(magrittr)
+library(dplyr)
+library(tidyverse)
+library(stringr)
+library(fuzzyjoin)
+library(tm)
+library(english)
+library(reshape2)
+library(gtools)
+library(openxlsx)
+
+brooklyn_dan<-read_csv("bk_segments_export.csv")
+
+### Create ED Dictionary
+EDict_BK<-brooklyn_dan%>%
+  select("streets"=BK_STREET1910_FULL_STREE,"ED1"=BK_STREET1910_MINUS_ED_ED,"ED2"=BK_STREET1910_PLUS_ED_ED)
+
+EDict1_BK<-brooklyn_dan%>%
+  select("streets"=BK_STREET1910_Y1910NAMESTREET,"ED1"=BK_STREET1910_MINUS_ED_ED,"ED2"=BK_STREET1910_PLUS_ED_ED)
+
+EDict2_BK<-brooklyn_dan%>%
+  select("streets"=BK_STREET1910_Y1910NAMEALT,"ED1"=BK_STREET1910_MINUS_ED_ED,"ED2"=BK_STREET1910_PLUS_ED_ED)
+
+EDict_BK_ALL<-rbind(EDict_BK,EDict1_BK,EDict2_BK)
+
+EDict_BK_ALL$cleaned<-EDict_BK_ALL$streets
+EDict_BK_ALL$cleaned<-gsub("\\<ST\\>","STREET",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<N\\>","NORTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<S\\>","SOUTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<E\\>","EAST",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<W\\>","WEST",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<DR\\>","DRIVE",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<CIR\\>","CIRCLE",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<AVE\\>","AVENUE",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<CT\\>","COURT",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<BLVD\\>","BOULEVARD",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<ALY\\>","ALLEY",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<PL\\>","PLACE",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<PKWY\\>","PARKWAY",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<APPR\\>","APPROACH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<TER\\>","TERRACE",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<PLZ\\>","PLAZA",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<LN\\>","LANE",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<BRG\\>","BRIDGE",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<HL\\>","HILL",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<1ST\\>","FIRST",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b1\\b","FIRST",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<2ND\\>","SECOND",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b2\\b","SECOND",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<3RD\\>","THIRD",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b3\\b","THIRD",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<4TH\\>","FOURTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b4\\b","FOURTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<5TH\\>","FIFTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b5\\b","FIFTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<6TH\\>","SIEDict_BK_ALLTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b6\\b","SIEDict_BK_ALLTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<7TH\\>","SEVENTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b7\\b","SEVENTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<8TH\\>","EIGHTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b8\\b","EIGHTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<9TH\\>","NINTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b9\\b","NINTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<10TH\\>","TENTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b10\\b","TENTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<11TH\\>","ELEVENTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b11\\b","ELEVENTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<12TH\\>","TWELFTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b12\\b","TWELFTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\<13TH\\>","THIRTEENTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-gsub("\\b13\\b","THIRTEENTH",EDict_BK_ALL$cleaned)
+EDict_BK_ALL$cleaned<-str_remove(EDict_BK_ALL$cleaned,"STREET")
+
+EDict_BK_ALL$ED1<-as.numeric(as.character(EDict_BK_ALL$ED1))
+EDict_BK_ALL$ED2<-as.numeric(as.character(EDict_BK_ALL$ED2))
+
+```
+
+## ED-STREET DIRECTORY
+```{r}
+EDict_BK_NOTNULL<-EDict_BK_ALL%>%
+  filter(streets!="NULL")%>%
+  select(-c(cleaned))%>%
+  dplyr::arrange(streets)%>%
+  melt(., id.vars=c("streets"), variable.name="ED")%>%
+  select(-c(ED))%>%
+  distinct(streets,value)%>%
+  dplyr::group_by(value)%>%
+  dplyr::mutate(rn = paste0("V", 1:n()))%>%
+  tidyr::spread(rn, streets)
+
+colnames(EDict_BK_NOTNULL)[1]="ED"
+
+EDict_BK_NOTNULL <- EDict_BK_NOTNULL[mixedorder(colnames(EDict_BK_NOTNULL))]
+
+##write.xlsx(EDict_BK_NOTNULL,"BK_EDDictionary.xlsx")
+
+
+```

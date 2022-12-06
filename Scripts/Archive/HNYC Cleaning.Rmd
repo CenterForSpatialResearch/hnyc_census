@@ -1,0 +1,43 @@
+---
+title: "HNYC Cleaning"
+author: "Kyi Yeung Goh"
+date: "06/06/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(zoo)
+library(dplyr)
+library(tidyverse)
+library(readxl)
+library(DT)
+library(stringr)
+df<-read_csv("us1910m_usa_sample10k.csv")
+```
+
+```{r}
+### Address problems
+df$`Street address 2`<-na.locf(df$`Street address 2`)
+
+### Inconsistent streetnames
+distinct_streets<-as.list(unique(df$`Street address 2`))
+```
+
+
+```{r}
+for (i in 1:ncol(df)){
+if (is.na(df[1,i]) == FALSE ){
+  df[,i]=na.locf(df[,i])}
+  else {
+  df[,i]=df[,i]
+    }
+}
+```
+
+```{r}
+not_all_na <- function(x) any(!is.na(x))
+hhprofiles<-df%>%
+  filter(is.na(df$`Line number 2`)==TRUE)%>% 
+  select_if(not_all_na)
+```
+

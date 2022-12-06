@@ -1,0 +1,114 @@
+---
+title: "Manual Cleaning"
+author: "Gerald"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+
+## Setting-up
+Code chunks will be hidden in html output. Look at the rmarkdown file for setting-up.
+
+```{r setup files, include = FALSE}
+# Load Files
+mn_output <- readRDS("mn_output.rds")
+bk_output <- readRDS("bk_output.rds")
+```
+
+```{r setup libraries, include = FALSE}
+# Load Necessary Libraries
+#install.packages("pacman")
+library(pacman)
+p_load(dplyr,
+       DT,
+       ggplot2,
+       hunspell,
+       plotly,
+       psych)
+```
+
+```{r load GIS libraries, include = FALSE}
+# Load libraries for spatial data
+p_load(ggmap,
+       rgdal,
+       rgeos,
+       maptools,
+       tmap)
+```
+
+```{r prepare shapefiles, include = FALSE}
+# Load Shapefiles
+mn_map <- readOGR(dsn = "mn_shapefiles", layer = "Manhattan_1910")
+bk_map <- readOGR(dsn = "bk_shapefiles", layer = "Brooklyn_1910")
+```
+
+```{r, include = FALSE}
+# Dan's function - Change ED's factor format to numeric
+as.numeric.factor <- function(x) {as.numeric(levels(x))[x]}
+```
+
+***
+
+## 5 / 6 Outputs from Manhattan and Brooklyn
+
+### Manhattan
+
+```{r}
+# Number of 5 / 6 results in Manhattan
+mn_output %>% 
+  filter(result_type == c(5, 6)) %>%
+  count()
+```
+
+```{r}
+# Distinct 5 / 6 results based on street_add in Manhattan
+a <- mn_output %>% 
+  filter(result_type == c(5, 6)) %>%
+  select(county, ED, dwelling_ser, hh_seq, microfilm, street_add, best_match, result_type) %>%
+  distinct(street_add, .keep_all = TRUE)
+datatable(a)
+```
+
+### Brooklyn
+
+```{r}
+# Number of 5 / 6 results in Brooklyn
+bk_output %>% 
+  filter(result_type == c(5, 6)) %>%
+  count()
+```
+
+```{r}
+# Distinct 5 / 6 results based on street_add in Brooklyn
+b <- bk_output %>% 
+  filter(result_type == c(5, 6)) %>%
+  select(county, ED, dwelling_ser, hh_seq, microfilm, street_add, best_match, result_type) %>%
+  distinct(street_add, .keep_all = TRUE)
+datatable(b)
+```
+
+***
+
+## NA Street Address
+
+EDs with completely missing street addresses
+
+### Manhattan
+```{r}
+mn_output %>% 
+  filter(is.na(result_type) == TRUE) %>%
+  select(county, ED, dwelling_ser, hh_seq, microfilm, street_add, best_match, result_type) %>%
+  distinct(ED, .keep_all = TRUE) 
+```
+
+### Brooklyn
+```{r}
+bk_output %>% 
+  filter(is.na(result_type) == TRUE) %>%
+  select(county, ED, dwelling_ser, hh_seq, microfilm, street_add, best_match, result_type) %>%
+  distinct(ED, .keep_all = TRUE)
+```
