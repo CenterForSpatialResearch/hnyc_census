@@ -5,7 +5,27 @@ import regex as re
 import warnings
 warnings.filterwarnings('ignore')
 
-def street_type(x):
+def street_type(x: str) -> str:
+    """
+    Introduction:
+    -------------
+    This function can help users to clean the street types in the street addresses. Specifically, turn different formats of street types to abbreviations.
+    
+    Inputs:
+    -------------
+    'x': str. The street addresses in your dataset.
+
+    Outputs:
+    -------------
+    'x': str. Street addresses with abbreviated street types.
+
+    Example:
+    -------------
+    >>> e = street_type('E 14TH STREET')
+    >>> e
+    'E 14TH ST'
+    """
+    
     pattern = re.compile(r'^(\W+\s)')
     x = re.sub(pattern, "", x)
     pattern = re.compile(r'\sSTREET|\sSTREE$|\sSTR|\sSTE$|\sSRT$|\sSR$|\sSST$|\sSEET$|\sTREET$|\sSHEER$|\sSHEE$|\sSTREE$|\sSREET$|\sREET$|\sSTEE$|\sST$|\sS$')

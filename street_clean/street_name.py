@@ -5,7 +5,26 @@ import regex as re
 import warnings
 warnings.filterwarnings('ignore')
 
-def street_name(x):
+def street_name(x: str) -> str:
+    """
+    Introduction:
+    -------------
+    This function can help users to correct the street names in the street addresses. Some street names are different from past in the geospitial dataset. Therefore, we need to correct the street names to make them conform to the present street names.
+    
+    Inputs:
+    -------------
+    'x': str. The street addresses in your dataset.
+
+    Outputs:
+    -------------
+    'x': str. Street addresses with correct street names.
+
+    Example:
+    -------------
+    >>> e = street_name('BATTIE AVE')
+    >>> e
+    'BALTIC AVE'
+    """
     
     pattern = re.compile(r'(?<=\s)ALLANTIC\s|(?<=\s)ATLASTA\s')
     x = re.sub(pattern, "ATLANTIC", x)

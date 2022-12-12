@@ -4,8 +4,27 @@ import regex as re
 import warnings
 warnings.filterwarnings('ignore')
 
-def special_character(x):
+def special_character(x: str) -> str:
     
+    """
+    Introduction:
+    -------------
+    This function can help users to deal with some special cases in the street addresses. For example, correct the order of the street direction and street number.
+    
+    Inputs:
+    -------------
+    'x': str. The street addresses in your dataset.
+
+    Outputs:
+    -------------
+    'x': str. Clean street addresses.
+
+    Example:
+    -------------
+    >>> e = special_character('18 W ST')
+    >>> e
+    'W 18 ST'
+    """
     
     pattern = re.compile(r'((\w+|\d+)\s\s(\w+|\d+))|((\w+|\d+)\s\s\s(\w+|\d+))')
     x = re.sub(pattern, r"\1 \2", x)

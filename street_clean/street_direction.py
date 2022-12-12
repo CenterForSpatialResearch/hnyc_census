@@ -5,7 +5,26 @@ import regex as re
 import warnings
 warnings.filterwarnings('ignore')
 
-def street_direction(x):
+def street_direction(x: str) -> str:
+    """
+    Introduction:
+    -------------
+    This function can help users to clean the street directions in the street addresses. Specifically, turn different formats of directions to abbreviations.
+    
+    Inputs:
+    -------------
+    'x': str. The street addresses in your dataset.
+
+    Outputs:
+    -------------
+    'x': str. Street addresses with abbreviated types.
+
+    Example:
+    -------------
+    >>> e = street_direction('EAST 14TH STREET')
+    >>> e
+    'E 14TH STREET'
+    """ 
     
     # The orientations in the addresses
     pattern = re.compile(r'\sN\s|\sNORTH\s')

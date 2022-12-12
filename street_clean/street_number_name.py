@@ -5,7 +5,26 @@ import regex as re
 import warnings
 warnings.filterwarnings('ignore')
 
-def street_number_name(x):
+def street_number_name(x: str) -> str:
+    """
+    Introduction:
+    -------------
+    This function can help users to clean the street numbers in the street addresses. Specifically, turn the some desciption numbers to real numbers and extract the street numbers.
+    
+    Inputs:
+    -------------
+    'x': str. The street addresses in your dataset.
+
+    Outputs:
+    -------------
+    'x': str. Street addresses with clean street numbers.
+
+    Example:
+    -------------
+    >>> e = street_number_name('E FOURTEENTH STREET')
+    >>> e
+    'E 14 ST'
+    """
     
     pattern = re.compile(r"(\d+)(\s)(ND|RD|TH)")
     x = re.sub(pattern, r"\1\3", x)
