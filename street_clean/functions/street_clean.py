@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 import regex as re
-from special_cases import special_character
+from special_cases import special_case
 from street_direction import street_direction
 from street_name import street_name
 from street_number_name import street_number_name
@@ -53,7 +53,7 @@ def clean(df: pd.DataFrame, column1: str, column2: str) -> pd.DataFrame:
 
         df['street_number_name_clean'] = df['street_without_hn'].apply(lambda x: street_number_name(x))
         df['street_name_clean'] = df['street_number_name_clean'].apply(lambda x: street_name(x))
-        df['final_clean_address'] = df['street_name_clean'].apply(lambda x: special_character(x))
+        df['final_clean_address'] = df['street_name_clean'].apply(lambda x: special_case(x))
 
         df['final_clean_address'] = np.where(df['final_clean_address'] == 'ST', df['street_type_clean'], df['final_clean_address'])
 
@@ -82,7 +82,7 @@ def clean(df: pd.DataFrame, column1: str, column2: str) -> pd.DataFrame:
 
         df['street_number_name_clean'] = df['street_without_hn'].apply(lambda x: street_number_name(x))
         df['street_name_clean'] = df['street_number_name_clean'].apply(lambda x: street_name(x))
-        df['final_clean_address'] = df['street_name_clean'].apply(lambda x: special_character(x))
+        df['final_clean_address'] = df['street_name_clean'].apply(lambda x: special_case(x))
 
         df['final_clean_address'] = np.where(df['final_clean_address'] == 'ST', df['street_type_clean'], df['final_clean_address'])
 
@@ -107,61 +107,5 @@ def clean(df: pd.DataFrame, column1: str, column2: str) -> pd.DataFrame:
         df.drop('street_name1', axis=1, inplace = True)
 
         return df[['raw_street_address', 'house_number', 'street_direction', 'street_name', 'street_type', 'final_clean_address']]
-
-
-
-# In[3]:
-
-
-census_1910_h_mn_10k = pd.read_csv('census_1910_h_mn_10k.csv')
-census_1910_h_mn_10k.columns
-
-
-# In[4]:
-
-
-census_1880_h_mn_10k = pd.read_csv('census_1880_h_mn_10k.csv')
-census_1880_h_mn_10k.columns
-
-
-# In[5]:
-
-
-new_df_mn_1910 = clean(census_1910_h_mn_10k, 'House number', 'Street address 2')
-
-
-# In[6]:
-
-
-new_df_mn_1910
-
-
-# In[7]:
-
-
-new_df_mn_1880 = clean(census_1880_h_mn_10k, 'house_number', 'street')
-
-
-# In[8]:
-
-
-new_df_mn_1880
-
-
-# In[ ]:
-
-
-# new_df_mn_1910.to_csv('new_df_mn_1910_10k.csv', index = False)
-
-
-# In[ ]:
-
-
-# new_df_mn_1880.to_csv('new_df_mn_1880_10k.csv', index = False)
-
-
-# In[ ]:
-
-
 
 

@@ -4,7 +4,7 @@ import regex as re
 import warnings
 warnings.filterwarnings('ignore')
 
-def special_character(x: str) -> str:
+def special_case(x: str) -> str:
     
     """
     Introduction:

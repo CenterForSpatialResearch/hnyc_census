@@ -23,7 +23,7 @@ def street_number_name(x: str) -> str:
     -------------
     >>> e = street_number_name('E FOURTEENTH STREET')
     >>> e
-    'E 14 ST'
+    'E 14 STREET'
     """
     
     pattern = re.compile(r"(\d+)(\s)(ND|RD|TH)")
